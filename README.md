@@ -18,4 +18,4 @@ Then do ``` pip install -r requirements.txt ```
 ### Running the application ###
 Go to MentorView-ui and do ``` npm start ``` 
 
-Go to src/backend and do python api.py 
+Go to src/backend and do ``` python api.py ```
