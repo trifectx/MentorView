@@ -1,0 +1,21 @@
+# MentorView
+
+## Requirements
+
+Make sure you have the following installed on your system:
+- **Python**: Version 3.8 or higher (check with `python --version`).
+- **npm**
+
+---
+
+## Setup
+
+### Creating a Virtual Environment
+
+To avoid dependency conflicts, it’s recommended to use a virtual environment:
+Then do ``` pip install -r requirements.txt ``` 
+
+### Running the application ###
+Go to MentorView-ui and do ``` npm start ``` 
+
+Go to src/backend and do python api.py 
