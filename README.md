@@ -13,11 +13,16 @@ Make sure you have the following installed on your system:
 ### Creating a Virtual Environment
 
 To avoid dependency conflicts, it’s recommended to use a virtual environment:
-Then do ``` pip install -r requirements.txt ```
+Then do 
+``` pip install -r requirements.txt ```
 
-Then go to MentorView-ui and do ``` npm install ``` 
+Then go to MentorView-ui and do 
+``` npm install ``` 
 
-### Running the application ###
-Go to MentorView-ui and do ``` npm start ``` 
+---
 
-Go to src/backend and do ``` python api.py ```
+## Running the application
+
+Go to MentorView-ui and do 
+``` npm start ``` 
+``` python .\src\backend\api.py ```
