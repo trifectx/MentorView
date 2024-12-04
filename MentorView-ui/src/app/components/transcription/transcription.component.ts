@@ -10,7 +10,7 @@ import { PLATFORM_ID } from '@angular/core';
     standalone: true,
     imports: [CommonModule],
     templateUrl: './transcription.component.html',
-    styleUrl: './transcription.component.css'
+    styleUrl: './transcription.component.css',
 })
 export class TranscriptionComponent {
     @ViewChild('recordedVideo') recordVideoElementRef!: ElementRef; // recordedVideo is assigned to DOM Element recordVideoElementRef. Of type ElementRef and is a child of this component
@@ -52,7 +52,8 @@ export class TranscriptionComponent {
 
                 // DOM elements are assigned to their respective properties
                 this.videoElement = this.videoElementRef.nativeElement;
-                this.recordVideoElement = this.recordVideoElementRef.nativeElement;
+                this.recordVideoElement =
+                    this.recordVideoElementRef.nativeElement;
 
                 this.videoElement.srcObject = response;
                 if (isPlatformBrowser(this.platformId)) {
@@ -62,11 +63,24 @@ export class TranscriptionComponent {
             .catch((err) => console.log('Error has occurred', err));
     }
 
+    // Stop the camera
+    stopCam() {
+        if (this.stream) {
+            let tracks = this.stream.getTracks();
+            tracks.forEach((track: MediaStreamTrack) => track.stop());
+            this.stream = null; // Reset the stream
+        }
+        this.showCam = false;
+    }
+
     // Start recording
     start() {
         this.recordedBlobs = [];
         let mediaRecorderOption: any = { mimeType: 'video/mp4' };
-        this.mediaRecorder = new MediaRecorder(this.stream, mediaRecorderOption);
+        this.mediaRecorder = new MediaRecorder(
+            this.stream,
+            mediaRecorderOption
+        );
         this.mediaRecorder.start();
         this.isRecording = !this.isRecording;
         console.log(this.mediaRecorder.state);
@@ -85,7 +99,9 @@ export class TranscriptionComponent {
         try {
             // onstop event from mediaRecorder object
             this.mediaRecorder.onstop = (event: any) => {
-                const videoBuffer = new Blob(this.recordedBlobs, { type: 'video/mp4' });
+                const videoBuffer = new Blob(this.recordedBlobs, {
+                    type: 'video/mp4',
+                });
                 this.videoBlob = videoBuffer;
                 this.sendToServer();
                 this.videoUrl = window.URL.createObjectURL(videoBuffer);
@@ -109,8 +125,10 @@ export class TranscriptionComponent {
         const formData = new FormData();
         formData.append('file', this.videoBlob);
         // Post to upload endpoint
-        this.apiClient.post(`${this.apiUrl}/upload`, formData).subscribe((response) => {
-            console.log(response);
-        });
+        this.apiClient
+            .post(`${this.apiUrl}/upload`, formData)
+            .subscribe((response) => {
+                console.log(response);
+            });
     }
 }

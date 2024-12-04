@@ -1,6 +1,11 @@
 <button (click)="getCam()" [ngClass]="!showCam ? 'show' : 'hide'">
     Turn The Video On
 </button>
+
+<button (click)="stopCam()" [ngClass]="showCam ? 'show' : 'hide'">
+    Turn The Video Off
+</button>
+
 <span class="m-1"></span>
 
 <div [ngClass]="showCam ? 'show' : 'hide'" style="padding: 15px">
