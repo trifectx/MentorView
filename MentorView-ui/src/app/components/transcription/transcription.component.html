@@ -1,16 +1,18 @@
-<button (click)="getCam()" [ngClass]="!showCam ? 'show' :'hide'" >Turn The Video On</button>
+<button (click)="getCam()" [ngClass]="!showCam ? 'show' : 'hide'">
+    Turn The Video On
+</button>
 <span class="m-1"></span>
 
-<div [ngClass]="showCam ? 'show' :'hide'" style="padding: 15px;">
-    <video #video id="videoStream" autoplay  controls></video>
-<br>
-<button (click)="start()" >Start Recording</button>
-<button (click)="stop()" >Stop Recording</button>
+<div [ngClass]="showCam ? 'show' : 'hide'" style="padding: 15px">
+    <video #video id="videoStream" autoplay controls></video>
+    <br />
+    <button (click)="start()">Start Recording</button>
+    <button (click)="stop()">Stop Recording</button>
 </div>
-<br>
+<br />
 
-<br>
-<div [ngClass]="showVideos ? 'show' :'hide'" style="padding: 15px;">
+<br />
+<div [ngClass]="showVideos ? 'show' : 'hide'" style="padding: 15px">
     <p>Recorded Videos</p>
     <video #recordedVideo id="videoStream" autoplay controls></video>
 </div>

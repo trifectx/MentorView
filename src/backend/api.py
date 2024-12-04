@@ -4,6 +4,7 @@ from transformers import pipeline
 from model.model import Model
 import torch
 import os
+from moviepy import VideoFileClip
 
 # Check if CUDA is available
 print("!!t!!")
@@ -19,6 +20,8 @@ def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
 
+
+
 # accepts video blob from js frontend
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -28,10 +31,30 @@ def upload():
 
     file = request.files['file']  # Get the file from the request
     cwd = os.getcwd()  # Get the current working directory
-    #log cwd
-    print(cwd)
-    file.save(os.path.join(cwd, "video.mp4"))  # Save the file to the current working directory
-    return jsonify({"message": "File uploaded successfully"}), 200
+    print(f"Current working directory: {cwd}")
+
+    # Save the video file (MP4)
+    video_path = os.path.join(cwd, "video.mp4")
+    file.save(video_path)
+
+    # Convert MP4 to MP3 using moviepy
+    try:
+        # Load video file using MoviePy
+        video = VideoFileClip(video_path)
+        audio = video.audio
+
+        # Save audio as MP3
+        audio_path = os.path.join(cwd, "audio.mp3")
+        audio.write_audiofile(audio_path)
+
+        audio.close()
+        video.close()
+
+        return jsonify({"message": "File uploaded successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Error processing file: {str(e)}"}), 500
+
+
 
 @app.route('/query', methods=['GET'])
 def query():
@@ -54,6 +77,8 @@ def query():
         pass
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
 
 # Run the app
 if __name__ == '__main__':
