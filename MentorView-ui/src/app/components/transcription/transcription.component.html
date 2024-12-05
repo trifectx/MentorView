@@ -11,13 +11,13 @@
 <div [ngClass]="showCam ? 'show' : 'hide'" style="padding: 15px">
     <video #video id="videoStream" autoplay controls></video>
     <br />
-    <button (click)="start()">Start Recording</button>
-    <button (click)="stop()">Stop Recording</button>
+    <button (click)="start()" [disabled]="isRecording">Start Recording</button>
+    <button (click)="stop()" [disabled]="!isRecording">Stop Recording</button>
 </div>
 <br />
 
 <br />
 <div [ngClass]="showVideos ? 'show' : 'hide'" style="padding: 15px">
-    <p>Recorded Videos</p>
+    <h2>Recorded Videos</h2>
     <video #recordedVideo id="videoStream" autoplay controls></video>
 </div>

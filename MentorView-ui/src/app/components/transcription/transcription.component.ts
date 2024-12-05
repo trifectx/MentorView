@@ -1,9 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, ViewChild, Inject } from '@angular/core';
+import { Component, ElementRef, ViewChild, Inject, PLATFORM_ID } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { HttpClientModule } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { PLATFORM_ID } from '@angular/core';
 
 @Component({
     selector: 'app-transcription',
