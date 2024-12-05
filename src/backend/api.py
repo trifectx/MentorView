@@ -5,10 +5,11 @@ from model.model import Model
 import torch
 import os
 from moviepy import VideoFileClip
+import whisper
 
 # Check if CUDA is available
 print("!!t!!")
-print(torch.cuda.is_available())  #
+print(torch.cuda.is_available())
 
 
 # temp model
@@ -49,10 +50,22 @@ def upload():
 
         audio.close()
         video.close()
-
-        return jsonify({"message": "File uploaded successfully"}), 200
     except Exception as e:
         return jsonify({"error": f"Error processing file: {str(e)}"}), 500
+    
+    # Transcribe the audio using OpenAI Whisper
+    try:
+        # Load the whisper model
+        model = whisper.load_model("base") # use the base level model
+
+        # Transcribe the audio
+        result = model.transcribe(audio_path)
+        transcript = result['text'] # Extract the transcription
+        print(transcript)
+
+        return jsonify({"message": "File uploaded successfully", "transcript": transcript}), 200
+    except Exception as e:
+        return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
 
 
 
