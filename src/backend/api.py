@@ -15,6 +15,10 @@ print(torch.cuda.is_available())
 # temp model
 
 app = Flask(__name__)
+video_path = os.path.join(os.getcwd(), "video.mp4")
+audio_path = os.path.join(os.getcwd(), "audio.mp3")
+
+
 
 @app.after_request
 def add_cors_headers(response):
@@ -31,11 +35,6 @@ def upload():
         return jsonify({"error": "No file provided"}), 400
 
     file = request.files['file']  # Get the file from the request
-    cwd = os.getcwd()  # Get the current working directory
-    print(f"Current working directory: {cwd}")
-
-    # Save the video file (MP4)
-    video_path = os.path.join(cwd, "video.mp4")
     file.save(video_path)
 
     # Convert MP4 to MP3 using moviepy
@@ -45,25 +44,33 @@ def upload():
         audio = video.audio
 
         # Save audio as MP3
-        audio_path = os.path.join(cwd, "audio.mp3")
         audio.write_audiofile(audio_path)
 
         audio.close()
         video.close()
+
+        return jsonify({"message": "File uploaded successfully"}), 200
     except Exception as e:
         return jsonify({"error": f"Error processing file: {str(e)}"}), 500
-    
+
+
+
+@app.route('/transcribe', methods=['GET'])
+def transcribe():
     # Transcribe the audio using OpenAI Whisper
     try:
+        # Check if the audio file exists before transcribing
+        if not os.path.exists(audio_path):
+            return jsonify({"error": f"Audio file does not exist at path: {audio_path}"}), 400
+        
         # Load the whisper model
         model = whisper.load_model("base") # use the base level model
 
         # Transcribe the audio
         result = model.transcribe(audio_path)
         transcript = result['text'] # Extract the transcription
-        print(transcript)
 
-        return jsonify({"message": "File uploaded successfully", "transcript": transcript}), 200
+        return jsonify({ "transcript": transcript}), 200
     except Exception as e:
         return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
 
@@ -95,6 +102,4 @@ def query():
 
 # Run the app
 if __name__ == '__main__':
-    # model = Model()
-    # print cwd
     app.run(debug=True)

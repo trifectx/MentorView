@@ -20,4 +20,13 @@
 <div [ngClass]="showVideos ? 'show' : 'hide'" style="padding: 15px">
     <h2>Recorded Videos</h2>
     <video #recordedVideo id="videoStream" autoplay controls></video>
+    <br />
+
+    <button (click)="getTranscript()">Get Transcript</button>
+    <button (click)="rateTranscript()">Get rating</button>
+
+    <div *ngIf="transcript">
+        <h3>Transcript:</h3>
+        <pre>{{ transcript }}</pre>
+    </div>
 </div>

@@ -3,6 +3,7 @@ import { Component, ElementRef, ViewChild, Inject, PLATFORM_ID } from '@angular/
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 
+
 @Component({
     selector: 'app-transcription',
     standalone: true,
@@ -25,7 +26,8 @@ export class TranscriptionComponent {
     showCam = false;
     showVideos = false;
     videoBlob!: Blob;
-    apiUrl = 'http://localhost:5000';
+    apiUrl = "http://localhost:5000";
+    transcript = '';
 
     // Injecting HttpClient for API calls and PLATFORM_ID for platform checks
     constructor(
@@ -81,6 +83,7 @@ export class TranscriptionComponent {
         );
         this.mediaRecorder.start();
         this.isRecording = !this.isRecording;
+        this.showVideos = false;
         console.log(this.mediaRecorder.state);
 
         try {
@@ -116,7 +119,7 @@ export class TranscriptionComponent {
     stop() {
         this.mediaRecorder.stop();
         this.isRecording = !this.isRecording;
-        this.showVideos = !this.showVideos;
+        this.showVideos = true;
     }
 
     sendToServer() {
@@ -128,5 +131,22 @@ export class TranscriptionComponent {
             .subscribe((response) => {
                 console.log(response);
             });
+    }
+
+    getTranscript() {
+        this.apiClient.get(`${this.apiUrl}/transcribe`).subscribe({
+            next: (response: any) => {
+                this.transcript = response.transcript;
+            },
+            error: (error: any) => {
+                // Show the error message
+                this.transcript = error.error?.error || error.message;
+            }
+        });
+    }
+
+
+    rateTranscript() {
+
     }
 }
