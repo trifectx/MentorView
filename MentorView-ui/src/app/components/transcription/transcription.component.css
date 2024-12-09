@@ -1,6 +1,43 @@
-.show {
-    display: block;
+/* Basic spacing and centering */
+.video-container {
+    padding: 20px;
+    text-align: center;
 }
+
+/* Improved video player sizing */
+.video-player {
+    width: 100%;
+    max-width: 600px;
+    margin: 10px 0;
+}
+
+/* Spacing between buttons */
+.btn {
+    margin: 5px;
+}
+
+/* Adding a little padding to the transcript section */
+.transcript-text {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    max-width: 600px;
+    margin: 10px auto;
+    white-space: pre-wrap;
+}
+
+/* Buttons adjustments for different states */
+.btn:disabled {
+    opacity: 0.5;
+}
+
+/* Hide elements */
 .hide {
     display: none;
+}
+
+/* Show elements */
+.show {
+    display: block;
 }

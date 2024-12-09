@@ -1,33 +1,67 @@
-<button (click)="getCam()" [ngClass]="!showCam ? 'show' : 'hide'">
-    Turn The Video On
-</button>
+<!-- Turn video on/off -->
+<div class="d-flex justify-content-center">
+    <button
+        class="btn btn-primary"
+        (click)="getCam()"
+        [ngClass]="!showCam ? 'show' : 'hide'"
+    >
+        Turn The Video On
+    </button>
 
-<button (click)="stopCam()" [ngClass]="showCam ? 'show' : 'hide'">
-    Turn The Video Off
-</button>
-
-<span class="m-1"></span>
-
-<div [ngClass]="showCam ? 'show' : 'hide'" style="padding: 15px">
-    <video #video id="videoStream" autoplay controls></video>
-    <br />
-    <button (click)="start()" [disabled]="isRecording">Start Recording</button>
-    <button (click)="stop()" [disabled]="!isRecording">Stop Recording</button>
+    <button
+        class="btn btn-danger"
+        (click)="stopCam()"
+        [ngClass]="showCam ? 'show' : 'hide'"
+    >
+        Turn The Video Off
+    </button>
 </div>
-<br />
 
-<br />
-<div [ngClass]="showVideos ? 'show' : 'hide'" style="padding: 15px">
+<span class="m-2"></span>
+
+<!-- Video Recording Section -->
+<div [ngClass]="showCam ? 'show' : 'hide'" class="video-container">
+    <video
+        #video
+        id="videoStream"
+        autoplay
+        controls
+        class="video-player"
+    ></video>
+    <br />
+    <button class="btn btn-success" (click)="start()" [disabled]="isRecording">
+        Start Recording
+    </button>
+    <button class="btn btn-warning" (click)="stop()" [disabled]="!isRecording">
+        Stop Recording
+    </button>
+</div>
+
+<span class="m-2"></span>
+
+<!-- Recorded Videos Section -->
+<div [ngClass]="showVideos ? 'show' : 'hide'" class="video-container">
     <h2>Recorded Videos</h2>
-    <video #recordedVideo id="videoStream" autoplay controls></video>
+    <video
+        #recordedVideo
+        id="videoStream"
+        autoplay
+        controls
+        class="video-player"
+    ></video>
     <br />
 
-    <button (click)="getTranscript()">Get Transcript</button>
-    <button (click)="rateTranscript()">Get rating</button>
+    <button class="btn btn-info" (click)="getTranscript()">
+        Get Transcript
+    </button>
+    <button class="btn btn-secondary" (click)="rateTranscript()">
+        Get Rating
+    </button>
 
+    <!-- Transcript Display Section -->
     <div *ngIf="loadingTranscript || transcript">
         <h3>Transcript:</h3>
-        <pre>{{
+        <pre class="transcript-text">{{
             loadingTranscript
                 ? "Loading transcript..."
                 : transcript || "No transcript available"
