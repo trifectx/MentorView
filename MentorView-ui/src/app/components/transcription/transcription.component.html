@@ -25,8 +25,12 @@
     <button (click)="getTranscript()">Get Transcript</button>
     <button (click)="rateTranscript()">Get rating</button>
 
-    <div *ngIf="transcript">
+    <div *ngIf="loadingTranscript || transcript">
         <h3>Transcript:</h3>
-        <pre>{{ transcript }}</pre>
+        <pre>{{
+            loadingTranscript
+                ? "Loading transcript..."
+                : transcript || "No transcript available"
+        }}</pre>
     </div>
 </div>

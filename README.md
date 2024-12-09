@@ -15,8 +15,12 @@ Make sure you have the following installed on your system:
 
 - To avoid dependency conflicts, it’s recommended to use a virtual environment:
 - To create a virtual environment, do `python -m venv venv` and to activate it to `venv/Scripts/activate`
-- Then do `pip install -r requirements.txt`
+
+### Running neccessary commands
+
+- In the virtual environment, do `pip install -r requirements.txt`
 - Then go to MentorView-ui and do `npm install`
+- For transcription to work, open cmd in administrator and do `choco install ffmpeg`
 
 ---
 

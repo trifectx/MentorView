@@ -28,6 +28,7 @@ export class TranscriptionComponent {
     videoBlob!: Blob;
     apiUrl = "http://localhost:5000";
     transcript = '';
+    loadingTranscript = false;
 
     // Injecting HttpClient for API calls and PLATFORM_ID for platform checks
     constructor(
@@ -134,16 +135,23 @@ export class TranscriptionComponent {
     }
 
     getTranscript() {
-        this.apiClient.get(`${this.apiUrl}/transcribe`).subscribe({
-            next: (response: any) => {
-                this.transcript = response.transcript;
-            },
-            error: (error: any) => {
-                // Show the error message
-                this.transcript = error.error?.error || error.message;
-            }
-        });
+        this.loadingTranscript = true;
+        this.transcript = ''; // Clear previous transcript when starting a new request
+
+        this.apiClient
+            .get(`${this.apiUrl}/transcribe`)
+            .subscribe({
+                next: (response: any) => {
+                    this.transcript = response.transcript || "No transcript available";
+                    this.loadingTranscript = false;
+                },
+                error: (error: any) => {
+                    this.transcript = error.error?.error || "Error occurred while fetching the transcript";
+                    this.loadingTranscript = false;
+                }
+            });
     }
+
 
 
     rateTranscript() {

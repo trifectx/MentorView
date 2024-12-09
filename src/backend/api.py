@@ -59,12 +59,7 @@ def upload():
 def transcribe():
     # Transcribe the audio using OpenAI Whisper
     try:
-        # Check if the audio file exists before transcribing
-        if not os.path.exists(audio_path):
-            return jsonify({"error": f"Audio file does not exist at path: {audio_path}"}), 400
-        
-        # Load the whisper model
-        model = whisper.load_model("base") # use the base level model
+        model = whisper.load_model("small")
 
         # Transcribe the audio
         result = model.transcribe(audio_path)
