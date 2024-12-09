@@ -59,7 +59,8 @@ def upload():
 def transcribe():
     # Transcribe the audio using OpenAI Whisper
     try:
-        model = whisper.load_model("small")
+        # use base or small, anything above is way too slow
+        model = whisper.load_model("base")
 
         # Transcribe the audio
         result = model.transcribe(audio_path)
