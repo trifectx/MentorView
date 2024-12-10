@@ -1,8 +1,4 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
 from huggingface_hub import login, InferenceClient
-from transformers import BitsAndBytesConfig, pipeline
-import torch
-import requests
 
 class Model:
     
@@ -13,7 +9,8 @@ class Model:
         print("Model loaded")
     
     def _construct_chat(self, role, company, question, answer):
-        return [{"role": "system", "content": f"You are an interviewer, interviewing a candidate for an {role} role at {company}. Rate their answer to your question out of 10 and give feedback. You have just asked: {question}?",},
+        return [{"role": "system", "content": f"You are an interviewer, interviewing a candidate for an {role} role at {company}. 
+                 Rate their answer to your question out of 10 and give feedback. You have just asked: {question}?",},
         {"role": "user", "content": f"{answer}"}]
          
     

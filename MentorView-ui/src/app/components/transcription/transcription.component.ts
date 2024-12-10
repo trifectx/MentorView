@@ -29,6 +29,8 @@ export class TranscriptionComponent {
     apiUrl = "http://localhost:5000";
     transcript = '';
     loadingTranscript = false;
+    rating = '';
+    loadingRating = false;
 
     // Injecting HttpClient for API calls and PLATFORM_ID for platform checks
     constructor(
@@ -154,7 +156,21 @@ export class TranscriptionComponent {
 
 
 
-    rateTranscript() {
+    getRating() {
+        this.loadingRating = true;
+        this.rating = ''; // Clear previous rating when starting a new request
 
+        this.apiClient
+            .get(`${this.apiUrl}/query`)
+            .subscribe({
+                next: (response: any) => {
+                    this.rating = response.feedback || "No rating available";
+                    this.loadingRating = false;
+                },
+                error: (error: any) => {
+                    this.rating = error.error?.error || "Error occurred while fetching the rating";
+                    this.loadingRating = false;
+                }
+            });
     }
 }

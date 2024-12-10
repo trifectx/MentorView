@@ -54,9 +54,6 @@
     <button class="btn btn-info" (click)="getTranscript()">
         Get Transcript
     </button>
-    <button class="btn btn-secondary" (click)="rateTranscript()">
-        Get Rating
-    </button>
 
     <!-- Transcript Display Section -->
     <div *ngIf="loadingTranscript || transcript">
@@ -65,6 +62,24 @@
             loadingTranscript
                 ? "Loading transcript..."
                 : transcript || "No transcript available"
+        }}</pre>
+    </div>
+
+    <button
+        class="btn btn-secondary"
+        (click)="getRating()"
+        *ngIf="!loadingTranscript && transcript"
+    >
+        Get Rating
+    </button>
+
+    <!-- Rating Display Section -->
+    <div *ngIf="loadingRating || rating">
+        <h3>Rating:</h3>
+        <pre class="transcript-text">{{
+            loadingRating
+                ? "Loading rating..."
+                : rating || "No rating available"
         }}</pre>
     </div>
 </div>
