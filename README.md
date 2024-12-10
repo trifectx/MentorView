@@ -22,6 +22,12 @@ Make sure you have the following installed on your system:
 - Then go to MentorView-ui and do `npm install`
 - For transcription to work, open cmd in administrator and do `choco install ffmpeg`
 
+### Create a .env file
+
+- In src/backend create a file called `.env`
+- Within that file, paste the following:
+  `OPENAI_API_KEY=your-openai-api-key-here`
+
 ---
 
 ## Running the application
