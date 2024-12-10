@@ -66,6 +66,9 @@ def transcribe():
         result = model.transcribe(audio_path)
         transcript = result['text'] # Extract the transcription
 
+        feedback = _model.query_model(answer=transcript)
+        print(feedback)
+
         return jsonify({ "transcript": transcript}), 200
     except Exception as e:
         return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
@@ -98,4 +101,5 @@ def query():
 
 # Run the app
 if __name__ == '__main__':
+    _model = Model()
     app.run(debug=True)
