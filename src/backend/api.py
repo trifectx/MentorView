@@ -14,8 +14,8 @@ print(torch.cuda.is_available())
 # temp model
 
 app = Flask(__name__)
-video_path = os.path.join(os.getcwd(), "video.mp4")
-audio_path = os.path.join(os.getcwd(), "audio.mp3")
+video_path = os.path.join(os.getcwd(), "src/backend/video.mp4")
+audio_path = os.path.join(os.getcwd(), "src/backend/audio.mp3")
 transcript = ""
 
 # OpenAI API Key from .env
@@ -57,6 +57,7 @@ def upload():
         audio.close()
         video.close()
 
+
         return jsonify({"message": "File uploaded successfully"}), 200
     except Exception as e:
         return jsonify({"error": f"Error processing file: {str(e)}"}), 500
@@ -66,6 +67,7 @@ def upload():
 # Transcribe audio using OpenAI Whisper API
 @app.route('/transcribe', methods=['GET'])
 def transcribe():
+    global transcript
     try:
         # Open the audio file in binary read mode
         with open(audio_path, "rb") as audio_file:
@@ -101,6 +103,7 @@ def transcribe():
 # Query the Hugging Face model
 @app.route('/query', methods=['GET'])
 def query():
+    print("we just called query, the transcript is ", transcript)
     try:
         feedback = model.query_model(answer=transcript)
         return jsonify({"feedback": feedback}), 200
