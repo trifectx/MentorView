@@ -66,35 +66,35 @@ def upload():
 # Transcribe audio using OpenAI Whisper API
 @app.route('/transcribe', methods=['GET'])
 def transcribe():
-    # try:
-    #     # Open the audio file in binary read mode
-    #     with open(audio_path, "rb") as audio_file:
-    #         # whisper-1 is the API-optimized version of the large-v2 model
-    #         transcription = client.Audio.transcriptions.create(
-    #             model="whisper-1", 
-    #             file=audio_file, 
-    #             response_format="text"
-    #         )
-    #         transcript = transcription['text']
-        
-    #     return jsonify({"transcript": transcript}), 200
-
-    # except Exception as e:
-    #     return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
-
-
     try:
-        import whisper
-        # use base or small, anything above is way too slow
-        whisperModel = whisper.load_model("base")
+        # Open the audio file in binary read mode
+        with open(audio_path, "rb") as audio_file:
+            # whisper-1 is the API-optimized version of the large-v2 model
+            transcription = client.audio.transcriptions.create(
+                model="whisper-1", 
+                file=audio_file, 
+                response_format="text"
+            )
+            transcript = transcription
+        
+        return jsonify({"transcript": transcript}), 200
 
-        # Transcribe the audio
-        result = whisperModel.transcribe(audio_path)
-        transcript = result['text']
-
-        return jsonify({ "transcript": transcript}), 200
     except Exception as e:
         return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
+
+
+    # try:
+    #     import whisper
+    #     # use base or small, anything above is way too slow
+    #     whisperModel = whisper.load_model("base")
+
+    #     # Transcribe the audio
+    #     result = whisperModel.transcribe(audio_path)
+    #     transcript = result['text']
+
+    #     return jsonify({ "transcript": transcript}), 200
+    # except Exception as e:
+    #     return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
 
 
 
