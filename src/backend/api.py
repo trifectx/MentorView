@@ -10,12 +10,14 @@ from dotenv import load_dotenv
 # Check if CUDA is available
 print("!!t!!")
 print(torch.cuda.is_available())
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 
 # temp model
 
 app = Flask(__name__)
-video_path = os.path.join(os.getcwd(), "src/backend/video.mp4")
-audio_path = os.path.join(os.getcwd(), "src/backend/audio.mp3")
+video_path = os.path.join(os.getcwd(), "video.mp4")
+audio_path = os.path.join(os.getcwd(), "audio.mp3")
 transcript = ""
 
 # OpenAI API Key from .env
@@ -103,7 +105,6 @@ def transcribe():
 # Query the Hugging Face model
 @app.route('/query', methods=['GET'])
 def query():
-    print("we just called query, the transcript is ", transcript)
     try:
         feedback = model.query_model(answer=transcript)
         return jsonify({"feedback": feedback}), 200
