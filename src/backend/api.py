@@ -21,13 +21,12 @@ video_path = os.path.join(os.getcwd(), "video.mp4")
 audio_path = os.path.join(os.getcwd(), "audio.mp3")
 transcript = ""
 
-# OpenAI API Key from .env
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# if not OPENAI_API_KEY:
+#     raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+# client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Deepgram API Key from .env
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
@@ -91,6 +90,7 @@ def transcribe():
             transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
 
         return jsonify({"transcript": transcript}), 200
+    
     # try:
     #     # Open the audio file in binary read mode
     #     with open(audio_path, "rb") as audio_file:
