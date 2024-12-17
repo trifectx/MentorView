@@ -1,4 +1,3 @@
-
 from flask import Flask, jsonify, request
 from model.model import Model
 import torch
@@ -6,6 +5,8 @@ import os
 from moviepy import VideoFileClip
 from openai import OpenAI
 from dotenv import load_dotenv
+from deepgram import DeepgramClient, PrerecordedOptions
+import asyncio
 
 # Check if CUDA is available
 print("!!t!!")
@@ -27,6 +28,11 @@ if not OPENAI_API_KEY:
     raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Deepgram API Key from .env
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
+if not DEEPGRAM_API_KEY:
+    raise ValueError("Missing Deepgram API Key. Set DEEPGRAM_API_KEY in .env file.")
 
 
 
@@ -71,34 +77,35 @@ def upload():
 def transcribe():
     global transcript
     try:
-        # Open the audio file in binary read mode
+        # Initialize deepgram client
+        deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+
         with open(audio_path, "rb") as audio_file:
-            # whisper-1 is the API-optimized version of the large-v2 model
-            transcription = client.audio.transcriptions.create(
-                model="whisper-1", 
-                file=audio_file, 
-                response_format="text"
+            payload = { 'buffer': audio_file }
+
+            options = PrerecordedOptions(
+                model="nova-2", language="en-US"
             )
-            transcript = transcription
-        
+
+            response = deepgram.listen.prerecorded.v('1').transcribe_file(payload, options)
+            transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+
         return jsonify({"transcript": transcript}), 200
+    # try:
+    #     # Open the audio file in binary read mode
+    #     with open(audio_path, "rb") as audio_file:
+    #         # whisper-1 is the API-optimized version of the large-v2 model
+    #         transcription = client.audio.transcriptions.create(
+    #             model="whisper-1", 
+    #             file=audio_file, 
+    #             response_format="text"
+    #         )
+    #         transcript = transcription
+        
+    #     return jsonify({"transcript": transcript}), 200
 
     except Exception as e:
         return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
-
-
-    # try:
-    #     import whisper
-    #     # use base or small, anything above is way too slow
-    #     whisperModel = whisper.load_model("base")
-
-    #     # Transcribe the audio
-    #     result = whisperModel.transcribe(audio_path)
-    #     transcript = result['text']
-
-    #     return jsonify({ "transcript": transcript}), 200
-    # except Exception as e:
-    #     return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
 
 
 
