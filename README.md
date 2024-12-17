@@ -26,12 +26,12 @@ Make sure you have the following installed on your system:
 
 - In src/backend create a file called `.env`
 - Within that file, paste the following:
-  `OPENAI_API_KEY=your-openai-api-key-here`
+  `DEEPGRAM_API_KEY=<your-deepgram-key-here>`
 
 ---
 
 ## Running the application
 
 - Go to MentorView-ui and do `npm start`
-- Go to src/backend
+- Go to src/backend by doing `cd src/backend`
 - Run `python api.py`
