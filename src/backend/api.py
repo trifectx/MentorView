@@ -87,7 +87,7 @@ def transcribe():
                 model="nova-2", language="en-US"
             )
 
-            response = deepgram.listen.prerecorded.v('1').transcribe_file(payload, options)
+            response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
             transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
 
         return jsonify({"transcript": transcript}), 200
