@@ -3,7 +3,6 @@ import { Component, ElementRef, ViewChild, Inject, PLATFORM_ID } from '@angular/
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 
-
 @Component({
     selector: 'app-transcription',
     standalone: true,
@@ -76,16 +75,24 @@ export class TranscriptionComponent {
 
     // Start recording
     start() {
-        this.recordedBlobs = [];
-        const mediaRecorderOptions: MediaRecorderOptions = { mimeType: 'video/mp4' };
+        // Setup media recorder for the first time
+        if (!this.mediaRecorder) {
+            this.setupMediaRecorder();
+        }
 
+        this.recordedBlobs = []; // Clear previous recorded blobs before starting new recording
+        this.mediaRecorder?.start();
+        this.isRecording = true;
+        this.showVideos = false;
+
+        console.log('Recording started');
+    }
+
+    // Set up the media recorder
+    private setupMediaRecorder() {
         try {
+            const mediaRecorderOptions: MediaRecorderOptions = { mimeType: 'video/mp4' };
             this.mediaRecorder = new MediaRecorder(this.stream, mediaRecorderOptions);
-
-            // Start recording
-            this.mediaRecorder.start();
-            this.isRecording = true;
-            this.showVideos = false;
 
             // Set up the ondataavailable event to store recorded data
             this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
@@ -105,19 +112,18 @@ export class TranscriptionComponent {
                 this.recordVideoElement.src = URL.createObjectURL(this.videoBlob);
             };
 
-            console.log('Recording started');
+            console.log('Media recorder set up successfully');
         }
         catch (error) {
-            console.error('Error starting the media recorder:', error);
+            console.error('Error setting up the media recorder:', error);
             alert('Could not start recording');
         }
     }
 
-
     // Stop recording
     stop() {
-        this.mediaRecorder.stop();
-        this.isRecording = !this.isRecording;
+        this.mediaRecorder?.stop();
+        this.isRecording = false;
         this.showVideos = true;
     }
 
@@ -149,8 +155,6 @@ export class TranscriptionComponent {
                 }
             });
     }
-
-
 
     getRating() {
         this.loadingRating = true;
