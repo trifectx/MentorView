@@ -19,7 +19,7 @@ export class TranscriptionComponent {
     stream!: MediaStream;
     videoElement!: HTMLVideoElement;
     recordVideoElement!: HTMLVideoElement;
-    mediaRecorder: any;
+    mediaRecorder: MediaRecorder | null = null;
     recordedBlobs!: Blob[];
     isRecording: boolean = false;
     videoUrl: any;
@@ -49,8 +49,8 @@ export class TranscriptionComponent {
     getCam() {
         navigator.mediaDevices
             .getUserMedia({ video: { width: 300, height: 300 }, audio: true })
-            .then((stream) => this.handleStreamSuccess(stream))
-            .catch((error) => this.handleStreamError(error));
+                .then((stream) => this.handleStreamSuccess(stream))
+                .catch((error) => this.handleStreamError(error));
     }
 
     // Handle successful stream retrieval
@@ -90,45 +90,49 @@ export class TranscriptionComponent {
 
     // Start recording
     start() {
-        this.recordedBlobs = [];
-        let mediaRecorderOption: any = { mimeType: 'video/mp4' };
-        this.mediaRecorder = new MediaRecorder(
-            this.stream,
-            mediaRecorderOption
-        );
+        // Initialize the media recorder if it hasn't already been created
+        if (!this.mediaRecorder) {
+            this.recordedBlobs = [];
+            const mediaRecorderOptions: MediaRecorderOptions = { mimeType: 'video/mp4' };
+
+            try {
+                this.mediaRecorder = new MediaRecorder(this.stream, mediaRecorderOptions);
+
+                // Set up the ondataavailable event to store recorded data
+                this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
+                    if (event.data && event.data.size > 0) {
+                        this.recordedBlobs.push(event.data);
+                    }
+                };
+
+                // Set up the onstop event to handle the recording stop and video preparation
+                this.mediaRecorder.onstop = () => {
+                    this.videoBlob = new Blob(this.recordedBlobs, { type: 'video/mp4' });
+
+                    // Send the recorded video to the server
+                    this.sendToServer();
+
+                    // Create a video URL for playback
+                    this.videoUrl = window.URL.createObjectURL(this.videoBlob);
+                    console.log('Video URL', this.videoUrl);
+
+                    // Update the recorded video element
+                    this.recordVideoElement.src = this.videoUrl;
+                };
+            }
+            catch (error) {
+                console.error('Error starting the media recorder:', error);
+                alert('Could not start recording');
+            }
+        }
+
+        // Start recording
         this.mediaRecorder.start();
-        this.isRecording = !this.isRecording;
+        this.isRecording = true;
         this.showVideos = false;
-        console.log(this.mediaRecorder.state);
-
-        try {
-            // ondataavailable event from mediaRecorder object
-            this.mediaRecorder.ondataavailable = (event: any) => {
-                if (event.data && event.data.size > 0) {
-                    this.recordedBlobs.push(event.data);
-                }
-            };
-        } catch {
-            (error: any) => console.log(error);
-        }
-
-        try {
-            // onstop event from mediaRecorder object
-            this.mediaRecorder.onstop = (event: any) => {
-                const videoBuffer = new Blob(this.recordedBlobs, {
-                    type: 'video/mp4',
-                });
-                this.videoBlob = videoBuffer;
-                this.sendToServer();
-                this.videoUrl = window.URL.createObjectURL(videoBuffer);
-                console.log('Video URL', this.videoUrl);
-                this.recordVideoElement.src = this.videoUrl;
-            };
-        } catch {
-            (error: any) => console.log(error);
-        }
-        console.log(this.recordedBlobs);
+        console.log('Recording started');
     }
+
 
     // Stop recording
     stop() {
