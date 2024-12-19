@@ -15,14 +15,12 @@ export class TranscriptionComponent {
     @ViewChild('video') videoElementRef!: ElementRef; // reference to live video element
     @ViewChild('recordedVideo') recordVideoElementRef!: ElementRef; // reference to recorded video element
 
-    videoResponse: HTMLVideoElement; // DOM element for video stream
     stream!: MediaStream;
     videoElement!: HTMLVideoElement;
     recordVideoElement!: HTMLVideoElement;
     mediaRecorder: MediaRecorder | null = null;
     recordedBlobs!: Blob[];
     isRecording: boolean = false;
-    videoUrl: any;
     showCam = false;
     showVideos = false;
     videoBlob!: Blob;
@@ -38,19 +36,12 @@ export class TranscriptionComponent {
         @Inject(PLATFORM_ID) private platformId: object
     ) { }
 
-    ngOnInit() {
-        // Ensure this is only executed in the browser environment
-        if (isPlatformBrowser(this.platformId)) {
-            this.videoResponse = document.getElementById('videoStream') as HTMLVideoElement;
-        }
-    }
-    
     // Start the webcam stream
     getCam() {
         navigator.mediaDevices
             .getUserMedia({ video: { width: 300, height: 300 }, audio: true })
-                .then((stream) => this.handleStreamSuccess(stream))
-                .catch((error) => this.handleStreamError(error));
+            .then((stream) => this.handleStreamSuccess(stream))
+            .catch((error) => this.handleStreamError(error));
     }
 
     // Handle successful stream retrieval
@@ -63,11 +54,6 @@ export class TranscriptionComponent {
         this.recordVideoElement = this.recordVideoElementRef.nativeElement;
 
         this.videoElement.srcObject = stream;
-
-        // Assign stream to videoResponse if the element exists
-        if (this.videoResponse) {
-            this.videoResponse.srcObject = stream;
-        }
 
         console.log('Video stream started successfully', stream);
     }
@@ -90,47 +76,41 @@ export class TranscriptionComponent {
 
     // Start recording
     start() {
-        // Initialize the media recorder if it hasn't already been created
-        if (!this.mediaRecorder) {
-            this.recordedBlobs = [];
-            const mediaRecorderOptions: MediaRecorderOptions = { mimeType: 'video/mp4' };
+        this.recordedBlobs = [];
+        const mediaRecorderOptions: MediaRecorderOptions = { mimeType: 'video/mp4' };
 
-            try {
-                this.mediaRecorder = new MediaRecorder(this.stream, mediaRecorderOptions);
+        try {
+            this.mediaRecorder = new MediaRecorder(this.stream, mediaRecorderOptions);
 
-                // Set up the ondataavailable event to store recorded data
-                this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
-                    if (event.data && event.data.size > 0) {
-                        this.recordedBlobs.push(event.data);
-                    }
-                };
+            // Start recording
+            this.mediaRecorder.start();
+            this.isRecording = true;
+            this.showVideos = false;
 
-                // Set up the onstop event to handle the recording stop and video preparation
-                this.mediaRecorder.onstop = () => {
-                    this.videoBlob = new Blob(this.recordedBlobs, { type: 'video/mp4' });
+            // Set up the ondataavailable event to store recorded data
+            this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
+                if (event.data && event.data.size > 0) {
+                    this.recordedBlobs.push(event.data);
+                }
+            };
 
-                    // Send the recorded video to the server
-                    this.sendToServer();
+            // Set up the onstop event to handle the recording stop and video preparation
+            this.mediaRecorder.onstop = () => {
+                this.videoBlob = new Blob(this.recordedBlobs, { type: 'video/mp4' });
 
-                    // Create a video URL for playback
-                    this.videoUrl = window.URL.createObjectURL(this.videoBlob);
-                    console.log('Video URL', this.videoUrl);
+                // Send the recorded video to the server
+                this.sendToServer();
 
-                    // Update the recorded video element
-                    this.recordVideoElement.src = this.videoUrl;
-                };
-            }
-            catch (error) {
-                console.error('Error starting the media recorder:', error);
-                alert('Could not start recording');
-            }
+                // Update the recorded video element
+                this.recordVideoElement.src = URL.createObjectURL(this.videoBlob);
+            };
+
+            console.log('Recording started');
         }
-
-        // Start recording
-        this.mediaRecorder.start();
-        this.isRecording = true;
-        this.showVideos = false;
-        console.log('Recording started');
+        catch (error) {
+            console.error('Error starting the media recorder:', error);
+            alert('Could not start recording');
+        }
     }
 
 
