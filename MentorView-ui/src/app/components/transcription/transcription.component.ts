@@ -12,11 +12,11 @@ import { isPlatformBrowser } from '@angular/common';
     styleUrl: './transcription.component.css',
 })
 export class TranscriptionComponent {
-    @ViewChild('recordedVideo') recordVideoElementRef!: ElementRef; // recordedVideo is assigned to DOM Element recordVideoElementRef. Of type ElementRef and is a child of this component
-    @ViewChild('video') videoElementRef!: ElementRef; // video is assigned to DOM Element videoElementRef
+    @ViewChild('video') videoElementRef!: ElementRef; // reference to live video element
+    @ViewChild('recordedVideo') recordVideoElementRef!: ElementRef; // reference to recorded video element
 
-    videoResponse: any; // Cam Started or not
-    stream: any;
+    videoResponse: HTMLVideoElement; // DOM element for video stream
+    stream!: MediaStream;
     videoElement!: HTMLVideoElement;
     recordVideoElement!: HTMLVideoElement;
     mediaRecorder: any;
@@ -39,31 +39,43 @@ export class TranscriptionComponent {
     ) { }
 
     ngOnInit() {
-        // Accessing the DOM only in the browser
+        // Ensure this is only executed in the browser environment
         if (isPlatformBrowser(this.platformId)) {
-            this.videoResponse = document.getElementById('videoStream');
+            this.videoResponse = document.getElementById('videoStream') as HTMLVideoElement;
         }
     }
-
+    
+    // Start the webcam stream
     getCam() {
-        this.showCam = true;
         navigator.mediaDevices
             .getUserMedia({ video: { width: 300, height: 300 }, audio: true })
-            .then((response) => {
-                this.stream = response;
-                console.log('Video Response', response);
+            .then((stream) => this.handleStreamSuccess(stream))
+            .catch((error) => this.handleStreamError(error));
+    }
 
-                // DOM elements are assigned to their respective properties
-                this.videoElement = this.videoElementRef.nativeElement;
-                this.recordVideoElement =
-                    this.recordVideoElementRef.nativeElement;
+    // Handle successful stream retrieval
+    private handleStreamSuccess(stream: MediaStream) {
+        this.showCam = true;
+        this.stream = stream;
 
-                this.videoElement.srcObject = response;
-                if (isPlatformBrowser(this.platformId)) {
-                    this.videoResponse.srcObject = response;
-                }
-            })
-            .catch((err) => console.log('Error has occurred', err));
+        // Assign video elements
+        this.videoElement = this.videoElementRef.nativeElement;
+        this.recordVideoElement = this.recordVideoElementRef.nativeElement;
+
+        this.videoElement.srcObject = stream;
+
+        // Assign stream to videoResponse if the element exists
+        if (this.videoResponse) {
+            this.videoResponse.srcObject = stream;
+        }
+
+        console.log('Video stream started successfully', stream);
+    }
+
+    // Handle errors during stream retrieval
+    private handleStreamError(error: Error) {
+        console.error('Failed to access user media:', error);
+        alert('Could not get the camera');
     }
 
     // Stop the camera
@@ -71,7 +83,7 @@ export class TranscriptionComponent {
         if (this.stream) {
             let tracks = this.stream.getTracks();
             tracks.forEach((track: MediaStreamTrack) => track.stop());
-            this.stream = null; // Reset the stream
+            this.stream = null;
         }
         this.showCam = false;
     }
