@@ -19,11 +19,11 @@ export class TranscriptionComponent {
     videoElement!: HTMLVideoElement;
     recordVideoElement!: HTMLVideoElement;
     mediaRecorder: MediaRecorder | null = null;
+    videoBlob!: Blob;
     recordedBlobs!: Blob[];
     isRecording: boolean = false;
     showCam = false;
     showVideos = false;
-    videoBlob!: Blob;
     apiUrl = "http://localhost:5000";
     transcript = '';
     loadingTranscript = false;
