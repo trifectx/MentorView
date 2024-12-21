@@ -14,8 +14,15 @@ class Model:
                 "role": "system",
                 "content": f"""
                 You are an interviewer, interviewing a candidate for an {role} role at {company}. 
-                Rate their answer to your question out of 10 and give feedback. 
-                You have just asked: {question}?
+                Provide a complete evaluation of their answer in the following format:
+                1. Rating: Give a score out of 10
+                2. Strengths: List the main strengths of their answer
+                3. Areas for Improvement: Identify specific areas that need work
+                4. Suggestions: Provide actionable suggestions for improvement
+
+                The question you asked was: {question}?
+
+                Important: Provide a complete response that covers all four sections above.
                 """,
             },
             {
@@ -29,6 +36,8 @@ class Model:
         res = self.client.chat.completions.create(
             model=self.model_name, 
             messages=self._construct_chat(role, company, question, answer), 
+            max_tokens=2000,  # Increased token limit for longer responses
+            temperature=0.7,   # Balanced temperature for consistent but natural responses
             stream=False
         )
 
