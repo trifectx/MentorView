@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, ElementRef, ViewChild, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, ElementRef, ViewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { isPlatformBrowser } from '@angular/common';
+import { run } from 'node:test';
+
+declare const faceapi: any;
 
 @Component({
     selector: 'app-transcription',
@@ -34,11 +36,22 @@ export class TranscriptionComponent {
         company: '',
         question: ''
     };
+    facialDetectionResults = {
+        noPersonDetectedAmount: 0,
+        multiplePersonsDetectedAmount: 0,
+        angry: 0,
+        disgusted: 0,
+        fearful: 0,
+        happy: 0,
+        neutral: 0,
+        sad: 0,
+        surprised: 0
+    }
+    private intervalId: any;
 
-    // Injecting HttpClient for API calls and PLATFORM_ID for platform checks
+    // Injecting HttpClient for API calls
     constructor(
         private apiClient: HttpClient,
-        @Inject(PLATFORM_ID) private platformId: object
     ) { }
 
     // Start the webcam stream
@@ -50,23 +63,33 @@ export class TranscriptionComponent {
     }
 
     // Handle successful stream retrieval
-    private handleStreamSuccess(stream: MediaStream) {
+    private async handleStreamSuccess(stream: MediaStream) {
         this.showCam = true;
         this.stream = stream;
 
         // Assign video elements
         this.videoElement = this.videoElementRef.nativeElement;
         this.recordVideoElement = this.recordVideoElementRef.nativeElement;
-
         this.videoElement.srcObject = stream;
 
-        console.log('Video stream started successfully', stream);
+        // load face-api models
+        // pre-trained machine learning for facial detection
+        await Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri('./models'),
+            // faceapi.nets.tinyFaceDetector.loadFromUri('./models'),
+            // faceapi.nets.faceLandmark68Net.loadFromUri('./models'),
+            // faceapi.nets.faceRecognitionNet.loadFromUri('./models'),
+            // faceapi.nets.ageGenderNet.loadFromUri('./models'),
+            faceapi.nets.faceExpressionNet.loadFromUri('./models')
+        ])
+
+        console.log('Successfully got the camera stream');
     }
 
     // Handle errors during stream retrieval
     private handleStreamError(error: Error) {
         console.error('Failed to access user media:', error);
-        alert('Could not get the camera');
+        alert('Could not get the camera stream');
     }
 
     // Stop the camera
@@ -91,7 +114,47 @@ export class TranscriptionComponent {
         this.isRecording = true;
         this.showVideos = false;
 
-        console.log('Recording started');
+        console.log('Recording and facial expression detection started');
+
+        // facial detection and expression recognition
+        // using ssdmobilev1net model
+        this.intervalId = setInterval(async () => {
+            this.runFacialRecognition();
+        }, 200);
+    }
+
+    private async runFacialRecognition() {
+        let detections = await faceapi
+            .detectAllFaces(this.videoElement)
+            .withFaceExpressions();
+
+        // console.log(detections);
+
+        // detections.length is the amount of faces detected in the video feed
+        if (detections.length <= 0) {
+            console.log("no person detected")
+            this.facialDetectionResults.noPersonDetectedAmount++;
+        }
+        else if (detections.length > 1) {
+            this.facialDetectionResults.multiplePersonsDetectedAmount++;
+        }
+
+        // check for facial expressions
+        detections.forEach((face: any) => {
+            const expressions = face.expressions;
+            for (const [expression, probability] of Object.entries(expressions)) {
+                if (probability as number > 0.5) {
+                    console.log("Expression", expression + " detected with probability", probability);
+                    // Increment the count for the detected expression
+                    if (expression in this.facialDetectionResults) {
+                        this.facialDetectionResults[expression]++;
+                    }
+                    else {
+                        console.error("Unknown expression detected");
+                    }
+                }
+            }
+        })
     }
 
     // Set up the media recorder
@@ -131,6 +194,11 @@ export class TranscriptionComponent {
         this.mediaRecorder?.stop();
         this.isRecording = false;
         this.showVideos = true;
+
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            console.log("Facial detection results are ", this.facialDetectionResults);
+        }
     }
 
     sendToServer() {
@@ -159,6 +227,7 @@ export class TranscriptionComponent {
                     this.transcript = error.error?.error || "Error occurred while fetching the transcript";
                     this.loadingTranscript = false;
                 }
+
             });
     }
 
