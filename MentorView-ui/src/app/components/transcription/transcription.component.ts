@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Component, ElementRef, ViewChild, Inject, PLATFORM_ID } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
@@ -6,7 +7,7 @@ import { isPlatformBrowser } from '@angular/common';
 @Component({
     selector: 'app-transcription',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, FormsModule],
     templateUrl: './transcription.component.html',
     styleUrl: './transcription.component.css',
 })
@@ -28,6 +29,11 @@ export class TranscriptionComponent {
     loadingTranscript = false;
     rating = '';
     loadingRating = false;
+    interviewDetails = {
+        role: '',
+        company: '',
+        question: ''
+    };
 
     // Injecting HttpClient for API calls and PLATFORM_ID for platform checks
     constructor(
@@ -160,16 +166,26 @@ export class TranscriptionComponent {
         this.loadingRating = true;
         this.rating = ''; // Clear previous rating when starting a new request
 
+        const data = {
+            role: this.interviewDetails.role,
+            company: this.interviewDetails.company,
+            question: this.interviewDetails.question,
+            answer: this.transcript
+        };
+
+        console.log(data);
+
         this.apiClient
-            .get(`${this.apiUrl}/query`)
+            .post(`${this.apiUrl}/query`, data)
             .subscribe({
                 next: (response: any) => {
-                    this.rating = response.feedback || "No rating available";
+                    this.rating = response.feedback;
                     this.loadingRating = false;
                 },
-                error: (error: any) => {
-                    this.rating = error.error?.error || "Error occurred while fetching the rating";
+                error: (error) => {
+                    console.error('Error getting rating:', error);
                     this.loadingRating = false;
+                    this.rating = 'Error getting feedback. Please try again.';
                 }
             });
     }

@@ -8,6 +8,22 @@
         Turn The Video On
     </button>
 
+    <div class="interview-details" *ngIf="!transcript && !loadingRating">
+        <h3>Interview Details</h3>
+        <div class="form-group">
+            <label for="role">Role:</label>
+            <input type="text" id="role" [(ngModel)]="interviewDetails.role" placeholder="e.g. Software Engineer" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="company">Company:</label>
+            <input type="text" id="company" [(ngModel)]="interviewDetails.company" placeholder="e.g. Amazon" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="question">Interview Question:</label>
+            <input type="text" id="question" [(ngModel)]="interviewDetails.question" placeholder="e.g. Tell me about yourself" class="form-control">
+        </div>
+    </div>
+
     <button
         class="btn btn-danger"
         (click)="stopCam()"
@@ -64,6 +80,8 @@
                 : transcript || "No transcript available"
         }}</pre>
     </div>
+
+
 
     <button
         class="btn btn-secondary"

@@ -38,6 +38,8 @@ if not DEEPGRAM_API_KEY:
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,HEAD,OPTIONS,POST,PUT'
     return response
 
 
@@ -110,35 +112,25 @@ def transcribe():
 
 
 # Query the Hugging Face model
-@app.route('/query', methods=['GET'])
+@app.route('/query', methods=['POST'])
 def query():
+    # Get input data from the request
+    data = request.get_json()
+    print("test", data)
+    role = data.get('role', '')
+    company = data.get('company', '')
+    question = data.get('question', '')
+    
+    # Check if required fields are present
+    if not all([role, company, question, transcript]):
+        return jsonify({"error": "All fields (role, company, question, answer) are required"}), 400
+
+    # Query the Hugging Face model
     try:
-        feedback = model.query_model(answer=transcript)
+        feedback = model.query_model(role=role, company=company, question=question, answer=transcript)
         return jsonify({"feedback": feedback}), 200
     except Exception as e:
         return jsonify({"error": f"Error during query: {str(e)}"}), 500
-
-    
-    
-    
-    # Get input data from the request
-    # data = request.get_json()
-    # role = data.get('role', '')
-    # company = data.get('company', '')
-    # question = data.get('question', '')
-    # answer = data.get('answer', '')
-    
-    # # Check if prompt is empty
-    # if not role or not company or not question or not answer:
-    #     return jsonify({"error": "Prompt is required"}), 400
-
-    # # Query the Hugging Face model
-    # try:
-    #     # generated_text = model.query_model(role, company, question, answer)
-    #     # return jsonify({"generated_text": generated_text}), 200
-    #     pass
-    # except Exception as e:
-    #     return jsonify({"error": str(e)}), 500
     
 
 
