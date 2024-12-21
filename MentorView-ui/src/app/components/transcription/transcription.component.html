@@ -8,7 +8,7 @@
         Turn The Video On
     </button>
 
-    <div class="interview-details" *ngIf="!transcript && !loadingRating">
+    <div class="interview-setup" *ngIf="!transcript && !loadingRating">
         <h3>Interview Details</h3>
         <div class="form-group">
             <label for="role">Role:</label>
@@ -16,7 +16,7 @@
                 type="text"
                 id="role"
                 [(ngModel)]="interviewDetails.role"
-                placeholder="e.g. Software Engineer"
+                placeholder="Enter the role"
                 class="form-control"
             />
         </div>
@@ -26,19 +26,36 @@
                 type="text"
                 id="company"
                 [(ngModel)]="interviewDetails.company"
-                placeholder="e.g. Amazon"
+                placeholder="Enter the company"
                 class="form-control"
             />
         </div>
         <div class="form-group">
-            <label for="question">Interview Question:</label>
-            <input
-                type="text"
+            <label for="interviewStyle">Interview Style:</label>
+            <select
+                id="interviewStyle"
+                [(ngModel)]="interviewDetails.style"
+                (change)="onStyleChange($event)"
+                class="form-control"
+            >
+                <option value="">Select an interview style</option>
+                <option *ngFor="let style of interviewStyles" [value]="style.id">
+                    {{ style.name }}
+                </option>
+            </select>
+        </div>
+        <div class="form-group" *ngIf="selectedQuestions.length > 0">
+            <label for="question">Select Question:</label>
+            <select
                 id="question"
                 [(ngModel)]="interviewDetails.question"
-                placeholder="e.g. Tell me about yourself"
                 class="form-control"
-            />
+            >
+                <option value="">Select a question</option>
+                <option *ngFor="let question of selectedQuestions" [value]="question">
+                    {{ question }}
+                </option>
+            </select>
         </div>
     </div>
 
