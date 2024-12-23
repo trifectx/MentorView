@@ -8,54 +8,91 @@
         Turn The Video On
     </button>
 
-    <div class="interview-setup" *ngIf="!transcript && !loadingRating">
-        <h3>Interview Details</h3>
-        <div class="form-group">
-            <label for="role">Role:</label>
-            <input
-                type="text"
-                id="role"
-                [(ngModel)]="interviewDetails.role"
-                placeholder="Enter the role"
-                class="form-control"
-            />
+    <div
+        class="interview-setup card shadow-sm"
+        *ngIf="!transcript && !loadingRating"
+    >
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">Interview Details</h3>
         </div>
-        <div class="form-group">
-            <label for="company">Company:</label>
-            <input
-                type="text"
-                id="company"
-                [(ngModel)]="interviewDetails.company"
-                placeholder="Enter the company"
-                class="form-control"
-            />
-        </div>
-        <div class="form-group">
-            <label for="interviewStyle">Interview Style:</label>
-            <select
-                id="interviewStyle"
-                [(ngModel)]="interviewDetails.style"
-                (change)="onStyleChange($event)"
-                class="form-control"
-            >
-                <option value="">Select an interview style</option>
-                <option *ngFor="let style of interviewStyles" [value]="style.id">
-                    {{ style.name }}
-                </option>
-            </select>
-        </div>
-        <div class="form-group" *ngIf="selectedQuestions.length > 0">
-            <label for="question">Select Question:</label>
-            <select
-                id="question"
-                [(ngModel)]="interviewDetails.question"
-                class="form-control"
-            >
-                <option value="">Select a question</option>
-                <option *ngFor="let question of selectedQuestions" [value]="question">
-                    {{ question }}
-                </option>
-            </select>
+        <div class="card-body">
+            <div class="form-group mb-3">
+                <label for="role" class="form-label">Role</label>
+                <div class="input-group">
+                    <span class="input-group-text"
+                        ><i class="bi bi-person-badge"></i
+                    ></span>
+                    <input
+                        type="text"
+                        id="role"
+                        [(ngModel)]="interviewDetails.role"
+                        placeholder="e.g. Software Engineer"
+                        class="form-control"
+                    />
+                </div>
+            </div>
+            <div class="form-group mb-3">
+                <label for="company" class="form-label">Company</label>
+                <div class="input-group">
+                    <span class="input-group-text"
+                        ><i class="bi bi-building"></i
+                    ></span>
+                    <input
+                        type="text"
+                        id="company"
+                        [(ngModel)]="interviewDetails.company"
+                        placeholder="e.g. Google"
+                        class="form-control"
+                    />
+                </div>
+            </div>
+            <div class="form-group mb-3">
+                <label for="interviewStyle" class="form-label"
+                    >Interview Style</label
+                >
+                <div class="input-group">
+                    <span class="input-group-text"
+                        ><i class="bi bi-list-check"></i
+                    ></span>
+                    <select
+                        id="interviewStyle"
+                        [(ngModel)]="interviewDetails.style"
+                        (change)="onStyleChange($event)"
+                        class="form-select"
+                    >
+                        <option value="">Select an interview style</option>
+                        <option
+                            *ngFor="let style of interviewStyles"
+                            [value]="style.id"
+                        >
+                            {{ style.name }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group mb-3" *ngIf="selectedQuestions.length > 0">
+                <label for="question" class="form-label"
+                    >Interview Question</label
+                >
+                <div class="input-group">
+                    <span class="input-group-text"
+                        ><i class="bi bi-question-circle"></i
+                    ></span>
+                    <select
+                        id="question"
+                        [(ngModel)]="interviewDetails.question"
+                        class="form-select"
+                    >
+                        <option value="">Select a question</option>
+                        <option
+                            *ngFor="let question of selectedQuestions"
+                            [value]="question"
+                        >
+                            {{ question }}
+                        </option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
 
