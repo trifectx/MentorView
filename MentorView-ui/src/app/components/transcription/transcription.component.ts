@@ -1,21 +1,33 @@
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Component, ElementRef, ViewChild, Input } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { InterviewDetails } from '../../shared/types';
 
 declare const faceapi: any;
+
+interface FacialDetectionResults {
+    noPersonDetectedAmount: number;
+    multiplePersonsDetectedAmount: number;
+    angry: number;
+    disgusted: number;
+    fearful: number;
+    happy: number;
+    neutral: number;
+    sad: number;
+    surprised: number;
+}
 
 @Component({
     selector: 'app-transcription',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule],
     templateUrl: './transcription.component.html',
-    styleUrl: './transcription.component.css',
+    styleUrls: ['./transcription.component.css'],
 })
 export class TranscriptionComponent {
-    @ViewChild('video') videoElementRef!: ElementRef; // reference to live video element
-    @ViewChild('recordedVideo') recordVideoElementRef!: ElementRef; // reference to recorded video element
-    @Input() interviewDetails: any;
+    @ViewChild('video') videoElementRef!: ElementRef<HTMLVideoElement>; // reference to live video element
+    @ViewChild('recordedVideo') recordVideoElementRef!: ElementRef<HTMLVideoElement>; // reference to recorded video element
+    @Input() interviewDetails!: InterviewDetails;
 
     stream!: MediaStream;
     videoElement!: HTMLVideoElement;
@@ -31,7 +43,7 @@ export class TranscriptionComponent {
     loadingTranscript = false;
     rating = '';
     loadingRating = false;
-    facialDetectionResults = {
+    facialDetectionResults: FacialDetectionResults = {
         noPersonDetectedAmount: 0,
         multiplePersonsDetectedAmount: 0,
         angry: 0,
@@ -41,7 +53,7 @@ export class TranscriptionComponent {
         neutral: 0,
         sad: 0,
         surprised: 0
-    }
+    };
     private intervalId: any;
 
     // Injecting HttpClient for API calls
@@ -76,7 +88,7 @@ export class TranscriptionComponent {
             // faceapi.nets.faceRecognitionNet.loadFromUri('./models'),
             // faceapi.nets.ageGenderNet.loadFromUri('./models'),
             faceapi.nets.faceExpressionNet.loadFromUri('./models')
-        ])
+        ]);
 
         console.log('Successfully got the camera stream');
     }
@@ -92,7 +104,7 @@ export class TranscriptionComponent {
         if (this.stream) {
             let tracks = this.stream.getTracks();
             tracks.forEach((track: MediaStreamTrack) => track.stop());
-            this.stream = null;
+            this.stream = null!;
         }
         this.showCam = false;
     }
@@ -127,7 +139,7 @@ export class TranscriptionComponent {
 
         // detections.length is the amount of faces detected in the video feed
         if (detections.length <= 0) {
-            console.log("no person detected")
+            console.log("no person detected");
             this.facialDetectionResults.noPersonDetectedAmount++;
         }
         else if (detections.length > 1) {
@@ -142,14 +154,14 @@ export class TranscriptionComponent {
                     console.log("Expression", expression + " detected with probability", probability);
                     // Increment the count for the detected expression
                     if (expression in this.facialDetectionResults) {
-                        this.facialDetectionResults[expression]++;
+                        this.facialDetectionResults[expression as keyof FacialDetectionResults]++;
                     }
                     else {
                         console.error("Unknown expression detected");
                     }
                 }
             }
-        })
+        });
     }
 
     // Set up the media recorder
@@ -222,7 +234,6 @@ export class TranscriptionComponent {
                     this.transcript = error.error?.error || "Error occurred while fetching the transcript";
                     this.loadingTranscript = false;
                 }
-
             });
     }
 
