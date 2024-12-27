@@ -73,7 +73,7 @@ def upload():
 
 
 
-# Transcribe audio using OpenAI Whisper API
+# Transcribe audio
 @app.route('/transcribe', methods=['GET'])
 def transcribe():
     global transcript
@@ -85,7 +85,9 @@ def transcribe():
             payload = { 'buffer': audio_file }
 
             options = PrerecordedOptions(
-                model="nova-2", language="en-US"
+                model="nova-2", 
+                language="en-US",
+                filler_words=True
             )
 
             response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
