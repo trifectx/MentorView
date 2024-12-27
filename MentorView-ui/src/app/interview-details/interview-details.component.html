@@ -1,0 +1,87 @@
+<div class="interview-setup card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h3 class="mb-0">Interview Details</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-group mb-3">
+            <label for="role" class="form-label">Role</label>
+            <div class="input-group">
+                <span class="input-group-text"
+                    ><i class="bi bi-person-badge"></i
+                ></span>
+                <input
+                    type="text"
+                    id="role"
+                    [(ngModel)]="interviewDetails.role"
+                    (ngModelChange)="onDetailsChange()"
+                    placeholder="e.g. Software Engineer"
+                    class="form-control"
+                />
+            </div>
+        </div>
+        <div class="form-group mb-3">
+            <label for="company" class="form-label">Company</label>
+            <div class="input-group">
+                <span class="input-group-text"
+                    ><i class="bi bi-building"></i
+                ></span>
+                <input
+                    type="text"
+                    id="company"
+                    [(ngModel)]="interviewDetails.company"
+                    (ngModelChange)="onDetailsChange()"
+                    placeholder="e.g. Google"
+                    class="form-control"
+                />
+            </div>
+        </div>
+        <div class="form-group mb-3">
+            <label for="interviewStyle" class="form-label"
+                >Interview Style</label
+            >
+            <div class="input-group">
+                <span class="input-group-text"
+                    ><i class="bi bi-list-check"></i
+                ></span>
+                <select
+                    id="interviewStyle"
+                    [(ngModel)]="interviewDetails.style"
+                    (change)="onStyleChange($event)"
+                    class="form-select"
+                >
+                    <option value="">Select an interview style</option>
+                    <option
+                        *ngFor="let style of interviewStyles"
+                        [value]="style.id"
+                    >
+                        {{ style.name }}
+                    </option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group mb-3" *ngIf="selectedQuestions.length > 0">
+            <label for="question" class="form-label"
+                >Interview Question</label
+            >
+            <div class="input-group">
+                <span class="input-group-text"
+                    ><i class="bi bi-question-circle"></i
+                ></span>
+                <select
+                    id="question"
+                    [(ngModel)]="interviewDetails.question"
+                    (ngModelChange)="onDetailsChange()"
+                    class="form-select"
+                >
+                    <option value="">Select a question</option>
+                    <option
+                        *ngFor="let question of selectedQuestions"
+                        [value]="question"
+                    >
+                        {{ question }}
+                    </option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
