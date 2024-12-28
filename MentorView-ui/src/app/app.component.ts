@@ -2,8 +2,7 @@ import { Component } from '@angular/core';
 import { TranscriptionComponent } from './components/transcription/transcription.component';
 import { InterviewDetailsComponent } from './interview-details/interview-details.component';
 import { HttpClientModule } from '@angular/common/http';
-
-
+import { InterviewDetails } from './shared/types';
 
 @Component({
     selector: 'app-root',
@@ -14,7 +13,12 @@ import { HttpClientModule } from '@angular/common/http';
 })
 export class AppComponent {
     title = 'MentorView-ui';
-    interviewDetails = {};
+    interviewDetails: InterviewDetails = {
+        role: '',
+        company: '',
+        question: '',
+        style: ''
+    };
 
     onDetailsChange(details: any) {
         this.interviewDetails = details;
