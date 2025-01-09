@@ -43,6 +43,20 @@ def add_cors_headers(response):
     return response
 
 
+@app.route('/qsuggestions', methods=['POST'])
+def qsuggestions():
+    data = request.get_json()
+    print("test", data)
+    role = data.get('role', '')
+    company = data.get('company', '')
+    style = data.get('style', '')
+
+    try:
+        questions = model.question_query_model(role, company, style)
+        return jsonify({"questions": questions}), 200
+    except Exception as e:
+        return jsonify({"error": f"Error during query: {str(e)}"}), 500
+
 
 # accepts video blob from js frontend
 @app.route('/upload', methods=['POST'])

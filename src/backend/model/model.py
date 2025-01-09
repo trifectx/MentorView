@@ -1,4 +1,5 @@
 from huggingface_hub import login, InferenceClient
+import re
 
 class Model:
     
@@ -8,6 +9,46 @@ class Model:
         self.model_name = "mistralai/Mistral-7B-Instruct-v0.3"
         print("Model loaded")
     
+
+    def _question_suggestions(self, role, company, style):
+        return [
+            {
+                "role": "user",
+                "content": f"""
+                You are an expert interviewer creating interview questions for a {role} position at {company}.
+                The interview style selected is: {style}
+
+                Based on the style:
+                - If Technical: Focus on technical skills, coding problems, and system design relevant to {role}, make sure the questions can be answered within 2 minutes or less
+                - If Behavioral: Ask about past experiences, teamwork, and problem-solving situations
+                - If Cultural: Focus on company values, work style, and team fit at {company}
+                - If Situational: Present hypothetical scenarios they might face in this role
+
+                Generate 5 detailed interview questions that:
+                1. Are specifically tailored for a {role} at {company}
+                2. Match the {style} interview style
+                3. Help assess the candidate's suitability for this specific role
+                4. Are challenging but appropriate for the position level
+
+                Note: Ensure you only include the question and nothing else
+                """,
+                }
+        ]
+
+    def question_query_model(self, role="Software engineer", company="Amazon", style="Behavioral Interview"):
+        res = self.client.chat.completions.create(
+            model=self.model_name, 
+            messages=self._question_suggestions(role, company, style),
+            max_tokens=20000,  # Increased token limit for longer responses
+            stream=False
+
+        )
+        print(re.split(r'\n\n[0-9]', res['choices'][0]['message']['content']))
+        return re.split(r'\n\n[0-9]', res['choices'][0]['message']['content'])
+    
+
+
+
     def _construct_chat(self, role, company, question, answer):
         return [
             {
@@ -22,7 +63,7 @@ class Model:
 
                 The question you asked was: {question}?
 
-                Important: Provide a complete response that covers all four sections above.
+                Important: Provide a complete response that covers all four sections above and make sure that the score that you are given is not too generous be very critical of it and dont give high scores for answers that are not well though through.
                 """,
             },
             {
