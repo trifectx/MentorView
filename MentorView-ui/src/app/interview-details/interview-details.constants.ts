@@ -1,47 +1,51 @@
 export interface InterviewStyle {
     id: string;
     name: string;
-}
-
-export interface QuestionSuggestions {
-    [key: string]: string[];
+    description?: string;
 }
 
 export const INTERVIEW_STYLES: InterviewStyle[] = [
-    { id: 'behavioral', name: 'Behavioral Interview' },
-    { id: 'technical', name: 'Technical Interview' },
-    { id: 'system_design', name: 'System Design Interview' },
-    { id: 'leadership', name: 'Leadership Interview' },
-    { id: 'general', name: 'General Interview' }
+    { 
+        id: 'behavioral',
+        name: 'Behavioral',
+        description: 'Questions about past experiences and how you handled specific situations'
+    },
+    { 
+        id: 'technical',
+        name: 'Technical',
+        description: 'Questions about technical skills, coding problems, and practical knowledge'
+    },
+    { 
+        id: 'cultural',
+        name: 'Cultural',
+        description: 'Questions about company values, team fit, and work style preferences'
+    },
+    { 
+        id: 'motivation',
+        name: 'Motivation',
+        description: 'Questions about what drives you, your career goals, and aspirations'
+    },
+    { 
+        id: 'strengths',
+        name: 'Strength Based',
+        description: 'Questions focusing on your key strengths and successful experiences'
+    },
+    { 
+        id: 'weaknesses',
+        name: 'Weakness Based',
+        description: 'Questions about areas of improvement and how you handle challenges'
+    },
+    { 
+        id: 'situational',
+        name: 'Situational',
+        description: 'Questions about how you would handle hypothetical scenarios'
+    },
+    { 
+        id: 'custom',
+        name: 'Custom Question',
+        description: 'Write your own interview question'
+    }
 ];
-
-export const QUESTION_SUGGESTIONS: QuestionSuggestions = {
-    'behavioral': [
-        'Tell me about a time you faced a difficult challenge at work',
-        'Describe a situation where you had to work with a difficult team member',
-        'Give an example of a goal you reached and how you achieved it'
-    ],
-    'technical': [
-        'Explain how you would implement a binary search tree',
-        'How would you optimize a slow-performing database query?',
-        'Describe the differences between REST and GraphQL'
-    ],
-    'system_design': [
-        'Design a URL shortening service like bit.ly',
-        'How would you design Twitter\'s backend?',
-        'Design a distributed cache system'
-    ],
-    'leadership': [
-        'Tell me about a time you had to make a difficult decision as a leader',
-        'How do you motivate your team members?',
-        'Describe your approach to managing conflicting priorities'
-    ],
-    'general': [
-        'Why are you interested in this position?',
-        'Where do you see yourself in 5 years?',
-        'What are your greatest strengths and weaknesses?'
-    ]
-};
 
 export const ROLES: string[] = [
     'Software Engineer',

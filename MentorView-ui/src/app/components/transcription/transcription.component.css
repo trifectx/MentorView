@@ -12,8 +12,15 @@
 }
 
 /* Spacing between buttons */
+.gap-2 {
+    gap: 0.5rem;
+}
+
+/* Button styles */
 .btn {
     margin: 5px;
+    min-width: 120px;
+    transition: all 0.3s ease;
 }
 
 /* Adding a little padding to the transcript section */
@@ -29,7 +36,20 @@
 
 /* Buttons adjustments for different states */
 .btn:disabled {
-    opacity: 0.5;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Hover effects */
+.btn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Active state */
+.btn:not(:disabled):active {
+    transform: translateY(0);
+    box-shadow: none;
 }
 
 /* Hide elements */

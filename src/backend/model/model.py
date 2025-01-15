@@ -35,17 +35,24 @@ class Model:
                 }
         ]
 
+    def _clean_question(self, question: str) -> str:
+        # Remove any existing numbering and extra whitespace
+        cleaned = re.sub(r'^\d+\.?\s*', '', question.strip())
+        # Remove any other dots at the start
+        cleaned = re.sub(r'^\.+\s*', '', cleaned)
+        return cleaned
+
     def question_query_model(self, role="Software engineer", company="Amazon", style="Behavioral Interview"):
         res = self.client.chat.completions.create(
             model=self.model_name, 
             messages=self._question_suggestions(role, company, style),
-            max_tokens=20000,  # Increased token limit for longer responses
+            max_tokens=20000,  
             stream=False
 
         )
-        print(re.split(r'\n\n[0-9]', res['choices'][0]['message']['content']))
-        return re.split(r'\n\n[0-9]', res['choices'][0]['message']['content'])
-    
+        raw_questions = re.split(r'\n\n[0-9]', res['choices'][0]['message']['content'])
+        cleaned_questions = [self._clean_question(q) for q in raw_questions if q.strip()]
+        return cleaned_questions
 
 
 
@@ -77,8 +84,8 @@ class Model:
         res = self.client.chat.completions.create(
             model=self.model_name, 
             messages=self._construct_chat(role, company, question, answer), 
-            max_tokens=2000,  # Increased token limit for longer responses
-            temperature=0.7,   # Balanced temperature for consistent but natural responses
+            max_tokens=2000,  
+            temperature=0.7,   
             stream=False
         )
 

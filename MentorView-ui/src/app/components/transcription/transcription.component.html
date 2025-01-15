@@ -29,12 +29,24 @@
         class="video-player"
     ></video>
     <br />
-    <button class="btn btn-success" (click)="start()" [disabled]="isRecording">
-        Start Recording
-    </button>
-    <button class="btn btn-warning" (click)="stop()" [disabled]="!isRecording">
-        Stop Recording
-    </button>
+    <div class="d-flex justify-content-center gap-2">
+        <button class="btn btn-success" (click)="start()" [disabled]="isRecording">
+            Start Recording
+        </button>
+        <button class="btn btn-warning" (click)="stop()" [disabled]="!isRecording">
+            Stop Recording
+        </button>
+        <button 
+            class="btn" 
+            [class.btn-primary]="isFacialRecognitionPaused"
+            [class.btn-info]="!isFacialRecognitionPaused"
+            (click)="toggleFacialRecognition()" 
+            [disabled]="!isRecording"
+            [title]="isFacialRecognitionPaused ? 'Start facial recognition' : 'Pause facial recognition'"
+        >
+            {{ isFacialRecognitionPaused ? 'Start Facial Recognition' : 'Pause Facial Recognition' }}
+        </button>
+    </div>
 </div>
 
 <span class="m-2"></span>

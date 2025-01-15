@@ -25,8 +25,8 @@ interface FacialDetectionResults {
     styleUrls: ['./transcription.component.css'],
 })
 export class TranscriptionComponent {
-    @ViewChild('video') videoElementRef!: ElementRef<HTMLVideoElement>; // reference to live video element
-    @ViewChild('recordedVideo') recordVideoElementRef!: ElementRef<HTMLVideoElement>; // reference to recorded video element
+    @ViewChild('video') videoElementRef!: ElementRef<HTMLVideoElement>;
+    @ViewChild('recordedVideo') recordVideoElementRef!: ElementRef<HTMLVideoElement>;
     @Input() interviewDetails!: InterviewDetails;
 
     stream!: MediaStream;
@@ -43,6 +43,7 @@ export class TranscriptionComponent {
     loadingTranscript = false;
     rating = '';
     loadingRating = false;
+    isFacialRecognitionPaused = true; // Start paused
     facialDetectionResults: FacialDetectionResults = {
         noPersonDetectedAmount: 0,
         multiplePersonsDetectedAmount: 0,
@@ -120,13 +121,16 @@ export class TranscriptionComponent {
         this.mediaRecorder?.start();
         this.isRecording = true;
         this.showVideos = false;
+        this.isFacialRecognitionPaused = true; // Start paused
 
-        console.log('Recording and facial expression detection started');
+        console.log('Recording started. Facial recognition is paused.');
 
         // facial detection and expression recognition
         // using ssdmobilev1net model
         this.intervalId = setInterval(async () => {
-            this.runFacialRecognition();
+            if (!this.isFacialRecognitionPaused) {
+                this.runFacialRecognition();
+            }
         }, 200);
     }
 
@@ -196,16 +200,22 @@ export class TranscriptionComponent {
         }
     }
 
+    // Toggle facial recognition
+    toggleFacialRecognition() {
+        this.isFacialRecognitionPaused = !this.isFacialRecognitionPaused;
+        if (!this.isFacialRecognitionPaused) {
+            console.log('Starting facial recognition...');
+        } else {
+            console.log('Facial recognition paused');
+        }
+    }
+
     // Stop recording
     stop() {
         this.mediaRecorder?.stop();
         this.isRecording = false;
+        clearInterval(this.intervalId);
         this.showVideos = true;
-
-        if (this.intervalId) {
-            clearInterval(this.intervalId);
-            console.log("Facial detection results are ", this.facialDetectionResults);
-        }
     }
 
     sendToServer() {

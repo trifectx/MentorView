@@ -59,3 +59,81 @@
 .mat-form-field-appearance-outline .mat-form-field-outline-gap {
     border-radius: 4px;
 }
+
+/* Interview Style Dropdown Styles */
+::ng-deep .interview-style-option {
+    padding: 12px 16px !important;
+    height: auto !important;
+}
+
+::ng-deep .style-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+::ng-deep .style-name {
+    font-weight: 500;
+    color: #333;
+}
+
+::ng-deep .style-description {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+}
+
+/* Add a subtle divider between options */
+::ng-deep .interview-style-option:not(:last-child) {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Hover effect */
+::ng-deep .interview-style-option:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Selected state */
+::ng-deep .interview-style-option.mat-selected {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Make sure the dropdown panel is wide enough */
+::ng-deep .mat-select-panel {
+    max-width: 100% !important;
+}
+
+/* Ensure text wraps properly */
+::ng-deep .mat-option-text {
+    white-space: normal !important;
+    height: auto !important;
+    line-height: inherit !important;
+}
+
+/* Question Dropdown Styles */
+::ng-deep .mat-option {
+    padding: 12px 16px !important;
+    line-height: 1.4 !important;
+    height: auto !important;
+    white-space: normal !important;
+}
+
+/* Add divider between questions */
+::ng-deep .mat-option:not(:last-child) {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Hover effect */
+::ng-deep .mat-option:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Selected state */
+::ng-deep .mat-option.mat-selected:not(.mat-option-disabled) {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Make sure the dropdown panel is wide enough */
+::ng-deep .mat-select-panel {
+    max-width: 100% !important;
+}
