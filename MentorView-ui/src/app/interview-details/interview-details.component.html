@@ -89,5 +89,9 @@
                 </mat-select>
             </mat-form-field>
         </div>
+        <div class="loading-spinner" *ngIf="isLoadingQuestions">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p class="mt-2 text-muted">Loading interview questions...</p>
+        </div>
     </div>
 </div>

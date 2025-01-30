@@ -5,6 +5,7 @@ import { MatSelectModule, MatSelectChange } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { INTERVIEW_STYLES, ROLES, COMPANIES, InterviewStyle } from './interview-details.constants';
 import { InterviewDetails} from '../shared/types';
 import { QuestionSuggestionsService } from './question-suggestions.service';
@@ -21,6 +22,7 @@ import { QuestionSuggestionsService } from './question-suggestions.service';
         MatInputModule,
         MatAutocompleteModule,
         MatFormFieldModule,
+        MatProgressSpinnerModule,
     ],
 })
 export class InterviewDetailsComponent {
