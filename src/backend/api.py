@@ -43,10 +43,11 @@ def add_cors_headers(response):
     return response
 
 
-@app.route('/qsuggestions', methods=['POST'])
-def qsuggestions():
+@app.route('/question_suggestions', methods=['POST'])
+def question_suggestions():
     data = request.get_json()
-    print("test", data)
+    print("get questions for:", data)
+    
     role = data.get('role', '')
     company = data.get('company', '')
     style = data.get('style', '')
@@ -128,7 +129,7 @@ def transcribe():
 
 
 # Query the Hugging Face model
-@app.route('/query', methods=['POST'])
+@app.route('/rate_answer', methods=['POST'])
 def query():
     # Get input data from the request
     data = request.get_json()

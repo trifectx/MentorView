@@ -7,7 +7,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { INTERVIEW_STYLES, ROLES, COMPANIES, InterviewStyle } from './interview-details.constants';
-import { InterviewDetails} from '../../shared/types';
+import { InterviewDetails } from '../../shared/types';
 import { ApiService } from '../../services/api.service';
 
 @Component({
@@ -41,7 +41,7 @@ export class InterviewDetailsComponent {
     selectedQuestions: string[] = [];
     isLoadingQuestions = false;
 
-    constructor(private apiService: ApiService) {}
+    constructor(private apiService: ApiService) { }
 
     getSelectedStyleName(): string {
         const selectedStyle = this.interviewStyles.find(style => style.id === this.interviewDetails.style);
@@ -74,21 +74,23 @@ export class InterviewDetailsComponent {
     }
 
     private getQuestions(): void {
-        this.apiService.getQuestions({
+        const data = {
             role: this.interviewDetails.role,
             company: this.interviewDetails.company,
             style: this.interviewDetails.style
-        })
-        .subscribe({
-            next: (response) => {
-                this.selectedQuestions = response.questions;
-                this.isLoadingQuestions = false;
-            },
-            error: (error) => {
-                console.error('Error fetching questions:', error);
-                this.selectedQuestions = [];
-                this.isLoadingQuestions = false;
-            }
-        });
+        }
+
+        this.apiService.getQuestions(data)
+            .subscribe({
+                next: (response) => {
+                    this.selectedQuestions = response.questions;
+                    this.isLoadingQuestions = false;
+                },
+                error: (error) => {
+                    console.error('Error fetching questions:', error);
+                    this.selectedQuestions = [];
+                    this.isLoadingQuestions = false;
+                }
+            });
     }
 }

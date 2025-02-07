@@ -18,15 +18,8 @@ export class ApiService {
         rateAnswer: `${this.baseUrl}/rate_answer`
     };
 
-    constructor(private http: HttpClient) {}
+    constructor(private http: HttpClient) { }
 
-    getQuestions(data: {
-        role: string,
-        company: string,
-        style: string
-    }): Observable<Questions> {
-        return this.http.post<Questions>(this.endpoints.questions, data);
-    }
 
     uploadVideo(videoBlob: Blob): Observable<void> {
         const formData = new FormData();
@@ -46,5 +39,13 @@ export class ApiService {
         question: string;
     }): Observable<Rating> {
         return this.http.post<Rating>(this.endpoints.rateAnswer, data);
+    }
+
+    getQuestions(data: {
+        role: string,
+        company: string,
+        style: string
+    }): Observable<Questions> {
+        return this.http.post<Questions>(this.endpoints.questions, data);
     }
 }
