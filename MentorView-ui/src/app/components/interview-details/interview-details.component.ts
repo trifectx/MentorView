@@ -7,8 +7,8 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { INTERVIEW_STYLES, ROLES, COMPANIES, InterviewStyle } from './interview-details.constants';
-import { InterviewDetails} from '../shared/types';
-import { QuestionSuggestionsService } from './question-suggestions.service';
+import { InterviewDetails} from '../../shared/types';
+import { ApiService } from '../../services/api.service';
 
 @Component({
     selector: 'app-interview-details',
@@ -41,7 +41,7 @@ export class InterviewDetailsComponent {
     selectedQuestions: string[] = [];
     isLoadingQuestions = false;
 
-    constructor(private questionSuggestionsService: QuestionSuggestionsService) {}
+    constructor(private apiService: ApiService) {}
 
     getSelectedStyleName(): string {
         const selectedStyle = this.interviewStyles.find(style => style.id === this.interviewDetails.style);
@@ -52,7 +52,7 @@ export class InterviewDetailsComponent {
         const style = event.value;
         this.interviewDetails.style = style;
         this.interviewDetails.question = '';
-        
+
         if (style !== 'custom') {
             this.loadQuestions();
         }
@@ -69,23 +69,26 @@ export class InterviewDetailsComponent {
     private loadQuestions(): void {
         if (this.interviewDetails.role && this.interviewDetails.company && this.interviewDetails.style) {
             this.isLoadingQuestions = true;
-            this.questionSuggestionsService
-                .getQuestions(
-                    this.interviewDetails.role,
-                    this.interviewDetails.company,
-                    this.interviewDetails.style
-                )
-                .subscribe({
-                    next: (response) => {
-                        this.selectedQuestions = response.questions;
-                        this.isLoadingQuestions = false;
-                    },
-                    error: (error) => {
-                        console.error('Error fetching questions:', error);
-                        this.selectedQuestions = [];
-                        this.isLoadingQuestions = false;
-                    }
-                });
+            this.getQuestions();
         }
+    }
+
+    private getQuestions(): void {
+        this.apiService.getQuestions({
+            role: this.interviewDetails.role,
+            company: this.interviewDetails.company,
+            style: this.interviewDetails.style
+        })
+        .subscribe({
+            next: (response) => {
+                this.selectedQuestions = response.questions;
+                this.isLoadingQuestions = false;
+            },
+            error: (error) => {
+                console.error('Error fetching questions:', error);
+                this.selectedQuestions = [];
+                this.isLoadingQuestions = false;
+            }
+        });
     }
 }

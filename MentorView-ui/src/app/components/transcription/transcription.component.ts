@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, ViewChild, Input } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { ApiService } from '../../services/api.service';
 import { InterviewDetails } from '../../shared/types';
 
 declare const faceapi: any;
@@ -57,10 +57,8 @@ export class TranscriptionComponent {
     };
     private intervalId: any;
 
-    // Injecting HttpClient for API calls
-    constructor(
-        private apiClient: HttpClient,
-    ) { }
+    // Injecting ApiService for API calls
+    constructor(private apiService: ApiService) { }
 
     // Start the webcam stream
     getCam() {
@@ -219,11 +217,7 @@ export class TranscriptionComponent {
     }
 
     sendToServer() {
-        const formData = new FormData();
-        formData.append('file', this.videoBlob);
-        // Post to upload endpoint
-        this.apiClient
-            .post(`${this.apiUrl}/upload`, formData)
+        this.apiService.uploadVideo(this.videoBlob)
             .subscribe((response) => {
                 console.log(response);
             });
@@ -233,8 +227,7 @@ export class TranscriptionComponent {
         this.loadingTranscript = true;
         this.transcript = ''; // Clear previous transcript when starting a new request
 
-        this.apiClient
-            .get(`${this.apiUrl}/transcribe`)
+        this.apiService.transcribeVideo()
             .subscribe({
                 next: (response: any) => {
                     this.transcript = response.transcript || "No transcript available";
@@ -254,14 +247,14 @@ export class TranscriptionComponent {
         const data = {
             role: this.interviewDetails.role,
             company: this.interviewDetails.company,
-            question: this.interviewDetails.question,
-            answer: this.transcript
+            style: this.interviewDetails.style,
+            transcript: this.transcript,
+            question: this.interviewDetails.question
         };
 
         console.log(data);
 
-        this.apiClient
-            .post(`${this.apiUrl}/query`, data)
+        this.apiService.rateAnswer(data)
             .subscribe({
                 next: (response: any) => {
                     this.rating = response.feedback;

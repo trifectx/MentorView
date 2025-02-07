@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { TranscriptionComponent } from './components/transcription/transcription.component';
-import { InterviewDetailsComponent } from './interview-details/interview-details.component';
+import { InterviewDetailsComponent } from './components/interview-details/interview-details.component';
 import { HttpClientModule } from '@angular/common/http';
 import { InterviewDetails } from './shared/types';
 
