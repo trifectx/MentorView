@@ -5,4 +5,10 @@ import { SignupComponent } from './pages/signup/signup.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { InterviewComponent } from './pages/interview/interview.component';
 
-export const routes: Routes = [];
+export const routes: Routes = [
+    {
+        path: '',
+        component: InterviewComponent,
+        title: 'Your Interview',
+    }
+];
