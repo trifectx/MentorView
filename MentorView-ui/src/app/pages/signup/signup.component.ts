@@ -39,7 +39,7 @@ export class SignupComponent implements OnInit {
     constructor(private fb: FormBuilder) {}
 
     ngOnInit(): void {
-        this.signupForm = this.fb.group(
+        this.signupForm = this.fb.nonNullable.group(
             {
                 username: ['', [
                     Validators.required, 
