@@ -8,7 +8,9 @@ import { InterviewComponent } from './pages/interview/interview.component';
 
 export const routes: Routes = [
     {
-        path: '', redirectTo: 'home', pathMatch: 'full',
+        path: '',
+        redirectTo: 'home', 
+        pathMatch: 'full',
     },
     {
         path: 'home',
