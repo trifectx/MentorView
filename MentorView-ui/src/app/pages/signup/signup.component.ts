@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { Component, inject, OnInit } from '@angular/core';
+import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import {
     ReactiveFormsModule,
@@ -14,6 +14,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
     selector: 'app-signup',
@@ -32,11 +33,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
     styleUrl: './signup.component.css',
 })
 export class SignupComponent implements OnInit {
+    fb = inject(FormBuilder);
+    authService = inject(AuthService);
+    router = inject(Router);
+
     signupForm!: FormGroup;
     hidePassword = true;
     hideConfirmPassword = true;
-
-    constructor(private fb: FormBuilder) {}
 
     ngOnInit(): void {
         this.signupForm = this.fb.nonNullable.group(
@@ -71,9 +74,14 @@ export class SignupComponent implements OnInit {
 
     onSubmit(): void {
         if (this.signupForm.valid) {
-            console.log('Form submitted:', this.signupForm.value);
-            // You'll connect this to Firebase auth later
-            // this.signupForm.value contains username, email and password
+            const rawForm = this.signupForm.getRawValue();
+            this.authService.register(
+                rawForm.email,
+                rawForm.username,
+                rawForm.password
+            ).subscribe(() => {
+                this.router.navigateByUrl('/dashboard');
+            })
         }
     }
 }
