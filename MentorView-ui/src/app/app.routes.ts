@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { ErrorComponent } from './pages/error/error.component';
 import { HomeComponent } from './pages/home/home.component';
 import { LoginComponent } from './pages/login/login.component';
 import { SignupComponent } from './pages/signup/signup.component';
@@ -7,7 +8,7 @@ import { InterviewComponent } from './pages/interview/interview.component';
 
 export const routes: Routes = [
     {
-        path: '', redirectTo: '/interview', pathMatch: 'full',
+        path: '', redirectTo: 'home', pathMatch: 'full',
     },
     {
         path: 'home',
@@ -33,5 +34,10 @@ export const routes: Routes = [
         path: 'interview',
         component: InterviewComponent,
         title: 'Your Interview',
+    },
+    {
+        path: '**',
+        component: ErrorComponent,
+        title: 'Error',
     },
 ];
