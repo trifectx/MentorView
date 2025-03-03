@@ -41,8 +41,13 @@ export class SignupComponent implements OnInit {
     ngOnInit(): void {
         this.signupForm = this.fb.group(
             {
+                username: ['', [
+                    Validators.required, 
+                    Validators.minLength(3),
+                    Validators.pattern('^[a-zA-Z0-9_]+$')
+                ]],
                 email: ['', [Validators.required, Validators.email]],
-                password: ['', [Validators.required, Validators.minLength(6)]],
+                password: ['', [Validators.required, Validators.minLength(8)]],
                 confirmPassword: ['', [Validators.required]],
             },
             { validators: this.passwordMatchValidator }
@@ -68,7 +73,7 @@ export class SignupComponent implements OnInit {
         if (this.signupForm.valid) {
             console.log('Form submitted:', this.signupForm.value);
             // You'll connect this to Firebase auth later
-            // this.signupForm.value contains email and password
+            // this.signupForm.value contains username, email and password
         }
     }
 }
