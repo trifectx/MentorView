@@ -15,6 +15,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { AuthService } from '../../services/auth.service';
+import { isNull } from 'node:util';
 
 @Component({
     selector: 'app-signup',
@@ -72,6 +73,8 @@ export class SignupComponent implements OnInit {
         return null;
     }
 
+    errorMessage: string | null = null;
+
     onSubmit(): void {
         if (this.signupForm.valid) {
             const rawForm = this.signupForm.getRawValue();
@@ -79,9 +82,13 @@ export class SignupComponent implements OnInit {
                 rawForm.email,
                 rawForm.username,
                 rawForm.password
-            ).subscribe(() => {
+            ).subscribe({
+                next: () => {
                 this.router.navigateByUrl('/dashboard');
-            })
-        }
+            },
+            error: (err)=> {
+                this.errorMessage = err.code;
+            },
+        });
     }
 }
