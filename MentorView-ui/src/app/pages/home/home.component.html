@@ -1,7 +1,103 @@
-<div class="text-center mt-5">
-    <h1 class="display-4">Home</h1>
-    <h1 class="display-4">MentorView by Tochukwu Iheanyichukwu, Biggy, Hazzy</h1>
-    <button class="btn btn-primary btn-lg" routerLink="/sign-up">Sign up</button>
-    <button class="btn btn-secondary btn-lg" routerLink="/login">Login</button>
-</div>
+<div class="main-container">
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-logo">
+      <span>MentorView</span>
+    </div>
+    <div class="nav-links">
+      <a routerLink="/explore">Explore</a>
+      <a routerLink="/product">Product</a>
+      <a routerLink="/login">Sign in</a>
+    </div>
+  </nav>
 
+  <!-- Main Content -->
+  <div class="content-wrapper">
+    <div class="left-section">
+      <h1>A New Way to Learn</h1>
+      <p>MentorView is the best platform to help you enhance your skills, expand your knowledge and prepare for technical interviews.</p>
+      <button class="cta-button" routerLink="/sign-up">Create Account ›</button>
+    </div>
+    <div class="right-section">
+      <div class="dashboard-preview">
+        <div class="preview-card">
+          <div class="card-header">
+            <span class="dot blue"></span>
+            <span class="dot green"></span>
+            <span class="dot yellow"></span>
+            <span class="dot red"></span>
+            <span class="dot-spacer"></span>
+            <span class="progress-circle"></span>
+          </div>
+          <div class="card-content">
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Exploring Section -->
+  <div class="explore-section">
+    <div class="explore-content">
+      <div class="explore-icon">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+        </svg>
+      </div>
+      <h2>Start Exploring</h2>
+      <p>Explore is a well-organized tool that helps you get the most out of MentorView by providing structure to guide your progress.</p>
+      <button class="explore-button">Get Started ›</button>
+    </div>
+    <div class="folder-preview">
+      <div class="folder blue"></div>
+      <div class="folder green"></div>
+      <div class="folder cyan"></div>
+    </div>
+  </div>
+
+  <!-- Information Cards Section -->
+  <div class="info-cards-section">
+    <h2 class="section-title">Everything you need to succeed</h2>
+    
+    <div class="cards-container">
+      <div class="info-card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28">
+            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path>
+          </svg>
+        </div>
+        <h3>Questions, Community & Contests</h3>
+        <p>Over 1650 questions for you to practice. Come and join one of the largest tech communities with hundreds of thousands of active users and participate in our contests to challenge yourself and earn rewards.</p>
+        <a href="#" class="card-link">View Questions ›</a>
+      </div>
+      
+      <div class="info-card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28">
+            <path fill="currentColor" d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"></path>
+          </svg>
+        </div>
+        <h3>Companies & Candidates</h3>
+        <p>Not only does MentorView prepare candidates for technical interviews, we also help companies identify top technical talent. From sponsoring contests to providing online assessments and training, we offer numerous services to businesses.</p>
+        <a href="#" class="card-link">Business Opportunities ›</a>
+      </div>
+      
+      <div class="info-card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28">
+            <path fill="currentColor" d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"></path>
+          </svg>
+        </div>
+        <h3>Developer</h3>
+        <p>We now support 14 popular coding languages. At our core, MentorView is about empowering developers to improve their skills through practice, community support, and expert mentorship.</p>
+        <a href="#" class="card-link">Learn More ›</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagonal-gradient"></div>
+</div>
