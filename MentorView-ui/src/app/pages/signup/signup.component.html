@@ -1,4 +1,7 @@
 <div class="signup-container">
+@if (errorMessage) {
+    <div>{{errorMessage}}</div>
+}
     <div class="back-button-container">
         <button mat-icon-button routerLink="/home" aria-label="Go back">
             <mat-icon>arrow_back</mat-icon>
