@@ -7,6 +7,7 @@
             <mat-icon>arrow_back</mat-icon>
         </button>
     </div>
+    
     <mat-card class="login-card">
         <mat-card-header>
             <mat-card-title>Welcome back</mat-card-title>
@@ -63,7 +64,7 @@
                     <mat-error
                         *ngIf="loginForm.controls['password'].hasError('minlength')"
                     >
-                        Password must be at least 6 characters
+                        Password must be at least 8 characters
                     </mat-error>
                 </mat-form-field>
 
@@ -83,7 +84,7 @@
 
         <mat-card-actions align="end">
             <span class="signup-text">Don't have an account?</span>
-            <a mat-button color="accent" [routerLink]="['/sign-up']">Sign Up</a>
+            <button mat-button color="accent" routerLink="/sign-up">Sign up</button>
         </mat-card-actions>
     </mat-card>
 </div>

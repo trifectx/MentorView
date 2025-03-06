@@ -41,6 +41,7 @@ export class SignupComponent implements OnInit {
     signupForm!: FormGroup;
     hidePassword = true;
     hideConfirmPassword = true;
+    errorMessage: string | null = null;
 
     ngOnInit(): void {
         this.signupForm = this.fb.nonNullable.group(
@@ -72,8 +73,6 @@ export class SignupComponent implements OnInit {
         }
         return null;
     }
-
-    errorMessage: string | null = null;
 
     onSubmit(): void {
         if (this.signupForm.valid) {

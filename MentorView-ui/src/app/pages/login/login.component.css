@@ -8,8 +8,9 @@
 }
 
 .back-button-container {
-    align-self: flex-start;
-    margin-bottom: 1rem;
+    position: absolute;
+    top: 16px;
+    left: 16px;
 }
 
 .login-card {
