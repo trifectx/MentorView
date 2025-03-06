@@ -31,7 +31,7 @@ import { isNull } from 'node:util';
         MatFormFieldModule,
     ],
     templateUrl: './signup.component.html',
-    styleUrl: './signup.component.css',
+    styleUrls: ['./signup.component.css'],
 })
 export class SignupComponent implements OnInit {
     fb = inject(FormBuilder);
@@ -84,11 +84,12 @@ export class SignupComponent implements OnInit {
                 rawForm.password
             ).subscribe({
                 next: () => {
-                this.router.navigateByUrl('/dashboard');
-            },
-            error: (err)=> {
-                this.errorMessage = err.code;
-            },
-        });
+                    this.router.navigateByUrl('/dashboard');
+                },
+                error: (err) => {
+                    this.errorMessage = err.code;
+                }
+            });
+        }
     }
 }
