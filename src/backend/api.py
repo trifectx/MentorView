@@ -4,8 +4,6 @@ import torch
 import os
 from moviepy import VideoFileClip
 from openai import OpenAI
-from dotenv import load_dotenv
-from deepgram import DeepgramClient, PrerecordedOptions
 import asyncio
 
 # Check if CUDA is available
@@ -21,17 +19,8 @@ video_path = os.path.join(os.getcwd(), "video.mp4")
 audio_path = os.path.join(os.getcwd(), "audio.mp3")
 transcript = ""
 
-load_dotenv()
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-# if not OPENAI_API_KEY:
-#     raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
-
-# client = OpenAI(api_key=OPENAI_API_KEY)
-
-# Deepgram API Key from .env
-DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
-if not DEEPGRAM_API_KEY:
-    raise ValueError("Missing Deepgram API Key. Set DEEPGRAM_API_KEY in .env file.")
+# OpenAI client setup with direct API key
+client = OpenAI(api_key="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")
 
 
 
@@ -93,42 +82,24 @@ def upload():
 def transcribe():
     global transcript
     try:
-        # Initialize deepgram client
-        deepgram = DeepgramClient(DEEPGRAM_API_KEY)
-
+        # Open the audio file in binary read mode
         with open(audio_path, "rb") as audio_file:
-            payload = { 'buffer': audio_file }
-
-            options = PrerecordedOptions(
-                model="nova-2", 
-                language="en-US",
-                filler_words=True
+            # whisper-1 is the API-optimized version of the large-v2 model
+            transcription = client.audio.transcriptions.create(
+                model="whisper-1", 
+                file=audio_file, 
+                response_format="text"
             )
-
-            response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
-            transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
-
-        return jsonify({"transcript": transcript}), 200
-    
-    # try:
-    #     # Open the audio file in binary read mode
-    #     with open(audio_path, "rb") as audio_file:
-    #         # whisper-1 is the API-optimized version of the large-v2 model
-    #         transcription = client.audio.transcriptions.create(
-    #             model="whisper-1", 
-    #             file=audio_file, 
-    #             response_format="text"
-    #         )
-    #         transcript = transcription
+            transcript = transcription
         
-    #     return jsonify({"transcript": transcript}), 200
+        return jsonify({"transcript": transcript}), 200
 
     except Exception as e:
         return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
 
 
 
-# Query the Hugging Face model
+# Query the OpenAI GPT-4 model
 @app.route('/rate_answer', methods=['POST'])
 def query():
     # Get input data from the request
@@ -142,7 +113,7 @@ def query():
     if not all([role, company, question, transcript]):
         return jsonify({"error": "All fields (role, company, question, answer) are required"}), 400
 
-    # Query the Hugging Face model
+    # Query the OpenAI GPT-4 model
     try:
         feedback = model.query_model(role=role, company=company, question=question, answer=transcript)
         return jsonify({"feedback": feedback}), 200
