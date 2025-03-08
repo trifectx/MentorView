@@ -10,7 +10,7 @@
     animation: fadeIn 0.4s ease-out;
 }
 
-/* Video player styling */
+/* Video player base styling */
 .video-player {
     width: 100%;
     max-width: 500px;
@@ -19,12 +19,34 @@
     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
     margin: 0 auto 16px;
     background-color: #f8f9fe;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .video-player:hover {
-    transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    transform: translateY(-2px);
+}
+
+/* Specific styling for webcam feed - fix mirroring */
+.webcam-feed {
+    /* This will flip the webcam feed horizontally to counter browser's default mirroring */
+    transform: scaleX(-1);
+}
+
+.webcam-feed:hover {
+    /* Maintain the horizontal flip while adding the hover effect */
+    transform: translateY(-2px) scaleX(-1);
+}
+
+/* Specific styling for recorded video - normal orientation */
+.recorded-video {
+    /* Normal orientation (no flipping) */
+    transform: scaleX(1);
+}
+
+.recorded-video:hover {
+    /* Maintain normal orientation with hover effect */
+    transform: translateY(-2px) scaleX(1);
 }
 
 /* Spacing between buttons */

@@ -70,8 +70,20 @@ export class TranscriptionComponent implements OnInit {
 
     // Start the webcam stream
     getCam() {
+        const constraints = {
+            video: {
+                width: 300,
+                height: 300,
+                // Prevent automatic mirroring of the webcam feed
+                facingMode: 'user',
+                // Some browsers support this property to disable mirroring
+                mirror: false
+            },
+            audio: true
+        };
+
         navigator.mediaDevices
-            .getUserMedia({ video: { width: 300, height: 300 }, audio: true })
+            .getUserMedia(constraints)
             .then((stream) => this.handleStreamSuccess(stream))
             .catch((error) => this.handleStreamError(error));
     }

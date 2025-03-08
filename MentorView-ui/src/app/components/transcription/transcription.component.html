@@ -11,9 +11,9 @@
         <video
             #video
             id="videoStream"
+            class="video-player webcam-feed"
             autoplay
             controls
-            class="video-player"
         ></video>
     </div>
     <div class="controls-container">
@@ -37,18 +37,16 @@
     </div>
 </div>
 
-<span class="m-2"></span>
-
 <!-- Recorded Videos Section -->
 <div [ngClass]="showVideos ? 'show' : 'hide'" class="video-container">
     <h3 class="section-title">Recorded Interview</h3>
     <div class="video-wrapper">
         <video
             #recordedVideo
-            id="videoStream"
+            id="recordedVideo"
+            class="video-player recorded-video"
             autoplay
             controls
-            class="video-player"
         ></video>
     </div>
     
