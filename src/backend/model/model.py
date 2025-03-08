@@ -19,7 +19,7 @@ class Model:
         print("OpenAI GPT-4 model loaded")
     
 
-    def _question_suggestions(self, role, company, style):
+    def question_suggestions(self, role, company, style):
         return [
             {
                 "role": "system",
@@ -54,7 +54,7 @@ class Model:
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self._question_suggestions(role, company, style),
+                messages=self.question_suggestions(role, company, style),
                 max_tokens=5000,
                 temperature=0.7,
                 stream=False

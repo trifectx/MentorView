@@ -1,31 +1,36 @@
-from flask import Flask, jsonify, request
-from model.model import Model
-import torch
 import os
-from moviepy import VideoFileClip
-from openai import OpenAI
 from dotenv import load_dotenv
-import asyncio
+from flask import Flask, jsonify, request
+from moviepy import VideoFileClip
+import torch
+from openai import OpenAI
+from model.model import Model
 
+# Check and retrieve environment variables
 load_dotenv()
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
+
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 if not DEEPGRAM_API_KEY:
     raise ValueError("Missing Deepgram API Key. Set DEEPGRAM_API_KEY in .env file.")
 
 # Check if CUDA is available
 print("!!t!!")
-print(torch.cuda.is_available())
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+print("CUDA is available?", torch.cuda.is_available())
+
+# Paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+video_path = os.path.join(BASE_DIR, "video.mp4")
+audio_path = os.path.join(BASE_DIR, "audio.mp3")
 
 # Initialize the Flask app
 app = Flask(__name__)
-video_path = os.path.join(os.getcwd(), "video.mp4")
-audio_path = os.path.join(os.getcwd(), "audio.mp3")
 transcript = ""
 client = OpenAI(api_key=OPENAI_API_KEY)
+model = Model()
 
 
 @app.after_request
@@ -145,5 +150,4 @@ def query():
 
 # Run the app
 if __name__ == '__main__':
-    model = Model()
     app.run(debug=True)
