@@ -71,6 +71,24 @@ export class InterviewComponent implements OnInit {
     }
   }
 
+  /**
+   * Selects a question from the question cards
+   * @param question The question to select
+   */
+  selectQuestion(question: string): void {
+    this.interviewDetails.question = question;
+    this.onDetailsChange();
+  }
+
+  /**
+   * Switches to custom question mode
+   */
+  addCustomQuestion(): void {
+    this.interviewDetails.style = 'custom';
+    this.interviewDetails.question = '';
+    this.onDetailsChange();
+  }
+
   private loadQuestions(): void {
     if (this.interviewDetails.role && this.interviewDetails.company && this.interviewDetails.style) {
       this.isLoadingQuestions = true;

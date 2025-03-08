@@ -1,9 +1,3 @@
-<!-- Interview Question Display -->
-<div class="question-display" *ngIf="interviewDetails?.question">
-    <h3>Question:</h3>
-    <div class="question-text">{{ interviewDetails.question }}</div>
-</div>
-
 <!-- Video Recording Section -->
 <div [ngClass]="showCam ? 'show' : 'hide'" class="video-container">
     <h3 class="section-title">Interview Session</h3>
@@ -67,20 +61,12 @@
     <!-- Transcript Display Section -->
     <div *ngIf="loadingTranscript || transcript" class="result-section">
         <h3 class="result-title">Transcript:</h3>
-        <pre class="transcript-text">{{
-            loadingTranscript
-                ? "Loading transcript..."
-                : transcript || "No transcript available"
-        }}</pre>
+        <pre class="transcript-text">{{ loadingTranscript ? "Loading transcript..." : transcript || "No transcript available" }}</pre>
     </div>
 
     <!-- Rating Display Section -->
     <div *ngIf="loadingRating || rating" class="result-section">
         <h3 class="result-title">Rating:</h3>
-        <pre class="transcript-text">{{
-            loadingRating
-                ? "Loading rating..."
-                : rating || "No rating available"
-        }}</pre>
+        <pre class="transcript-text">{{ loadingRating ? "Loading rating..." : rating || "No rating available" }}</pre>
     </div>
 </div>
