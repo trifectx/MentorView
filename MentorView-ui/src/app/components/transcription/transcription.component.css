@@ -1,14 +1,30 @@
 /* Basic spacing and centering */
 .video-container {
-    padding: 20px;
+    background-color: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
     text-align: center;
+    animation: fadeIn 0.4s ease-out;
 }
 
-/* Improved video player sizing */
+/* Video player styling */
 .video-player {
     width: 100%;
-    max-width: 600px;
-    margin: 10px 0;
+    max-width: 500px;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+    margin: 0 auto 16px;
+    background-color: #f8f9fe;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.video-player:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
 
 /* Spacing between buttons */
@@ -16,40 +32,68 @@
     gap: 0.5rem;
 }
 
-/* Button styles */
+/* Button styling */
 .btn {
-    margin: 5px;
-    min-width: 120px;
-    transition: all 0.3s ease;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: none;
+    margin: 0 4px;
 }
 
-/* Adding a little padding to the transcript section */
-.transcript-text {
-    padding: 10px;
-    background-color: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    border-radius: 5px;
-    max-width: 600px;
-    margin: 10px auto;
-    white-space: pre-wrap;
+.btn:hover:not([disabled]) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Buttons adjustments for different states */
-.btn:disabled {
+.btn:active:not([disabled]) {
+    transform: translateY(0);
+}
+
+.btn-success {
+    background-color: #10b981;
+    color: white;
+}
+
+.btn-warning {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.btn-info {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.btn-primary {
+    background-color: #6366f1;
+    color: white;
+}
+
+.btn-secondary {
+    background-color: #6b7280;
+    color: white;
+}
+
+.btn[disabled] {
     opacity: 0.6;
     cursor: not-allowed;
 }
 
-/* Hover effects */
-.btn:not(:disabled):hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* Active state */
-.btn:not(:disabled):active {
-    transform: translateY(0);
-    box-shadow: none;
+/* Adding a little padding to the transcript section */
+.transcript-text {
+    background-color: #f8f9fe;
+    border-radius: 8px;
+    padding: 16px;
+    white-space: pre-wrap;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #4b5563;
+    border: 1px solid #e5e7eb;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 /* Hide elements */
@@ -144,4 +188,100 @@
 
 .form-select option {
     padding: 0.625rem;
+}
+
+/* Question display styling */
+.question-display {
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    animation: fadeIn 0.3s ease-out;
+}
+
+.question-display h3 {
+    color: #1a1a1a;
+    font-size: 18px;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.question-text {
+    color: #6b7280;
+    font-size: 16px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    font-weight: 400;
+}
+
+/* Section titles */
+.section-title {
+    color: #1a1a1a;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+    position: relative;
+}
+
+.section-title:after {
+    content: '';
+    display: block;
+    width: 50px;
+    height: 3px;
+    background-color: #6366f1;
+    margin: 8px auto 0;
+    border-radius: 2px;
+}
+
+/* Video wrapper */
+.video-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto 24px;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+}
+
+/* Controls container */
+.controls-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+/* Result sections */
+.result-section {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+    text-align: left;
+}
+
+.result-title {
+    color: #1a1a1a;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+}
+
+/* Material icons in buttons */
+.btn .material-icons {
+    font-size: 18px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
