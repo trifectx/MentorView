@@ -68,18 +68,26 @@
   color: rgb(41, 121, 255);
 }
 
+/* Dropdown spacer for creating space when dropdown is open */
+.dropdown-spacer {
+  transition: height 0.2s ease;
+  background: transparent;
+}
+
 /* Styles dropdown */
 .styles-dropdown {
   position: absolute;
   top: 80px;
   left: 0;
   right: 0;
-  background-color: rgba(26, 26, 26, 0.9);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  background-color: rgba(26, 26, 26, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: none;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  z-index: 1000; /* Very high z-index to ensure it appears above all elements */
   max-height: 300px;
   overflow-y: auto;
+  animation: fadeSlideIn 0.2s ease-out forwards; /* Add animation for smooth appearance */
 }
 
 .style-option {
@@ -107,6 +115,8 @@
 /* Interview form */
 .interview-form {
   padding: 20px;
+  position: relative; /* Add relative positioning to the form container */
+  padding-top: 0; /* Remove top padding since we'll control spacing with margins */
 }
 
 .form-group {
@@ -232,32 +242,6 @@
   font-size: 14px;
   color: #ffffff;
   line-height: 1.5;
-  margin-right: 40px; /* Space for the action buttons */
-}
-
-.question-actions {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  gap: 4px;
-}
-
-.bookmark-button, .more-button {
-  background: transparent;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.bookmark-button:hover, .more-button:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
 }
 
 .custom-question-card {
@@ -272,7 +256,6 @@
 .custom-question-card .question-text {
   color: rgb(41, 121, 255);
   font-weight: 500;
-  margin-right: 0;
   text-align: center;
 }
 

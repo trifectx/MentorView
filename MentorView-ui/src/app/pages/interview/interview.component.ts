@@ -35,6 +35,7 @@ export class InterviewComponent implements OnInit {
   selectedQuestions: string[] = [];
   isLoadingQuestions = false;
   showStylesMenu = false;
+  dropdownHeight = 0; // Track dropdown height for spacing
 
   constructor(private apiService: ApiService) {}
 
@@ -46,12 +47,15 @@ export class InterviewComponent implements OnInit {
 
   openStylesMenu(): void {
     this.showStylesMenu = !this.showStylesMenu;
+    // Set dropdown height based on visibility
+    this.dropdownHeight = this.showStylesMenu ? 300 : 0;
   }
 
   selectInterviewStyle(styleId: string): void {
     this.interviewDetails.style = styleId;
     this.interviewDetails.question = '';
     this.showStylesMenu = false;
+    this.dropdownHeight = 0;
     
     if (styleId !== 'custom') {
       this.loadQuestions();

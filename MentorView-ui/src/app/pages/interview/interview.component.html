@@ -24,6 +24,9 @@
 
         <!-- Interview Details Form -->
         <div class="interview-form">
+            <!-- Dynamic spacer based on dropdown visibility -->
+            <div [style.height.px]="dropdownHeight" class="dropdown-spacer"></div>
+            
             <!-- Role Field with autocomplete -->
             <div class="form-group">
                 <label>Role</label>
@@ -82,9 +85,6 @@
             <!-- Interview Questions Section Header -->
             <div class="section-header" *ngIf="selectedQuestions.length > 0 && interviewDetails.style !== 'custom'">
                 <h3>Interview practice questions</h3>
-                <button class="edit-button" (click)="addCustomQuestion()">
-                    <i class="material-icons">edit</i>
-                </button>
             </div>
             
             <!-- Question Cards -->
@@ -93,14 +93,6 @@
                      [class.active]="interviewDetails.question === question"
                      (click)="selectQuestion(question)">
                     <div class="question-text">{{ question }}</div>
-                    <div class="question-actions">
-                        <button class="bookmark-button" (click)="$event.stopPropagation()">
-                            <i class="material-icons">bookmark_border</i>
-                        </button>
-                        <button class="more-button" (click)="$event.stopPropagation()">
-                            <i class="material-icons">more_horiz</i>
-                        </button>
-                    </div>
                 </div>
                 
                 <!-- Custom Question Card -->
