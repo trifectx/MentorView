@@ -1,7 +1,7 @@
-<!-- Interview Question Display -->
-<div class="question-display" *ngIf="interviewDetails?.question">
-    <h3>Question:</h3>
-    <div class="question-text">{{ interviewDetails.question }}</div>
+<!-- Selected Question Display -->
+<div class="current-question-panel" *ngIf="interviewDetails?.question">
+    <div class="question-header">Current Interview Question</div>
+    <div class="question-content">{{ interviewDetails.question }}</div>
 </div>
 
 <!-- Video Recording Section -->
@@ -14,6 +14,7 @@
             class="video-player webcam-feed"
             autoplay
             controls
+            muted
         ></video>
     </div>
     <div class="controls-container">
@@ -47,6 +48,7 @@
             class="video-player recorded-video"
             autoplay
             controls
+            muted
         ></video>
     </div>
     
@@ -67,20 +69,12 @@
     <!-- Transcript Display Section -->
     <div *ngIf="loadingTranscript || transcript" class="result-section">
         <h3 class="result-title">Transcript:</h3>
-        <pre class="transcript-text">{{
-            loadingTranscript
-                ? "Loading transcript..."
-                : transcript || "No transcript available"
-        }}</pre>
+        <pre class="transcript-text">{{ loadingTranscript ? "Loading transcript..." : transcript || "No transcript available" }}</pre>
     </div>
 
     <!-- Rating Display Section -->
     <div *ngIf="loadingRating || rating" class="result-section">
         <h3 class="result-title">Rating:</h3>
-        <pre class="transcript-text">{{
-            loadingRating
-                ? "Loading rating..."
-                : rating || "No rating available"
-        }}</pre>
+        <pre class="transcript-text">{{ loadingRating ? "Loading rating..." : rating || "No rating available" }}</pre>
     </div>
 </div>

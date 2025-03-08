@@ -4,6 +4,8 @@ from flask import Flask, jsonify, request
 from moviepy import VideoFileClip
 import torch
 from openai import OpenAI
+from dotenv import load_dotenv
+from deepgram import DeepgramClient, PrerecordedOptions
 from model.model import Model
 
 # Check and retrieve environment variables
@@ -12,7 +14,6 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
-
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 if not DEEPGRAM_API_KEY:
     raise ValueError("Missing Deepgram API Key. Set DEEPGRAM_API_KEY in .env file.")
@@ -26,11 +27,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 video_path = os.path.join(BASE_DIR, "video.mp4")
 audio_path = os.path.join(BASE_DIR, "audio.mp3")
 
-# Initialize the Flask app
 app = Flask(__name__)
 transcript = ""
 client = OpenAI(api_key=OPENAI_API_KEY)
-model = Model()
 
 
 @app.after_request
@@ -79,7 +78,6 @@ def upload():
         audio.close()
         video.close()
 
-
         return jsonify({"message": "File uploaded successfully"}), 200
     except Exception as e:
         return jsonify({"error": f"Error processing file: {str(e)}"}), 500
@@ -90,35 +88,36 @@ def upload():
 @app.route('/transcribe', methods=['GET'])
 def transcribe():
     global transcript
-    try:
-        # Open the audio file in binary read mode
-        with open(audio_path, "rb") as audio_file:
-            # whisper-1 is the API-optimized version of the large-v2 model
-            transcription = client.audio.transcriptions.create(
-                model="whisper-1", 
-                file=audio_file, 
-                response_format="text"
-            )
-            transcript = transcription
-        
-        return jsonify({"transcript": transcript}), 200
-    
     # try:
-    #     # Initialize deepgram client
-    #     deepgram = DeepgramClient(DEEPGRAM_API_KEY)
-
-    #     payload = { 'buffer': audio_file }
- 
-    #     options = PrerecordedOptions(
-    #         model="nova-2", 
-    #         language="en-US",
-    #         filler_words=True
-    #     )
-
-    #     response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
-    #     transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
- 
+    #     # Open the audio file in binary read mode
+    #     with open(audio_path, "rb") as audio_file:
+    #         # whisper-1 is the API-optimized version of the large-v2 model
+    #         transcription = client.audio.transcriptions.create(
+    #             model="whisper-1", 
+    #             file=audio_file, 
+    #             response_format="text"
+    #         )
+    #         transcript = transcription
+        
     #     return jsonify({"transcript": transcript}), 200
+    
+    try:
+        # Initialize deepgram client
+        deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+
+        with open(audio_path, "rb") as audio_file:
+            payload = { 'buffer': audio_file }
+            options = PrerecordedOptions(
+                punctuate=True,
+                model="nova-2", 
+                language="en-US",
+                filler_words=True,
+            )
+
+            response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
+            transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+
+        return jsonify({"transcript": transcript}), 200
 
     except Exception as e:
         return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
@@ -147,7 +146,7 @@ def query():
         return jsonify({"error": f"Error during query: {str(e)}"}), 500
     
 
-
 # Run the app
 if __name__ == '__main__':
+    model = Model()
     app.run(debug=True)

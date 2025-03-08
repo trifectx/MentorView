@@ -35,6 +35,7 @@ export class InterviewComponent implements OnInit {
   selectedQuestions: string[] = [];
   isLoadingQuestions = false;
   showStylesMenu = false;
+  dropdownHeight = 0; // Track dropdown height for spacing
 
   constructor(private apiService: ApiService) {}
 
@@ -46,12 +47,15 @@ export class InterviewComponent implements OnInit {
 
   openStylesMenu(): void {
     this.showStylesMenu = !this.showStylesMenu;
+    // Set dropdown height based on visibility
+    this.dropdownHeight = this.showStylesMenu ? 300 : 0;
   }
 
   selectInterviewStyle(styleId: string): void {
     this.interviewDetails.style = styleId;
     this.interviewDetails.question = '';
     this.showStylesMenu = false;
+    this.dropdownHeight = 0;
     
     if (styleId !== 'custom') {
       this.loadQuestions();
@@ -69,6 +73,24 @@ export class InterviewComponent implements OnInit {
     if (this.interviewDetails.role && this.interviewDetails.company && this.interviewDetails.style !== 'custom') {
       this.loadQuestions();
     }
+  }
+
+  /**
+   * Selects a question from the question cards
+   * @param question The question to select
+   */
+  selectQuestion(question: string): void {
+    this.interviewDetails.question = question;
+    this.onDetailsChange();
+  }
+
+  /**
+   * Switches to custom question mode
+   */
+  addCustomQuestion(): void {
+    this.interviewDetails.style = 'custom';
+    this.interviewDetails.question = '';
+    this.onDetailsChange();
   }
 
   private loadQuestions(): void {

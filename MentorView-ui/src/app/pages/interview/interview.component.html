@@ -24,6 +24,9 @@
 
         <!-- Interview Details Form -->
         <div class="interview-form">
+            <!-- Dynamic spacer based on dropdown visibility -->
+            <div [style.height.px]="dropdownHeight" class="dropdown-spacer"></div>
+            
             <!-- Role Field with autocomplete -->
             <div class="form-group">
                 <label>Role</label>
@@ -79,20 +82,22 @@
                 </div>
             </div>
             
-            <!-- Question Selection -->
-            <div class="form-group" *ngIf="selectedQuestions.length > 0 && interviewDetails.style !== 'custom'">
-                <label>Interview Question</label>
-                <div class="question-selection">
-                    <select 
-                        [(ngModel)]="interviewDetails.question"
-                        (ngModelChange)="onDetailsChange()"
-                        class="question-select"
-                    >
-                        <option *ngFor="let question of selectedQuestions; let i = index" [value]="question">
-                            {{i + 1}}. {{ question }}
-                        </option>
-                    </select>
-                    <i class="material-icons dropdown-icon">expand_more</i>
+            <!-- Interview Questions Section Header -->
+            <div class="section-header" *ngIf="selectedQuestions.length > 0 && interviewDetails.style !== 'custom'">
+                <h3>Interview practice questions</h3>
+            </div>
+            
+            <!-- Question Cards -->
+            <div class="question-cards" *ngIf="selectedQuestions.length > 0 && interviewDetails.style !== 'custom'">
+                <div class="question-card" *ngFor="let question of selectedQuestions; let i = index"
+                     [class.active]="interviewDetails.question === question"
+                     (click)="selectQuestion(question)">
+                    <div class="question-text">{{ question }}</div>
+                </div>
+                
+                <!-- Custom Question Card -->
+                <div class="question-card custom-question-card" (click)="addCustomQuestion()">
+                    <div class="question-text">Click to add a custom question</div>
                 </div>
             </div>
             

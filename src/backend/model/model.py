@@ -6,20 +6,20 @@ from dotenv import load_dotenv
 class Model:
 
     def load_env(self):
-        load_dotenv()
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
+         load_dotenv()
+         self.api_key = os.getenv("OPENAI_API_KEY")
+         if not self.api_key:
+             raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
     
     def __init__(self):
         self.load_env()
-            
+        
         self.client = OpenAI(api_key=self.api_key)
         self.model_name = "gpt-4"
         print("OpenAI GPT-4 model loaded")
     
 
-    def question_suggestions(self, role, company, style):
+    def construct_prompt_for_questions(self, role, company, style):
         return [
             {
                 "role": "system",
@@ -54,7 +54,7 @@ class Model:
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self.question_suggestions(role, company, style),
+                messages=self.construct_prompt_for_questions(role, company, style),
                 max_tokens=5000,
                 temperature=0.7,
                 stream=False
@@ -78,9 +78,10 @@ class Model:
             
         except Exception as e:
             print(f"Error in get_questions_from_model: {str(e)}")
-            return "Error evaluating response. Please try again."
+            return "Error generating questions. Please try again."
 
-    def construct_prompt(self, role, company, question, answer):
+
+    def construct_prompt_for_feedback(self, role, company, question, answer):
         return [
             {
                 "role": "system",
@@ -111,7 +112,7 @@ class Model:
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self.construct_prompt(role, company, question, answer), 
+                messages=self.construct_prompt_for_feedback(role, company, question, answer), 
                 max_tokens=2000,  
                 temperature=0.7,   
                 stream=False
@@ -120,4 +121,4 @@ class Model:
             return response.choices[0].message.content
         except Exception as e:
             print(f"Error in query_model_for_feedback: {str(e)}")
-            return "Error evaluating response. Please try again."
+            return "Error evaluating answer. Please try again."

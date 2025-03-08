@@ -22,7 +22,7 @@ interface FacialDetectionResults {
     standalone: true,
     imports: [CommonModule],
     templateUrl: './transcription.component.html',
-    styleUrls: ['./transcription.component.css'],
+    styleUrl: './transcription.component.css',
 })
 export class TranscriptionComponent implements OnInit {
     @ViewChild('video') videoElementRef!: ElementRef<HTMLVideoElement>;
@@ -38,7 +38,6 @@ export class TranscriptionComponent implements OnInit {
     isRecording: boolean = false;
     showCam = false;
     showVideos = false;
-    apiUrl = "http://localhost:5000";
     transcript = '';
     loadingTranscript = false;
     rating = '';
@@ -60,15 +59,12 @@ export class TranscriptionComponent implements OnInit {
     // Injecting ApiService for API calls
     constructor(private apiService: ApiService) { }
 
-    // Initialize component and start camera automatically
     ngOnInit() {
-        // Start camera automatically when component loads
         setTimeout(() => {
             this.getCam();
         }, 500); // Small delay to ensure DOM is ready
     }
 
-    // Start the webcam stream
     getCam() {
         const constraints = {
             video: {
