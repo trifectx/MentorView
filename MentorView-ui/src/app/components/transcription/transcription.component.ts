@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, ViewChild, Input } from '@angular/core';
+import { Component, ElementRef, ViewChild, Input, OnInit } from '@angular/core';
 import { ApiService } from '../../services/api.service';
 import { InterviewDetails } from '../../shared/types';
 
@@ -24,7 +24,7 @@ interface FacialDetectionResults {
     templateUrl: './transcription.component.html',
     styleUrls: ['./transcription.component.css'],
 })
-export class TranscriptionComponent {
+export class TranscriptionComponent implements OnInit {
     @ViewChild('video') videoElementRef!: ElementRef<HTMLVideoElement>;
     @ViewChild('recordedVideo') recordVideoElementRef!: ElementRef<HTMLVideoElement>;
     @Input() interviewDetails!: InterviewDetails;
@@ -60,10 +60,30 @@ export class TranscriptionComponent {
     // Injecting ApiService for API calls
     constructor(private apiService: ApiService) { }
 
+    // Initialize component and start camera automatically
+    ngOnInit() {
+        // Start camera automatically when component loads
+        setTimeout(() => {
+            this.getCam();
+        }, 500); // Small delay to ensure DOM is ready
+    }
+
     // Start the webcam stream
     getCam() {
+        const constraints = {
+            video: {
+                width: 300,
+                height: 300,
+                // Prevent automatic mirroring of the webcam feed
+                facingMode: 'user',
+                // Some browsers support this property to disable mirroring
+                mirror: false
+            },
+            audio: true
+        };
+
         navigator.mediaDevices
-            .getUserMedia({ video: { width: 300, height: 300 }, audio: true })
+            .getUserMedia(constraints)
             .then((stream) => this.handleStreamSuccess(stream))
             .catch((error) => this.handleStreamError(error));
     }

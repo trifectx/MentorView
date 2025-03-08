@@ -1,92 +1,123 @@
-from huggingface_hub import login, InferenceClient
+from openai import OpenAI
 import re
+import os
+from dotenv import load_dotenv
 
 class Model:
+
+    def load_env(self):
+        load_dotenv()
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
     
-    def __init__(self) -> None:
-        login("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")        
-        self.client = InferenceClient(api_key="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")
-        self.model_name = "mistralai/Mistral-7B-Instruct-v0.3"
-        print("Model loaded")
+    def __init__(self):
+        self.load_env()
+            
+        self.client = OpenAI(api_key=self.api_key)
+        self.model_name = "gpt-4"
+        print("OpenAI GPT-4 model loaded")
     
 
-    def _question_suggestions(self, role, company, style):
+    def question_suggestions(self, role, company, style):
         return [
+            {
+                "role": "system",
+                "content": "You are an expert interviewer creating interview questions."
+            },
             {
                 "role": "user",
                 "content": f"""
-                You are an expert interviewer creating interview questions for a {role} position at {company}.
+                Create interview questions for a {role} position at {company}.
                 The interview style selected is: {style}
 
                 Based on the style:
-                - If Technical: Focus on technical skills, coding problems, and system design relevant to {role}, make sure the questions can be answered within 2 minutes or less
-                - If Behavioral: Ask about past experiences, teamwork, and problem-solving situations
-                - If Cultural: Focus on company values, work style, and team fit at {company}
-                - If Situational: Present hypothetical scenarios they might face in this role
+                - Technical Interview: Focus on technical skills, problem-solving, and domain knowledge
+                - Behavioral Interview: Focus on past experiences, soft skills, and how candidates handled situations
+                - Cultural Interview: Focus on values alignment, team fit, and company culture
+                - Situational Interview: Present hypothetical scenarios to assess decision-making
 
-                Generate 5 detailed interview questions that:
-                1. Are specifically tailored for a {role} at {company}
-                2. Match the {style} interview style
-                3. Help assess the candidate's suitability for this specific role
-                4. Are challenging but appropriate for the position level
-
-                Note: Ensure you only include the question and nothing else
-                """,
-                }
+                Generate 5 thoughtful interview questions tailored to this specific role, company, and interview style.
+                Format each question on a new line with a number.
+                """
+            }
         ]
-
-    def _clean_question(self, question: str) -> str:
+    
+    def clean_question(self, question):
         # Remove any existing numbering and extra whitespace
         cleaned = re.sub(r'^\d+\.?\s*', '', question.strip())
         # Remove any other dots at the start
-        cleaned = re.sub(r'^\.+\s*', '', cleaned)
+        cleaned = re.sub(r'^\.*\s*', '', cleaned)
         return cleaned
 
-    def question_query_model(self, role="Software engineer", company="Amazon", style="Behavioral Interview"):
-        res = self.client.chat.completions.create(
-            model=self.model_name, 
-            messages=self._question_suggestions(role, company, style),
-            max_tokens=20000,  
-            stream=False
+    def get_questions_from_model(self, role, company, style):
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name, 
+                messages=self.question_suggestions(role, company, style),
+                max_tokens=5000,
+                temperature=0.7,
+                stream=False
+            )
+            
+            # Extract content from the response
+            content = response.choices[0].message.content
+            
+            # Split the response into individual questions
+            raw_questions = [q.strip() for q in content.split('\n') if q.strip()]
+            
+            # Filter out any non-question lines and clean the questions
+            questions = []
+            for line in raw_questions:
+                # Check if line starts with a number or looks like a question
+                if re.match(r'^\d+\.', line) or '?' in line:
+                    questions.append(self.clean_question(line))
+            
+            # Ensure we return at most 5 questions
+            return questions[:5]
+            
+        except Exception as e:
+            print(f"Error in get_questions_from_model: {str(e)}")
+            return "Error evaluating response. Please try again."
 
-        )
-        raw_questions = re.split(r'\n\n[0-9]', res['choices'][0]['message']['content'])
-        cleaned_questions = [self._clean_question(q) for q in raw_questions if q.strip()]
-        return cleaned_questions
-
-
-
-    def _construct_chat(self, role, company, question, answer):
+    def construct_prompt(self, role, company, question, answer):
         return [
             {
                 "role": "system",
                 "content": f"""
-                You are an interviewer, interviewing a candidate for an {role} role at {company}. 
-                Provide a complete evaluation of their answer in the following format:
-                1. Rating: Give a score out of 10
-                2. Strengths: List the main strengths of their answer
-                3. Areas for Improvement: Identify specific areas that need work
-                4. Suggestions: Provide actionable suggestions for improvement
-
-                The question you asked was: {question}?
-
-                Important: Provide a complete response that covers all four sections above and make sure that the score that you are given is not too generous be very critical of it and dont give high scores for answers that are not well though through.
-                """,
+                You are an expert interviewer evaluating candidates for a {role} position at {company}.
+                Your task is to evaluate the candidate's answer to an interview question.
+                Provide constructive feedback on the strengths and areas for improvement.
+                """
             },
             {
-                "role": "user", 
-                "content": f"{answer}"
+                "role": "user",
+                "content": f"""
+                Question: {question}
+                
+                Candidate's Answer: {answer}
+                
+                Please evaluate this answer and provide:
+                1. Overall assessment (score out of 10)
+                2. Strengths of the answer
+                3. Areas for improvement
+                4. Suggestions for a better response
+                """
             }
         ]
          
     
-    def query_model(self, role="Software engineer", company="Amazon", question="tell me about yourself", answer=""):
-        res = self.client.chat.completions.create(
-            model=self.model_name, 
-            messages=self._construct_chat(role, company, question, answer), 
-            max_tokens=2000,  
-            temperature=0.7,   
-            stream=False
-        )
+    def query_model_for_feedback(self, role, company, question, answer):
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name, 
+                messages=self.construct_prompt(role, company, question, answer), 
+                max_tokens=2000,  
+                temperature=0.7,   
+                stream=False
+            )
 
-        return res['choices'][0]['message']['content']
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"Error in query_model_for_feedback: {str(e)}")
+            return "Error evaluating response. Please try again."
