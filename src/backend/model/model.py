@@ -1,10 +1,19 @@
 from openai import OpenAI
 import re
+import os
+from dotenv import load_dotenv
 
 class Model:
+
+    def load_env(self):
+         load_dotenv()
+         self.api_key = os.getenv("OPENAI_API_KEY")
+         if not self.api_key:
+             raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
     
     def __init__(self):
-        self.api_key = "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"
+        self.load_env()
+        
         self.client = OpenAI(api_key=self.api_key)
         self.model_name = "gpt-4"
         print("OpenAI GPT-4 model loaded")
@@ -34,19 +43,19 @@ class Model:
             }
         ]
     
-    def _clean_question(self, question):
+    def clean_question(self, question):
         # Remove any existing numbering and extra whitespace
         cleaned = re.sub(r'^\d+\.?\s*', '', question.strip())
         # Remove any other dots at the start
         cleaned = re.sub(r'^\.*\s*', '', cleaned)
         return cleaned
 
-    def question_query_model(self, role="Software engineer", company="Amazon", style="Behavioral Interview"):
+    def get_questions_from_model(self, role, company, style):
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name, 
                 messages=self._question_suggestions(role, company, style),
-                max_tokens=2000,
+                max_tokens=5000,
                 temperature=0.7,
                 stream=False
             )
@@ -62,22 +71,17 @@ class Model:
             for line in raw_questions:
                 # Check if line starts with a number or looks like a question
                 if re.match(r'^\d+\.', line) or '?' in line:
-                    questions.append(self._clean_question(line))
+                    questions.append(self.clean_question(line))
             
             # Ensure we return at most 5 questions
             return questions[:5]
             
         except Exception as e:
-            print(f"Error in question_query_model: {str(e)}")
-            # Return some default questions as fallback
-            return [f"Tell me about your experience as a {role}", 
-                    f"Why do you want to work at {company}?", 
-                    "What are your strengths and weaknesses?", 
-                    "Describe a challenging situation you faced at work", 
-                    "Where do you see yourself in 5 years?"]
+            print(f"Error in get_questions_from_model: {str(e)}")
+            return "Error generating questions. Please try again."
 
 
-    def _construct_chat(self, role, company, question, answer):
+    def construct_prompt(self, role, company, question, answer):
         return [
             {
                 "role": "system",
@@ -104,11 +108,11 @@ class Model:
         ]
          
     
-    def query_model(self, role="Software engineer", company="Amazon", question="tell me about yourself", answer=""):
+    def query_model_for_feedback(self, role, company, question, answer):
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self._construct_chat(role, company, question, answer), 
+                messages=self.construct_prompt(role, company, question, answer), 
                 max_tokens=2000,  
                 temperature=0.7,   
                 stream=False
@@ -116,5 +120,5 @@ class Model:
 
             return response.choices[0].message.content
         except Exception as e:
-            print(f"Error in query_model: {str(e)}")
-            return "Error evaluating response. Please try again."
+            print(f"Error in query_model_for_feedback: {str(e)}")
+            return "Error evaluating answer. Please try again."
