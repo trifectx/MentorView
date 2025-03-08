@@ -78,7 +78,6 @@ def upload():
         audio.close()
         video.close()
 
-
         return jsonify({"message": "File uploaded successfully"}), 200
     except Exception as e:
         return jsonify({"error": f"Error processing file: {str(e)}"}), 500
@@ -119,23 +118,6 @@ def transcribe():
             transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
 
         return jsonify({"transcript": transcript}), 200
-    
-    # try:
-    #     # Initialize deepgram client
-    #     deepgram = DeepgramClient(DEEPGRAM_API_KEY)
-
-    #     payload = { 'buffer': audio_file }
- 
-    #     options = PrerecordedOptions(
-    #         model="nova-2", 
-    #         language="en-US",
-    #         filler_words=True
-    #     )
-
-    #     response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
-    #     transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
- 
-    #     return jsonify({"transcript": transcript}), 200
 
     except Exception as e:
         return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
