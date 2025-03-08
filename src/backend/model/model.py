@@ -19,7 +19,7 @@ class Model:
         print("OpenAI GPT-4 model loaded")
     
 
-    def _question_suggestions(self, role, company, style):
+    def construct_prompt_for_questions(self, role, company, style):
         return [
             {
                 "role": "system",
@@ -54,7 +54,7 @@ class Model:
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self._question_suggestions(role, company, style),
+                messages=self.construct_prompt_for_questions(role, company, style),
                 max_tokens=5000,
                 temperature=0.7,
                 stream=False
@@ -81,7 +81,7 @@ class Model:
             return "Error generating questions. Please try again."
 
 
-    def construct_prompt(self, role, company, question, answer):
+    def construct_prompt_for_feedback(self, role, company, question, answer):
         return [
             {
                 "role": "system",
@@ -112,7 +112,7 @@ class Model:
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self.construct_prompt(role, company, question, answer), 
+                messages=self.construct_prompt_for_feedback(role, company, question, answer), 
                 max_tokens=2000,  
                 temperature=0.7,   
                 stream=False

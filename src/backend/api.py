@@ -16,15 +16,17 @@ if not DEEPGRAM_API_KEY:
 
 # Check if CUDA is available
 print("!!t!!")
-print(torch.cuda.is_available())
+print("CUDA is available?", torch.cuda.is_available())
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+# Paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+video_path = os.path.join(BASE_DIR, "video.mp4")
+audio_path = os.path.join(BASE_DIR, "audio.mp3")
 
 
 app = Flask(__name__)
-video_path = os.path.join(os.getcwd(), "video.mp4")
-audio_path = os.path.join(os.getcwd(), "audio.mp3")
 transcript = ""
-
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 
