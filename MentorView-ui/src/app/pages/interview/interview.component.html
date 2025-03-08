@@ -1,6 +1,111 @@
-<h1 class="text-center">MentorView by Tochukwu Iheanyichukwu, Biggy, Hazzy</h1>
+<div class="interview-container">
+    <div class="interview-sidebar">
+        <!-- Interview Type Header (Connected to style dropdown) -->
+        <div class="interview-type" (click)="openStylesMenu()">
+            <div class="icon-container">
+                <i class="material-icons">psychology</i>
+            </div>
+            <div class="interview-type-text">{{ getSelectedStyleName() }}</div>
+            <div class="interview-type-indicator active">
+                <i class="material-icons">expand_more</i>
+            </div>
+        </div>
+        
+        <!-- Style selection dropdown menu -->
+        <div class="styles-dropdown" *ngIf="showStylesMenu">
+            <div class="style-option" *ngFor="let style of interviewStyles" 
+                  (click)="selectInterviewStyle(style.id)">
+                <div class="style-content">
+                    <div class="style-name">{{ style.name }}</div>
+                    <div class="style-description">{{ style.description }}</div>
+                </div>
+            </div>
+        </div>
 
-<div class="container">
-    <app-interview-details (detailsChange)="onDetailsChange($event)"></app-interview-details>
-    <app-transcription [interviewDetails]="interviewDetails"></app-transcription>
+        <!-- Interview Details Form -->
+        <div class="interview-form">
+            <!-- Role Field with autocomplete -->
+            <div class="form-group">
+                <label>Role</label>
+                <div class="input-container">
+                    <i class="material-icons">search</i>
+                    <input 
+                        type="text" 
+                        placeholder="Sample associate" 
+                        [(ngModel)]="interviewDetails.role" 
+                        (ngModelChange)="onDetailsChange()"
+                        [matAutocomplete]="autoRole"
+                    >
+                </div>
+                <mat-autocomplete #autoRole="matAutocomplete">
+                    <mat-option *ngFor="let role of roles" [value]="role">
+                        {{ role }}
+                    </mat-option>
+                </mat-autocomplete>
+            </div>
+            
+            <!-- Company Field with autocomplete -->
+            <div class="form-group">
+                <label>Company</label>
+                <div class="input-container">
+                    <i class="material-icons">search</i>
+                    <input 
+                        type="text" 
+                        placeholder="Costco" 
+                        [(ngModel)]="interviewDetails.company" 
+                        (ngModelChange)="onDetailsChange()"
+                        [matAutocomplete]="autoCompany"
+                    >
+                </div>
+                <mat-autocomplete #autoCompany="matAutocomplete">
+                    <mat-option *ngFor="let company of companies" [value]="company">
+                        {{ company }}
+                    </mat-option>
+                </mat-autocomplete>
+            </div>
+            
+            <div class="form-divider"></div>
+            
+            <!-- Question Field -->
+            <div class="form-group" *ngIf="interviewDetails.style === 'custom'">
+                <label>Write Your Question</label>
+                <div class="input-container question-container">
+                    <textarea
+                        [(ngModel)]="interviewDetails.question"
+                        placeholder="Type your interview question here..."
+                        rows="3"
+                        (ngModelChange)="onDetailsChange()"
+                    ></textarea>
+                </div>
+            </div>
+            
+            <!-- Question Selection -->
+            <div class="form-group" *ngIf="selectedQuestions.length > 0 && interviewDetails.style !== 'custom'">
+                <label>Interview Question</label>
+                <div class="question-selection">
+                    <select 
+                        [(ngModel)]="interviewDetails.question"
+                        (ngModelChange)="onDetailsChange()"
+                        class="question-select"
+                    >
+                        <option *ngFor="let question of selectedQuestions; let i = index" [value]="question">
+                            {{i + 1}}. {{ question }}
+                        </option>
+                    </select>
+                    <i class="material-icons dropdown-icon">expand_more</i>
+                </div>
+            </div>
+            
+            <!-- Loading indicator for questions -->
+            <div class="loading-questions" *ngIf="isLoadingQuestions">
+                <div class="spinner"></div>
+                <p>Loading interview questions...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="interview-content">
+        <!-- This is where the transcription component will go -->
+        <app-transcription [interviewDetails]="interviewDetails"></app-transcription>
+    </div>
 </div>
