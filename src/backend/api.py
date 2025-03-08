@@ -4,24 +4,28 @@ import torch
 import os
 from moviepy import VideoFileClip
 from openai import OpenAI
+from dotenv import load_dotenv
 import asyncio
+
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
+if not DEEPGRAM_API_KEY:
+    raise ValueError("Missing Deepgram API Key. Set DEEPGRAM_API_KEY in .env file.")
 
 # Check if CUDA is available
 print("!!t!!")
 print(torch.cuda.is_available())
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-
-# temp model
-
+# Initialize the Flask app
 app = Flask(__name__)
 video_path = os.path.join(os.getcwd(), "video.mp4")
 audio_path = os.path.join(os.getcwd(), "audio.mp3")
 transcript = ""
-
-# OpenAI client setup with direct API key
-client = OpenAI(api_key="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")
-
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 @app.after_request
@@ -42,7 +46,7 @@ def question_suggestions():
     style = data.get('style', '')
 
     try:
-        questions = model.question_query_model(role, company, style)
+        questions = model.get_questions_from_model(role, company, style)
         return jsonify({"questions": questions}), 200
     except Exception as e:
         return jsonify({"error": f"Error during query: {str(e)}"}), 500
@@ -93,6 +97,23 @@ def transcribe():
             transcript = transcription
         
         return jsonify({"transcript": transcript}), 200
+    
+    # try:
+    #     # Initialize deepgram client
+    #     deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+
+    #     payload = { 'buffer': audio_file }
+ 
+    #     options = PrerecordedOptions(
+    #         model="nova-2", 
+    #         language="en-US",
+    #         filler_words=True
+    #     )
+
+    #     response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
+    #     transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+ 
+    #     return jsonify({"transcript": transcript}), 200
 
     except Exception as e:
         return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
@@ -104,7 +125,7 @@ def transcribe():
 def query():
     # Get input data from the request
     data = request.get_json()
-    print("test", data)
+    print(data)
     role = data.get('role', '')
     company = data.get('company', '')
     question = data.get('question', '')
@@ -113,9 +134,9 @@ def query():
     if not all([role, company, question, transcript]):
         return jsonify({"error": "All fields (role, company, question, answer) are required"}), 400
 
-    # Query the OpenAI GPT-4 model
+    # Send the input data to the model
     try:
-        feedback = model.query_model(role=role, company=company, question=question, answer=transcript)
+        feedback = model.query_model_for_feedback(role=role, company=company, question=question, answer=transcript)
         return jsonify({"feedback": feedback}), 200
     except Exception as e:
         return jsonify({"error": f"Error during query: {str(e)}"}), 500
