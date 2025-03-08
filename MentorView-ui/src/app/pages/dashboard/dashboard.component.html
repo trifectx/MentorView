@@ -1,3 +1,174 @@
-<h1>Dashboard</h1>
-<p>This your dashboard, go do your interview.</p>
-<button routerLink="/interview">Go to Interview</button>
+<div class="dashboard-container">
+  <header class="dashboard-header">
+    <div class="header-left">
+      <button class="back-button" routerLink="/login">←</button>
+      <nav class="main-nav">
+        <a class="nav-item active">Explore</a>
+        <a class="nav-item">Practice</a>
+        <a class="nav-item">Resources</a>
+        <a class="nav-item">Discuss</a>
+        <a class="nav-item" routerLink="/interview">Interview</a>
+        <a class="nav-item">Profile</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <div class="user-controls">
+        <button class="notification-btn">🔔</button>
+        <button class="user-btn">👤</button>
+        <button class="premium-btn">Premium</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-content">
+    <section class="welcome-section">
+      <h1>Welcome to MentorView Explore</h1>
+      <div class="action-buttons">
+        <button class="favorite-btn">⭐</button>
+        <button class="info-btn">ⓘ</button>
+      </div>
+    </section>
+
+    <section class="featured-section">
+      <div class="section-header">
+        <h2>Featured</h2>
+        <a href="#" class="view-more">More</a>
+      </div>
+      
+      <div class="card-grid">
+        <div class="course-card purple">
+          <div class="card-content">
+            <h3>Technical Interview Crash Course</h3>
+            <p>Data Structures and Algorithms</p>
+          </div>
+          <div class="card-play-button">
+            <span>▶</span>
+          </div>
+          <div class="card-stats">
+            <div class="stat">
+              <div class="stat-value">13</div>
+              <div class="stat-label">Chapters</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">149</div>
+              <div class="stat-label">Items</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="course-card green">
+          <div class="card-content">
+            <h3>System Design for Interviews and Beyond</h3>
+          </div>
+          <div class="card-play-button">
+            <span>▶</span>
+          </div>
+          <div class="card-stats">
+            <div class="stat">
+              <div class="stat-value">16</div>
+              <div class="stat-label">Chapters</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">81</div>
+              <div class="stat-label">Items</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="course-card orange">
+          <div class="card-content">
+            <h3>The Beginner's Guide</h3>
+          </div>
+          <div class="card-play-button">
+            <span>▶</span>
+          </div>
+          <div class="card-stats">
+            <div class="stat">
+              <div class="stat-value">4</div>
+              <div class="stat-label">Chapters</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">17</div>
+              <div class="stat-label">Items</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="course-card teal">
+          <div class="card-content">
+            <h3>Top Interview Questions</h3>
+          </div>
+          <div class="card-play-button">
+            <span>▶</span>
+          </div>
+          <div class="card-stats">
+            <div class="stat">
+              <div class="stat-value">9</div>
+              <div class="stat-label">Chapters</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">48</div>
+              <div class="stat-label">Items</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">0%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="interview-section">
+      <div class="section-header">
+        <h2>Interview</h2>
+        <a href="#" class="view-more">More</a>
+      </div>
+      
+      <div class="card-grid">
+        <div class="course-card blue">
+          <div class="card-content">
+            <h3>Interview Cheatsheets</h3>
+          </div>
+          <div class="card-play-button">
+            <span>▶</span>
+          </div>
+        </div>
+
+        <div class="course-card purple">
+          <div class="card-content">
+            <h3>Data Structures and Algorithms</h3>
+          </div>
+          <div class="card-play-button">
+            <span>▶</span>
+          </div>
+        </div>
+
+        <div class="course-card green">
+          <div class="card-content">
+            <h3>System Design for Interviews</h3>
+          </div>
+          <div class="card-play-button">
+            <span>▶</span>
+          </div>
+        </div>
+
+        <a routerLink="/interview" class="course-card orange interview-link">
+          <div class="card-content">
+            <h3>Start Your Interview</h3>
+            <p>Get prepared with real questions</p>
+          </div>
+          <div class="card-tag">Recommended</div>
+        </a>
+      </div>
+    </section>
+  </main>
+</div>

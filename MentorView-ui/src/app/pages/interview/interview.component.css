@@ -1,0 +1,250 @@
+/* Main container */
+.interview-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #f8f9fe;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Left sidebar */
+.interview-sidebar {
+  width: 450px;
+  background-color: #fff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border-right: 1px solid #f0f0f0;
+  position: relative;
+  overflow-y: auto;
+}
+
+/* Interview type header */
+.interview-type {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #f0f0f0;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.interview-type:hover {
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #6366f1;
+  color: white;
+  margin-right: 16px;
+}
+
+.interview-type-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.interview-type-indicator {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+}
+
+.interview-type-indicator.active {
+  color: #6366f1;
+}
+
+/* Styles dropdown */
+.styles-dropdown {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border-bottom: 1px solid #f0f0f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.style-option {
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.style-option:hover {
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.style-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.style-description {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Interview form */
+.interview-form {
+  padding: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background-color: #fff;
+}
+
+.input-container i {
+  color: #6b7280;
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+.input-container input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 12px 0;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+}
+
+.question-container {
+  padding: 12px;
+}
+
+.question-container textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: transparent;
+  resize: vertical;
+  font-family: 'Inter', sans-serif;
+}
+
+.form-divider {
+  height: 1px;
+  background-color: #f0f0f0;
+  margin: 20px 0;
+}
+
+/* Question selection */
+.question-selection {
+  position: relative;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+.question-select {
+  width: 100%;
+  padding: 12px 16px;
+  appearance: none;
+  border: none;
+  background-color: transparent;
+  font-size: 14px;
+  color: #1a1a1a;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+}
+
+.dropdown-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  pointer-events: none;
+}
+
+/* Loading indicator */
+.loading-questions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(99, 102, 241, 0.3);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spinner 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+
+.loading-questions p {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+@keyframes spinner {
+  to { transform: rotate(360deg); }
+}
+
+/* Right content area */
+.interview-content {
+  flex: 1;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .interview-container {
+    flex-direction: column;
+  }
+  
+  .interview-sidebar {
+    width: 100%;
+    order: 1;
+  }
+  
+  .interview-content {
+    order: 2;
+  }
+}
