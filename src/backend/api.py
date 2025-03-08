@@ -17,7 +17,6 @@ if not DEEPGRAM_API_KEY:
 # Check if CUDA is available
 print("!!t!!")
 print("CUDA is available?", torch.cuda.is_available())
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
