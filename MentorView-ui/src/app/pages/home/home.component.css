@@ -65,6 +65,7 @@
   line-height: 1.2;
   margin-bottom: 1.5rem;
   background: linear-gradient(90deg, #ffffff 30%, #b3b3b3);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: fadeSlideIn 0.8s ease-out;
@@ -662,6 +663,3 @@
     transform: translateY(0);
   }
 }
-
-/* Import Inter font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');

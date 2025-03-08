@@ -1,13 +1,16 @@
-from flask import Flask, jsonify, request
-from model.model import Model
-import torch
 import os
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request
 from moviepy import VideoFileClip
+import torch
 from openai import OpenAI
 from dotenv import load_dotenv
 from deepgram import DeepgramClient, PrerecordedOptions
+from model.model import Model
 
+# Check and retrieve environment variables
 load_dotenv()
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY in .env file.")
@@ -23,7 +26,6 @@ print("CUDA is available?", torch.cuda.is_available())
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 video_path = os.path.join(BASE_DIR, "video.mp4")
 audio_path = os.path.join(BASE_DIR, "audio.mp3")
-
 
 app = Flask(__name__)
 transcript = ""
@@ -117,6 +119,23 @@ def transcribe():
             transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
 
         return jsonify({"transcript": transcript}), 200
+    
+    # try:
+    #     # Initialize deepgram client
+    #     deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+
+    #     payload = { 'buffer': audio_file }
+ 
+    #     options = PrerecordedOptions(
+    #         model="nova-2", 
+    #         language="en-US",
+    #         filler_words=True
+    #     )
+
+    #     response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
+    #     transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+ 
+    #     return jsonify({"transcript": transcript}), 200
 
     except Exception as e:
         return jsonify({"error": f"Error during transcription: {str(e)}"}), 500
@@ -129,7 +148,6 @@ def query():
     # Get input data from the request
     data = request.get_json()
     print(data)
-
     role = data.get('role', '')
     company = data.get('company', '')
     question = data.get('question', '')
@@ -145,7 +163,6 @@ def query():
     except Exception as e:
         return jsonify({"error": f"Error during query: {str(e)}"}), 500
     
-
 
 # Run the app
 if __name__ == '__main__':
