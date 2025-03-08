@@ -1,3 +1,9 @@
+<!-- Selected Question Display -->
+<div class="current-question-panel" *ngIf="interviewDetails?.question">
+    <div class="question-header">Current Interview Question</div>
+    <div class="question-content">{{ interviewDetails.question }}</div>
+</div>
+
 <!-- Video Recording Section -->
 <div [ngClass]="showCam ? 'show' : 'hide'" class="video-container">
     <h3 class="section-title">Interview Session</h3>
