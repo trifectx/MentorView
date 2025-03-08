@@ -29,13 +29,13 @@
 
 /* Specific styling for webcam feed - fix mirroring */
 .webcam-feed {
-    /* This will flip the webcam feed horizontally to counter browser's default mirroring */
-    transform: scaleX(-1);
+    /* No horizontal flipping to keep symbols in correct orientation */
+    transform: scaleX(1);
 }
 
 .webcam-feed:hover {
-    /* Maintain the horizontal flip while adding the hover effect */
-    transform: translateY(-2px) scaleX(-1);
+    /* Maintain normal orientation while adding the hover effect */
+    transform: translateY(-2px) scaleX(1);
 }
 
 /* Specific styling for recorded video - normal orientation */
