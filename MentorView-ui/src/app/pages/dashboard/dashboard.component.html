@@ -7,7 +7,19 @@
         <a class="nav-item">Practice</a>
         <a class="nav-item">Resources</a>
         <a class="nav-item">Discuss</a>
-        <a class="nav-item" routerLink="/interview">Interview</a>
+        <div class="nav-item dropdown">
+          <button class="dropdown-button">Interview <span class="dropdown-icon">▾</span></button>
+          <div class="dropdown-content">
+            <a routerLink="/interview" class="dropdown-item">
+              <i class="fas fa-user-friends"></i>
+              Online Interview
+            </a>
+            <a routerLink="/saved-interviews" class="dropdown-item">
+              <i class="fas fa-bookmark"></i>
+              Saved Interviews
+            </a>
+          </div>
+        </div>
         <a class="nav-item">Profile</a>
       </nav>
     </div>
