@@ -64,6 +64,31 @@
         >
             <i class="material-icons">star_rate</i> Get Rating
         </button>
+        
+        <button
+            class="btn btn-primary save-btn"
+            (click)="saveInterview()"
+            *ngIf="!loadingSave && !loadingRating && rating"
+            [disabled]="isSaved"
+        >
+            <i class="material-icons">save</i>
+            {{ isSaved ? 'Interview Saved' : 'Save Interview' }}
+        </button>
+        
+        <div *ngIf="loadingSave" class="save-status loading">
+            <div class="spinner"></div>
+            <p>Saving your interview...</p>
+        </div>
+        
+        <div *ngIf="saveSuccess" class="save-status success">
+            <i class="material-icons">check_circle</i>
+            <p>Interview saved successfully!</p>
+        </div>
+        
+        <div *ngIf="saveError" class="save-status error">
+            <i class="material-icons">error</i>
+            <p>{{ saveError }}</p>
+        </div>
     </div>
 
     <!-- Transcript Display Section -->

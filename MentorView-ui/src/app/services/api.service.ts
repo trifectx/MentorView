@@ -5,6 +5,21 @@ import { Observable } from 'rxjs';
 type Questions = { questions: string[] };
 type Transcript = { transcript: string };
 type Rating = { feedback: string };
+type SaveInterviewResponse = { message: string, id: string };
+type SavedInterviews = { interviews: SavedInterview[] };
+type UpdateInterviewResponse = { message: string, id: string };
+type DeleteInterviewResponse = { message: string };
+
+export interface SavedInterview {
+    id: string;
+    date: string;
+    role: string;
+    company: string;
+    style: string;
+    question: string;
+    answer: string;
+    feedback: string;
+}
 
 @Injectable({
     providedIn: 'root'
@@ -15,7 +30,13 @@ export class ApiService {
         questions: `${this.baseUrl}/question_suggestions`,
         upload: `${this.baseUrl}/upload`,
         transcribe: `${this.baseUrl}/transcribe`,
-        rateAnswer: `${this.baseUrl}/rate_answer`
+        rateAnswer: `${this.baseUrl}/rate_answer`,
+        saveInterview: `${this.baseUrl}/save_interview`,
+        savedInterviews: `${this.baseUrl}/saved_interviews`,
+        downloadInterview: `${this.baseUrl}/download_interview`,
+        streamInterview: `${this.baseUrl}/stream_interview`,
+        updateInterview: `${this.baseUrl}/update_interview`,
+        deleteInterview: `${this.baseUrl}/delete_interview`
     };
 
     constructor(private http: HttpClient) { }
@@ -47,5 +68,48 @@ export class ApiService {
         style: string
     }): Observable<Questions> {
         return this.http.post<Questions>(this.endpoints.questions, data);
+    }
+
+    saveInterview(data: {
+        role: string;
+        company: string;
+        style: string;
+        question: string;
+        transcript: string;
+        feedback?: string;
+    }): Observable<SaveInterviewResponse> {
+        return this.http.post<SaveInterviewResponse>(this.endpoints.saveInterview, data);
+    }
+
+    getSavedInterviews(): Observable<SavedInterviews> {
+        return this.http.get<SavedInterviews>(this.endpoints.savedInterviews);
+    }
+
+    getSavedInterviewById(id: string): Observable<SavedInterview> {
+        return this.http.get<SavedInterview>(`${this.endpoints.savedInterviews}/${id}`);
+    }
+    
+    getDownloadUrl(interviewId: string): string {
+        return `${this.endpoints.downloadInterview}/${interviewId}`;
+    }
+    
+    getStreamUrl(interviewId: string): string {
+        return `${this.endpoints.streamInterview}/${interviewId}`;
+    }
+    
+    updateInterview(interviewId: string, data: {
+        role?: string;
+        company?: string;
+    }): Observable<UpdateInterviewResponse> {
+        return this.http.put<UpdateInterviewResponse>(
+            `${this.endpoints.updateInterview}/${interviewId}`,
+            data
+        );
+    }
+    
+    deleteInterview(interviewId: string): Observable<DeleteInterviewResponse> {
+        return this.http.delete<DeleteInterviewResponse>(
+            `${this.endpoints.deleteInterview}/${interviewId}`
+        );
     }
 }

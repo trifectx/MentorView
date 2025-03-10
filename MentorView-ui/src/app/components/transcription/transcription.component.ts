@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, ViewChild, Input, OnInit } from '@angular/core';
 import { ApiService } from '../../services/api.service';
 import { InterviewDetails } from '../../shared/types';
+import { Router } from '@angular/router';
 
 declare const faceapi: any;
 
@@ -54,10 +55,18 @@ export class TranscriptionComponent implements OnInit {
         sad: 0,
         surprised: 0
     };
+    
+    // Save interview states
+    loadingSave = false;
+    saveSuccess = false;
+    saveError = '';
+    isSaved = false;
+    savedInterviewId = '';
+    
     private intervalId: any;
 
     // Injecting ApiService for API calls
-    constructor(private apiService: ApiService) { }
+    constructor(private apiService: ApiService, private router: Router) { }
 
     ngOnInit() {
         setTimeout(() => {
@@ -136,6 +145,14 @@ export class TranscriptionComponent implements OnInit {
         this.isRecording = true;
         this.showVideos = false;
         this.isFacialRecognitionPaused = true; // Start paused
+        
+        // Reset save state
+        this.isSaved = false;
+        this.saveSuccess = false;
+        this.saveError = '';
+        this.savedInterviewId = '';
+        this.transcript = '';
+        this.rating = '';
 
         console.log('Recording started. Facial recognition is paused.');
 
@@ -204,6 +221,9 @@ export class TranscriptionComponent implements OnInit {
 
                 // Update the recorded video element
                 this.recordVideoElement.src = URL.createObjectURL(this.videoBlob);
+                
+                // Automatically get transcript when recording is completed
+                this.getTranscript();
             };
 
             console.log('Media recorder set up successfully');
@@ -248,6 +268,11 @@ export class TranscriptionComponent implements OnInit {
                 next: (response: any) => {
                     this.transcript = response.transcript || "No transcript available";
                     this.loadingTranscript = false;
+                    
+                    // Automatically get rating once transcript is loaded
+                    if (this.transcript && this.transcript !== "No transcript available") {
+                        this.getRating();
+                    }
                 },
                 error: (error: any) => {
                     this.transcript = error.error?.error || "Error occurred while fetching the transcript";
@@ -280,6 +305,42 @@ export class TranscriptionComponent implements OnInit {
                     console.error('Error getting rating:', error);
                     this.loadingRating = false;
                     this.rating = 'Error getting feedback. Please try again.';
+                }
+            });
+    }
+    
+    saveInterview() {
+        this.loadingSave = true;
+        this.saveSuccess = false;
+        this.saveError = '';
+        
+        const data = {
+            role: this.interviewDetails.role,
+            company: this.interviewDetails.company,
+            style: this.interviewDetails.style,
+            question: this.interviewDetails.question,
+            transcript: this.transcript,
+            feedback: this.rating
+        };
+        
+        this.apiService.saveInterview(data)
+            .subscribe({
+                next: (response) => {
+                    this.loadingSave = false;
+                    this.saveSuccess = true;
+                    this.isSaved = true;
+                    this.savedInterviewId = response.id;
+                    
+                    // Show success message for 3 seconds then navigate to saved interviews
+                    setTimeout(() => {
+                        this.saveSuccess = false; // Hide success message
+                        this.router.navigate(['/saved-interviews']);
+                    }, 3000);
+                },
+                error: (error) => {
+                    console.error('Error saving interview:', error);
+                    this.loadingSave = false;
+                    this.saveError = error.error?.error || 'Failed to save interview. Please try again.';
                 }
             });
     }
