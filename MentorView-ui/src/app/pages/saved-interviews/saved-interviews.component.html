@@ -38,6 +38,10 @@
         <h3>{{ interview.role }} at {{ interview.company }}</h3>
         <span class="interview-date">{{ formatDate(interview.date) }}</span>
       </div>
+      <div class="interview-score">
+        <span class="label">Score:</span>
+        <span class="score-value">{{ extractScore(interview.feedback) }}</span>
+      </div>
       <div class="interview-question">
         <span class="label">Question:</span>
         <p>{{ interview.question }}</p>

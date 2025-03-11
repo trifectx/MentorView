@@ -110,24 +110,25 @@
 
 .interviews-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  grid-gap: 1.5rem;
-  margin-top: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
 }
 
 .interview-card {
+  position: relative;
   background-color: rgba(255, 255, 255, 0.02);
   border-radius: 8px;
   padding: 1.5rem;
-  transition: all 0.2s ease;
   cursor: pointer;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  overflow: hidden;
 }
 
 .interview-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   background-color: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
 }
 
 .interview-header {
@@ -135,14 +136,34 @@
 }
 
 .interview-header h3 {
-  margin: 0 0 0.25rem 0;
   font-size: 1.25rem;
+  margin: 0 0 0.5rem 0;
   font-weight: 600;
 }
 
 .interview-date {
   font-size: 0.875rem;
   color: #b3b3b3;
+}
+
+.interview-score {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.interview-score .label {
+  font-weight: 500;
+  color: #b3b3b3;
+  margin-right: 0.5rem;
+}
+
+.interview-score .score-value {
+  background-color: rgb(41, 121, 255);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
 }
 
 .interview-question {

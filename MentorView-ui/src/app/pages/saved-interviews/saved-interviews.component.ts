@@ -73,4 +73,36 @@ export class SavedInterviewsComponent implements OnInit {
   getStreamUrl(interviewId: string): string {
     return this.apiService.getStreamUrl(interviewId);
   }
+  
+  // Extract score from feedback text
+  extractScore(feedback: string): string {
+    if (!feedback) return 'N/A';
+    
+    // Different patterns to match various feedback formats
+    const patterns = [
+      // Format: "Overall assessment: 1/10"
+      /assessment:\s*(\d+)\s*\/\s*(\d+)/i,
+      // Format: "Overall assessment: 1 out of 10"
+      /assessment:\s*(\d+)\s*out\s*of\s*(\d+)/i,
+      // Format: "I would rate this response a 6 out of 10"
+      /rate\s*this\s*response\s*a\s*(\d+)\s*out\s*of\s*(\d+)/i,
+      // Format: "Overall Assessment\nI would rate this response a 6 out of 10"
+      /assessment[^\n]*\n[^\n]*rate[^\n]*\s(\d+)\s*out\s*of\s*(\d+)/i,
+      // Format: Just direct numbers like "6/10"
+      /\b(\d+)\s*\/\s*(\d+)\b/i,
+      // Format: "score: 6"
+      /score:\s*(\d+)/i
+    ];
+    
+    // Try each pattern until we find a match
+    for (const pattern of patterns) {
+      const match = feedback.match(pattern);
+      if (match && match[1]) {
+        // If there's a denominator (match[2]) use it, otherwise default to "/10"
+        return match[2] ? `${match[1]}/${match[2]}` : `${match[1]}/10`;
+      }
+    }
+    
+    return 'N/A';
+  }
 }
