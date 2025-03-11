@@ -118,6 +118,60 @@ export class SavedInterviewsComponent implements OnInit {
     return 'N/A';
   }
   
+  // Extract score from feedback text as a number normalized to a 10-point scale
+  extractScoreValue(feedback: string): number {
+    if (!feedback) return 0;
+    
+    // Different patterns to match various feedback formats
+    const patterns = [
+      // Format: "Overall assessment: 1/10"
+      /assessment:\s*(\d+)\s*\/\s*(\d+)/i,
+      // Format: "Overall assessment: 1 out of 10"
+      /assessment:\s*(\d+)\s*out\s*of\s*(\d+)/i,
+      // Format: "I would rate this response a 6 out of 10"
+      /rate\s*this\s*response\s*a\s*(\d+)\s*out\s*of\s*(\d+)/i,
+      // Format: "Overall Assessment\nI would rate this response a 6 out of 10"
+      /assessment[^\n]*\n[^\n]*rate[^\n]*\s(\d+)\s*out\s*of\s*(\d+)/i,
+      // Format: Just direct numbers like "6/10"
+      /\b(\d+)\s*\/\s*(\d+)\b/i,
+      // Format: "score: 6"
+      /score:\s*(\d+)/i
+    ];
+    
+    // Try each pattern until we find a match
+    for (const pattern of patterns) {
+      const match = feedback.match(pattern);
+      if (match && match[1]) {
+        const score = parseInt(match[1], 10);
+        const scale = match[2] ? parseInt(match[2], 10) : 10;
+        // Normalize to a 10-point scale
+        return Math.round((score / scale) * 10 * 10) / 10;
+      }
+    }
+    
+    return 0;
+  }
+  
+  // Calculate the average score of all interviews
+  calculateAverageScore(): number {
+    if (!this.savedInterviews || this.savedInterviews.length === 0) {
+      return 0;
+    }
+    
+    let totalScore = 0;
+    let countedInterviews = 0;
+    
+    this.savedInterviews.forEach(interview => {
+      const score = this.extractScoreValue(interview.feedback);
+      if (score > 0) {
+        totalScore += score;
+        countedInterviews++;
+      }
+    });
+    
+    return countedInterviews > 0 ? parseFloat((totalScore / countedInterviews).toFixed(1)) : 0;
+  }
+  
   // Multi-select functionality
   toggleSelectionMode(): void {
     this.selectionMode = !this.selectionMode;
