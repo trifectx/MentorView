@@ -81,7 +81,22 @@ class Model:
             return "Error generating questions. Please try again."
 
 
-    def construct_prompt_for_feedback(self, role, company, question, answer):
+    def construct_prompt_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0):
+        # Prepare filler word analysis for the prompt
+        filler_word_analysis = ""
+        if total_filler_words > 0:
+            filler_word_analysis = "\nFiller Word Analysis:\n"
+            for word, count in filler_words.items():
+                if count > 0:
+                    filler_word_analysis += f"- '{word}': {count} times\n"
+            filler_word_analysis += f"Total filler words: {total_filler_words}\n"
+        
+        # Prepare WPM analysis
+        wpm_analysis = ""
+        if wpm > 0:
+            wpm_status = "too slow" if wpm < 120 else "too fast" if wpm > 160 else "optimal"
+            wpm_analysis = f"\nSpeaking Pace Analysis:\n- Words Per Minute (WPM): {wpm} ({wpm_status})\n"
+        
         return [
             {
                 "role": "system",
@@ -97,22 +112,25 @@ class Model:
                 Question: {question}
                 
                 Candidate's Answer: {answer}
-                
+                {wpm_analysis}{filler_word_analysis}
                 Please evaluate this answer and provide:
                 1. Overall assessment (score out of 10)
-                2. Strengths of the answer
-                3. Areas for improvement
-                4. Suggestions for a better response
+                2. Content strengths of the answer
+                3. Areas for improvement in content and delivery
+                4. Language quality (comment on filler word usage and suggestions to reduce them)
+                5. Speaking pace evaluation (comment on the WPM and whether it's appropriate)
+                6. Suggestions for a better response
+                
+                Format your response with clear section headers for each of the above points.
                 """
             }
         ]
-         
-    
-    def query_model_for_feedback(self, role, company, question, answer):
+
+    def query_model_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0):
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self.construct_prompt_for_feedback(role, company, question, answer), 
+                messages=self.construct_prompt_for_feedback(role, company, question, answer, wpm, filler_words, total_filler_words), 
                 max_tokens=2000,  
                 temperature=0.7,   
                 stream=False

@@ -139,6 +139,9 @@ def query():
     role = data.get('role', '')
     company = data.get('company', '')
     question = data.get('question', '')
+    wpm = data.get('wpm', 0)
+    filler_words = data.get('fillerWords', {})
+    total_filler_words = data.get('totalFillerWords', 0)
     
     # Check if required fields are present
     if not all([role, company, question, transcript]):
@@ -146,7 +149,15 @@ def query():
 
     # Send the input data to the model
     try:
-        feedback = model.query_model_for_feedback(role=role, company=company, question=question, answer=transcript)
+        feedback = model.query_model_for_feedback(
+            role=role, 
+            company=company, 
+            question=question, 
+            answer=transcript, 
+            wpm=wpm, 
+            filler_words=filler_words, 
+            total_filler_words=total_filler_words
+        )
         return jsonify({"feedback": feedback}), 200
     except Exception as e:
         return jsonify({"error": f"Error during query: {str(e)}"}), 500
@@ -162,6 +173,9 @@ def save_interview():
     answer = data.get('transcript', '')
     feedback = data.get('feedback', '')
     interview_style = data.get('style', '')
+    wpm = data.get('wpm', 0)
+    filler_words = data.get('fillerWords', '{}')
+    total_filler_words = data.get('totalFillerWords', 0)
     
     # Validate required fields
     if not all([role, company, question, answer]):
@@ -181,7 +195,10 @@ def save_interview():
             "style": interview_style,
             "question": question,
             "answer": answer,
-            "feedback": feedback
+            "feedback": feedback,
+            "wpm": wpm,
+            "fillerWords": filler_words,
+            "totalFillerWords": total_filler_words
         }
         
         # Save to a JSON file

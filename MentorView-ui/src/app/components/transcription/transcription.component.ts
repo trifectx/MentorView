@@ -65,6 +65,33 @@ export class TranscriptionComponent implements OnInit {
     
     private intervalId: any;
 
+    // WPM tracking properties
+    currentWpm: number = 0;
+    wordCount: number = 0;
+    recordingStartTime: number = 0;
+    speechRecognition: any = null;
+    wpmUpdateIntervalId: any = null;
+    wpmHistory: number[] = [];
+    averageWpm: number = 0;
+    recognizedText: string = '';
+    lastProcessedLength: number = 0;
+    
+    // Filler word tracking
+    fillerWords: {[key: string]: number} = {
+        'um': 0,
+        'uh': 0,
+        'like': 0,
+        'you know': 0,
+        'actually': 0,
+        'basically': 0,
+        'literally': 0,
+        'so': 0,
+        'i mean': 0,
+        'kind of': 0,
+        'sort of': 0
+    };
+    totalFillerWords: number = 0;
+
     // Injecting ApiService for API calls
     constructor(private apiService: ApiService, private router: Router) { }
 
@@ -153,6 +180,23 @@ export class TranscriptionComponent implements OnInit {
         this.savedInterviewId = '';
         this.transcript = '';
         this.rating = '';
+
+        // Reset WPM tracking
+        this.currentWpm = 0;
+        this.wordCount = 0;
+        this.recordingStartTime = Date.now();
+        this.wpmHistory = [];
+        this.averageWpm = 0;
+        this.recognizedText = '';
+        this.lastProcessedLength = 0;
+
+        // Start WPM tracking
+        this.startSpeechRecognition();
+        
+        // Update WPM every second
+        this.wpmUpdateIntervalId = setInterval(() => {
+            this.updateWpm();
+        }, 1000);
 
         console.log('Recording started. Facial recognition is paused.');
 
@@ -249,7 +293,16 @@ export class TranscriptionComponent implements OnInit {
         this.mediaRecorder?.stop();
         this.isRecording = false;
         clearInterval(this.intervalId);
+        clearInterval(this.wpmUpdateIntervalId);
+        this.stopSpeechRecognition();
         this.showVideos = true;
+        
+        // Calculate final average WPM
+        if (this.wpmHistory.length > 0) {
+            this.averageWpm = Math.round(
+                this.wpmHistory.reduce((sum, wpm) => sum + wpm, 0) / this.wpmHistory.length
+            );
+        }
     }
 
     sendToServer() {
@@ -285,12 +338,28 @@ export class TranscriptionComponent implements OnInit {
         this.loadingRating = true;
         this.rating = ''; // Clear previous rating when starting a new request
 
+        // Calculate final WPM statistics if not already done
+        if (this.isRecording) {
+            this.stopSpeechRecognition();
+            if (this.wpmHistory.length > 0) {
+                this.averageWpm = Math.round(
+                    this.wpmHistory.reduce((sum, wpm) => sum + wpm, 0) / this.wpmHistory.length
+                );
+            }
+        }
+        
+        // Analyze filler words in the transcript
+        this.analyzeFillerWords();
+
         const data = {
             role: this.interviewDetails.role,
             company: this.interviewDetails.company,
             style: this.interviewDetails.style,
             transcript: this.transcript,
-            question: this.interviewDetails.question
+            question: this.interviewDetails.question,
+            wpm: this.averageWpm,
+            fillerWords: this.fillerWords,
+            totalFillerWords: this.totalFillerWords
         };
 
         console.log(data);
@@ -320,7 +389,10 @@ export class TranscriptionComponent implements OnInit {
             style: this.interviewDetails.style,
             question: this.interviewDetails.question,
             transcript: this.transcript,
-            feedback: this.rating
+            feedback: this.rating,
+            wpm: this.averageWpm,
+            fillerWords: JSON.stringify(this.fillerWords),
+            totalFillerWords: this.totalFillerWords
         };
         
         this.apiService.saveInterview(data)
@@ -343,5 +415,100 @@ export class TranscriptionComponent implements OnInit {
                     this.saveError = error.error?.error || 'Failed to save interview. Please try again.';
                 }
             });
+    }
+
+    // Analyze filler words in the transcript
+    private analyzeFillerWords() {
+        if (!this.transcript) return;
+        
+        // Reset filler word counts
+        Object.keys(this.fillerWords).forEach(word => {
+            this.fillerWords[word] = 0;
+        });
+        this.totalFillerWords = 0;
+        
+        // Convert transcript to lowercase for case-insensitive matching
+        const lowerTranscript = this.transcript.toLowerCase();
+        
+        // Count each filler word
+        Object.keys(this.fillerWords).forEach(word => {
+            // Use regex to find whole word matches only
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            const matches = lowerTranscript.match(regex);
+            if (matches) {
+                this.fillerWords[word] = matches.length;
+                this.totalFillerWords += matches.length;
+            }
+        });
+        
+        console.log('Filler word analysis:', this.fillerWords);
+        console.log('Total filler words:', this.totalFillerWords);
+    }
+
+    // WPM tracking methods
+    private startSpeechRecognition() {
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+            // Use the appropriate speech recognition API
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            this.speechRecognition = new SpeechRecognition();
+            
+            // Configure speech recognition
+            this.speechRecognition.continuous = true;
+            this.speechRecognition.interimResults = true;
+            this.speechRecognition.lang = 'en-US';
+            
+            // Handle speech recognition results
+            this.speechRecognition.onresult = (event: any) => {
+                let transcript = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                this.recognizedText = transcript;
+                
+                // Count new words since last update
+                const words = this.recognizedText.trim().split(/\s+/);
+                const newWordCount = words.length;
+                
+                // Update word count if we have new words
+                if (newWordCount > this.lastProcessedLength) {
+                    this.wordCount += (newWordCount - this.lastProcessedLength);
+                    this.lastProcessedLength = newWordCount;
+                }
+            };
+            
+            // Handle errors
+            this.speechRecognition.onerror = (event: any) => {
+                console.error('Speech recognition error:', event.error);
+            };
+            
+            // Start recognition
+            this.speechRecognition.start();
+            console.log('Speech recognition started for WPM tracking');
+        } else {
+            console.error('Speech recognition not supported in this browser');
+        }
+    }
+    
+    private stopSpeechRecognition() {
+        if (this.speechRecognition) {
+            this.speechRecognition.stop();
+            this.speechRecognition = null;
+            console.log('Speech recognition stopped');
+        }
+    }
+    
+    private updateWpm() {
+        if (!this.isRecording) return;
+        
+        const elapsedMinutes = (Date.now() - this.recordingStartTime) / 60000;
+        if (elapsedMinutes > 0) {
+            this.currentWpm = Math.round(this.wordCount / elapsedMinutes);
+            this.wpmHistory.push(this.currentWpm);
+            
+            // Calculate running average
+            this.averageWpm = Math.round(
+                this.wpmHistory.reduce((sum, wpm) => sum + wpm, 0) / this.wpmHistory.length
+            );
+        }
     }
 }

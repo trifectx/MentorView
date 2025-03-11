@@ -19,6 +19,9 @@ export interface SavedInterview {
     question: string;
     answer: string;
     feedback: string;
+    wpm?: number;
+    fillerWords?: string;
+    totalFillerWords?: number;
 }
 
 @Injectable({
@@ -58,6 +61,9 @@ export class ApiService {
         style: string;
         transcript: string;
         question: string;
+        wpm?: number;
+        fillerWords?: { [key: string]: number };
+        totalFillerWords?: number;
     }): Observable<Rating> {
         return this.http.post<Rating>(this.endpoints.rateAnswer, data);
     }
@@ -77,6 +83,9 @@ export class ApiService {
         question: string;
         transcript: string;
         feedback?: string;
+        wpm?: number;
+        fillerWords?: string;
+        totalFillerWords?: number;
     }): Observable<SaveInterviewResponse> {
         return this.http.post<SaveInterviewResponse>(this.endpoints.saveInterview, data);
     }
