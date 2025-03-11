@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
 import { ApiService, SavedInterview } from '../../services/api.service';
+import { filter } from 'rxjs/operators';
+import { forkJoin, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-saved-interviews',
@@ -10,7 +12,7 @@ import { ApiService, SavedInterview } from '../../services/api.service';
   templateUrl: './saved-interviews.component.html',
   styleUrls: ['./saved-interviews.component.css']
 })
-export class SavedInterviewsComponent implements OnInit {
+export class SavedInterviewsComponent implements OnInit, OnDestroy {
   savedInterviews: SavedInterview[] = [];
   loading = false;
   error = '';
@@ -21,11 +23,38 @@ export class SavedInterviewsComponent implements OnInit {
   selectedInterviews: Set<string> = new Set<string>();
   selectionMode = false;
   deleting = false;
+  
+  private subscription: Subscription = new Subscription();
 
   constructor(private apiService: ApiService, private router: Router) { }
 
   ngOnInit(): void {
     this.loadSavedInterviews();
+    
+    // Subscribe to router events to refresh the data when navigating back to this page
+    this.subscription.add(
+      this.router.events.pipe(
+        filter(event => event instanceof NavigationEnd)
+      ).subscribe(() => {
+        // Check if we're on the saved-interviews route
+        if (this.router.url === '/saved-interviews') {
+          this.loadSavedInterviews();
+        }
+      })
+    );
+    
+    // Subscribe to interview updates
+    this.subscription.add(
+      this.apiService.interviewsUpdated$.subscribe(() => {
+        console.log('Interview data updated, refreshing saved interviews...');
+        this.loadSavedInterviews();
+      })
+    );
+  }
+  
+  ngOnDestroy(): void {
+    // Clean up subscriptions when component is destroyed
+    this.subscription.unsubscribe();
   }
 
   loadSavedInterviews(): void {
@@ -86,7 +115,7 @@ export class SavedInterviewsComponent implements OnInit {
     return this.apiService.getStreamUrl(interviewId);
   }
   
-  // Extract score from feedback text
+  // Extract score from feedback text as a string (e.g. "8/10")
   extractScore(feedback: string): string {
     if (!feedback) return 'N/A';
     
@@ -201,21 +230,25 @@ export class SavedInterviewsComponent implements OnInit {
     if (this.selectedInterviews.size === 0) return;
     
     this.deleting = true;
-    const interviewIds = Array.from(this.selectedInterviews);
-    
-    // Use a local array to track interviews that need to be removed from UI
-    const interviewsToRemove = this.savedInterviews.filter(interview => 
-      this.selectedInterviews.has(interview.id)
+    const deleteRequests = Array.from(this.selectedInterviews).map(id => 
+      this.apiService.deleteInterview(id)
     );
     
-    // Remove selected interviews from the UI immediately
-    this.savedInterviews = this.savedInterviews.filter(interview => 
-      !this.selectedInterviews.has(interview.id)
-    );
-    
-    // Reset selection state
-    this.selectedInterviews.clear();
-    this.selectionMode = false;
-    this.deleting = false;
+    forkJoin(deleteRequests).subscribe({
+      next: (responses) => {
+        console.log('Deleted interviews:', responses);
+        // Refresh the interviews list
+        this.loadSavedInterviews();
+        // Exit selection mode
+        this.selectionMode = false;
+        this.selectedInterviews.clear();
+        this.deleting = false;
+      },
+      error: (error) => {
+        console.error('Error deleting interviews:', error);
+        this.error = 'Failed to delete one or more interviews. Please try again.';
+        this.deleting = false;
+      }
+    });
   }
 }

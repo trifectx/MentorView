@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ApiService, SavedInterview } from '../../services/api.service';
+import { Subscription } from 'rxjs';
 
 interface InterviewStats {
   totalInterviews: number;
@@ -13,6 +14,11 @@ interface InterviewStats {
   interviewScores: number[];
 }
 
+// Standard speaking rate values for reference
+const DEFAULT_WPM = 135;  // Only used when no interviews have WPM data
+const MIN_OPTIMAL_WPM = 120;
+const MAX_OPTIMAL_WPM = 160;
+
 @Component({
   selector: 'app-overview',
   templateUrl: './overview.component.html',
@@ -20,12 +26,12 @@ interface InterviewStats {
   standalone: true,
   imports: [RouterModule, CommonModule]
 })
-export class OverviewComponent implements OnInit {
+export class OverviewComponent implements OnInit, OnDestroy {
   // Performance data structure
   performanceData = {
     strengths: ['Clear communication', 'Good pacing', 'Structured answers'],
     weaknesses: ['Occasional filler words', 'Limited eye contact', 'Can improve technical depth'],
-    averageWpm: 0,
+    averageWpm: DEFAULT_WPM,
     speakingPaceStatus: 'Optimal',  // 'Too Fast', 'Too Slow', or 'Optimal'
     averageScore: 0,  // Out of 10
     recentInterviews: [] // Will be populated from actual data
@@ -50,12 +56,26 @@ export class OverviewComponent implements OnInit {
   
   loading = false;
   error = '';
+  private subscription: Subscription = new Subscription();
   
   constructor(private apiService: ApiService) {}
 
   ngOnInit(): void {
     // Fetch the saved interviews data
     this.loadInterviewData();
+    
+    // Subscribe to interview updates
+    this.subscription.add(
+      this.apiService.interviewsUpdated$.subscribe(() => {
+        console.log('Interview data updated, refreshing overview...');
+        this.loadInterviewData();
+      })
+    );
+  }
+  
+  ngOnDestroy(): void {
+    // Clean up subscriptions when component is destroyed
+    this.subscription.unsubscribe();
   }
   
   loadInterviewData(): void {
@@ -89,11 +109,14 @@ export class OverviewComponent implements OnInit {
     // Calculate scores
     let totalScore = 0;
     let topScore = 0;
-    let averageWpm = 0;
+    let totalWpm = 0;
     let wpmCount = 0;
+    
+    // Map of interview style to scores
     const styleScores: {[key: string]: {total: number, count: number}} = {};
     
     sortedInterviews.forEach(interview => {
+      // Process score
       const score = this.extractScoreValue(interview.feedback);
       if (score > 0) {
         totalScore += score;
@@ -107,26 +130,30 @@ export class OverviewComponent implements OnInit {
         styleScores[interview.style].count += 1;
       }
       
-      // Track WPM if available
-      if (interview.wpm) {
-        averageWpm += interview.wpm;
+      // Process WPM - only include interviews with actual WPM data
+      if (interview.wpm && interview.wpm > 0) {
+        totalWpm += interview.wpm;
         wpmCount++;
       }
     });
     
-    // Calculate average score
-    const averageScore = sortedInterviews.length > 0 ? 
-      parseFloat((totalScore / sortedInterviews.filter(i => this.extractScoreValue(i.feedback) > 0).length).toFixed(1)) : 0;
+    // Calculate average score for interviews with feedback
+    const interviewsWithScores = sortedInterviews.filter(i => this.extractScoreValue(i.feedback) > 0);
+    const averageScore = interviewsWithScores.length > 0 ? 
+      parseFloat((totalScore / interviewsWithScores.length).toFixed(1)) : 0;
     
-    // Calculate average WPM
+    // Calculate average WPM - only using interviews with actual WPM data
     if (wpmCount > 0) {
-      this.performanceData.averageWpm = Math.round(averageWpm / wpmCount);
+      this.performanceData.averageWpm = Math.round(totalWpm / wpmCount);
+    } else {
+      // Only use default if there are no WPM data points at all
+      this.performanceData.averageWpm = DEFAULT_WPM;
     }
     
     // Calculate speaking pace status
-    if (this.performanceData.averageWpm > 160) {
+    if (this.performanceData.averageWpm > MAX_OPTIMAL_WPM) {
       this.performanceData.speakingPaceStatus = 'Too Fast';
-    } else if (this.performanceData.averageWpm < 120) {
+    } else if (this.performanceData.averageWpm < MIN_OPTIMAL_WPM) {
       this.performanceData.speakingPaceStatus = 'Too Slow';
     } else {
       this.performanceData.speakingPaceStatus = 'Optimal';
@@ -150,11 +177,14 @@ export class OverviewComponent implements OnInit {
     // Update progress chart data
     this.progressChartData.scores = interviewScores;
     
-    if (wpmCount > 0) {
-      this.progressChartData.wpm = recentInterviews
-        .filter(interview => interview.wpm)
-        .map(interview => interview.wpm || 0)
-        .reverse();
+    // Only include interviews with actual WPM data in the chart
+    const wpmDataPoints = recentInterviews
+      .filter(interview => interview.wpm && interview.wpm > 0)
+      .map(interview => interview.wpm as number)
+      .reverse();
+    
+    if (wpmDataPoints.length > 0) {
+      this.progressChartData.wpm = wpmDataPoints;
     }
     
     // Update the stats
@@ -174,7 +204,7 @@ export class OverviewComponent implements OnInit {
       date: interview.date,
       topic: interview.question,
       score: this.extractScoreValue(interview.feedback),
-      wpm: interview.wpm || 0
+      wpm: interview.wpm || 0  // Use 0 to indicate no WPM data available
     }));
   }
   

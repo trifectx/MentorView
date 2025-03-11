@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 
 type Questions = { questions: string[] };
 type Transcript = { transcript: string };
@@ -42,8 +42,16 @@ export class ApiService {
         deleteInterview: `${this.baseUrl}/delete_interview`
     };
 
+    // Subject to notify components when interviews are updated
+    private interviewsUpdatedSource = new Subject<void>();
+    interviewsUpdated$ = this.interviewsUpdatedSource.asObservable();
+
     constructor(private http: HttpClient) { }
 
+    // Method to notify all subscribers that interviews have been updated
+    notifyInterviewsUpdated() {
+        this.interviewsUpdatedSource.next();
+    }
 
     uploadVideo(videoBlob: Blob): Observable<void> {
         const formData = new FormData();
@@ -87,7 +95,14 @@ export class ApiService {
         fillerWords?: string;
         totalFillerWords?: number;
     }): Observable<SaveInterviewResponse> {
-        return this.http.post<SaveInterviewResponse>(this.endpoints.saveInterview, data);
+        const saveObservable = this.http.post<SaveInterviewResponse>(this.endpoints.saveInterview, data);
+
+        // Add observer to notify when save completes
+        saveObservable.subscribe({
+            next: () => this.notifyInterviewsUpdated()
+        });
+
+        return saveObservable;
     }
 
     getSavedInterviews(): Observable<SavedInterviews> {
@@ -97,28 +112,37 @@ export class ApiService {
     getSavedInterviewById(id: string): Observable<SavedInterview> {
         return this.http.get<SavedInterview>(`${this.endpoints.savedInterviews}/${id}`);
     }
-    
+
     getDownloadUrl(interviewId: string): string {
         return `${this.endpoints.downloadInterview}/${interviewId}`;
     }
-    
+
     getStreamUrl(interviewId: string): string {
         return `${this.endpoints.streamInterview}/${interviewId}`;
     }
-    
+
     updateInterview(interviewId: string, data: {
         role?: string;
         company?: string;
     }): Observable<UpdateInterviewResponse> {
-        return this.http.put<UpdateInterviewResponse>(
-            `${this.endpoints.updateInterview}/${interviewId}`,
-            data
-        );
+        const updateObservable = this.http.put<UpdateInterviewResponse>(`${this.endpoints.updateInterview}/${interviewId}`, data);
+
+        // Add observer to notify when update completes
+        updateObservable.subscribe({
+            next: () => this.notifyInterviewsUpdated()
+        });
+
+        return updateObservable;
     }
-    
+
     deleteInterview(interviewId: string): Observable<DeleteInterviewResponse> {
-        return this.http.delete<DeleteInterviewResponse>(
-            `${this.endpoints.deleteInterview}/${interviewId}`
-        );
+        const deleteObservable = this.http.delete<DeleteInterviewResponse>(`${this.endpoints.deleteInterview}/${interviewId}`);
+
+        // Add observer to notify when delete completes
+        deleteObservable.subscribe({
+            next: () => this.notifyInterviewsUpdated()
+        });
+
+        return deleteObservable;
     }
 }
