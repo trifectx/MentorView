@@ -258,6 +258,7 @@ export class TranscriptionComponent implements OnInit {
 
             // Set up the onstop event to handle the recording stop and video preparation
             this.mediaRecorder.onstop = () => {
+                console.log('Recording stopped, processing video...');
                 this.videoBlob = new Blob(this.recordedBlobs, { type: 'video/mp4' });
 
                 // Send the recorded video to the server
@@ -266,8 +267,12 @@ export class TranscriptionComponent implements OnInit {
                 // Update the recorded video element
                 this.recordVideoElement.src = URL.createObjectURL(this.videoBlob);
                 
-                // Automatically get transcript when recording is completed
-                this.getTranscript();
+                // Show loading indicators immediately
+                this.loadingTranscript = true;
+                this.transcript = 'Generating transcript...';
+                
+                // The getTranscript will be called from the stop() method
+                // to avoid duplicate calls and race conditions
             };
 
             console.log('Media recorder set up successfully');
@@ -290,6 +295,7 @@ export class TranscriptionComponent implements OnInit {
 
     // Stop recording
     stop() {
+        console.log('Stopping recording...');
         this.mediaRecorder?.stop();
         this.isRecording = false;
         clearInterval(this.intervalId);
@@ -297,12 +303,26 @@ export class TranscriptionComponent implements OnInit {
         this.stopSpeechRecognition();
         this.showVideos = true;
         
+        // Show loading indicator immediately
+        this.loadingTranscript = true;
+        this.transcript = 'Generating transcript...';
+        
         // Calculate final average WPM
         if (this.wpmHistory.length > 0) {
             this.averageWpm = Math.round(
                 this.wpmHistory.reduce((sum, wpm) => sum + wpm, 0) / this.wpmHistory.length
             );
         }
+
+        // Give the mediaRecorder.onstop event time to process
+        // then get the transcript automatically
+        console.log('Automatically initiating transcript generation from stop method...');
+        setTimeout(() => {
+            // Ensure we only call getTranscript if recording has definitely stopped
+            if (!this.isRecording) {
+                this.getTranscript();
+            }
+        }, 1000); // Slightly longer timeout to ensure the recording is fully processed
     }
 
     sendToServer() {
@@ -313,22 +333,34 @@ export class TranscriptionComponent implements OnInit {
     }
 
     getTranscript() {
+        console.log('Starting transcript generation process...');
         this.loadingTranscript = true;
-        this.transcript = ''; // Clear previous transcript when starting a new request
+        this.transcript = 'Generating transcript...'; // Show loading message
 
         this.apiService.transcribeVideo()
             .subscribe({
                 next: (response: any) => {
-                    this.transcript = response.transcript || "No transcript available";
-                    this.loadingTranscript = false;
-                    
-                    // Automatically get rating once transcript is loaded
-                    if (this.transcript && this.transcript !== "No transcript available") {
-                        this.getRating();
+                    console.log('Transcript API response received:', response);
+                    if (response && response.transcript) {
+                        this.transcript = response.transcript;
+                        console.log('Transcript loaded successfully');
+                        this.loadingTranscript = false;
+                        
+                        // Immediately start rating process without delay
+                        if (this.transcript && this.transcript !== "No transcript available") {
+                            console.log('Automatically starting rating process...');
+                            // Start rating process immediately
+                            this.getRating();
+                        }
+                    } else {
+                        this.transcript = "No transcript available";
+                        console.warn('Empty or invalid transcript response');
+                        this.loadingTranscript = false;
                     }
                 },
                 error: (error: any) => {
-                    this.transcript = error.error?.error || "Error occurred while fetching the transcript";
+                    console.error('Error fetching transcript:', error);
+                    this.transcript = "Error occurred while fetching the transcript. Please try again.";
                     this.loadingTranscript = false;
                 }
             });
