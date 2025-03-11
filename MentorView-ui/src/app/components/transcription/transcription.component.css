@@ -293,8 +293,113 @@
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 12px;
+    margin: 20px 0;
+}
+
+/* Modern control buttons */
+.control-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 30px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: none;
+    margin: 0 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    min-width: 120px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.control-btn:hover:not([disabled]) {
+    transform: translateY(-2px);
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+}
+
+.control-btn:active:not([disabled]) {
+    transform: translateY(0);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.control-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.control-btn .material-icons {
+    font-size: 20px;
+}
+
+/* Record button */
+.record-btn:not([disabled]) {
+    background-color: rgba(41, 121, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(41, 121, 255, 0.3);
+}
+
+.record-btn:hover:not([disabled]) {
+    background-color: rgba(41, 121, 255, 0.2);
+}
+
+/* Stop button */
+.stop-btn:not([disabled]) {
+    background-color: rgba(255, 59, 48, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 59, 48, 0.3);
+}
+
+.stop-btn:hover:not([disabled]) {
+    background-color: rgba(255, 59, 48, 0.2);
+}
+
+/* Facial recognition button */
+.facial-btn:not([disabled]) {
+    background-color: rgba(178, 132, 254, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(178, 132, 254, 0.3);
+}
+
+.facial-btn:hover:not([disabled]) {
+    background-color: rgba(178, 132, 254, 0.2);
+}
+
+.facial-btn.active:not([disabled]) {
+    background-color: rgba(178, 132, 254, 0.3);
+    border: 1px solid rgba(178, 132, 254, 0.5);
+}
+
+/* Rating button */
+.rating-btn:not([disabled]) {
+    background-color: rgba(255, 190, 11, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 190, 11, 0.3);
+}
+
+.rating-btn:hover:not([disabled]) {
+    background-color: rgba(255, 190, 11, 0.2);
+}
+
+/* Save button */
+.save-btn:not([disabled]) {
+    background-color: rgba(48, 209, 88, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(48, 209, 88, 0.3);
+}
+
+.save-btn:hover:not([disabled]) {
+    background-color: rgba(48, 209, 88, 0.2);
+}
+
+.save-btn[disabled] {
+    background-color: rgba(48, 209, 88, 0.05);
+    border: 1px solid rgba(48, 209, 88, 0.1);
 }
 
 /* Result sections */
