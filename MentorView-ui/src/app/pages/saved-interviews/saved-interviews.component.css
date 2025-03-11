@@ -448,13 +448,55 @@
 
 /* Danger button for delete */
 .btn-danger {
-  background-color: #ff4d4d;
+  background-color: rgba(255, 59, 48, 0.8);
   color: white;
 }
 
 .btn-danger:hover {
-  background-color: #ff3333;
+  background-color: rgba(255, 59, 48, 1);
   transform: translateY(-2px);
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Selection circle styles */
+.select-circle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.select-circle:hover {
+  border-color: rgb(41, 121, 255);
+  background-color: rgba(41, 121, 255, 0.1);
+}
+
+.select-circle.selected {
+  border-color: rgb(41, 121, 255);
+  background-color: rgb(41, 121, 255);
+}
+
+.select-circle i {
+  font-size: 16px;
+  color: white;
 }
 
 /* Small spinner for buttons */

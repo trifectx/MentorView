@@ -1,9 +1,25 @@
 <div class="saved-interviews-container">
   <div class="page-header">
     <h1>Saved Interviews</h1>
-    <button class="btn btn-primary" (click)="goToInterviewPage()">
-      <i class="material-icons">add</i> New Interview
-    </button>
+    <div class="action-buttons">
+      <ng-container *ngIf="!selectionMode">
+        <button class="btn btn-primary" (click)="goToInterviewPage()">
+          <i class="material-icons">add</i> New Interview
+        </button>
+        <button class="btn btn-secondary" (click)="toggleSelectionMode()" *ngIf="savedInterviews.length > 0">
+          <i class="material-icons">check_circle_outline</i> Select
+        </button>
+      </ng-container>
+      
+      <ng-container *ngIf="selectionMode">
+        <button class="btn btn-danger" [disabled]="getSelectedCount() === 0" (click)="deleteSelectedInterviews()">
+          <i class="material-icons">delete</i> Delete ({{getSelectedCount()}})
+        </button>
+        <button class="btn btn-secondary" (click)="toggleSelectionMode()">
+          <i class="material-icons">cancel</i> Cancel
+        </button>
+      </ng-container>
+    </div>
   </div>
 
   <!-- Loading State -->
@@ -33,7 +49,13 @@
 
   <!-- Interviews List -->
   <div *ngIf="!loading && !error && savedInterviews.length > 0" class="interviews-list">
-    <div class="interview-card" *ngFor="let interview of savedInterviews" (click)="viewInterview(interview)">
+    <div class="interview-card" *ngFor="let interview of savedInterviews" (click)="viewInterview(interview, $event)">
+      <!-- Selection circle button -->
+      <div class="select-circle" *ngIf="selectionMode" (click)="toggleInterviewSelection(interview.id)" 
+           [class.selected]="isInterviewSelected(interview.id)">
+        <i class="material-icons" *ngIf="isInterviewSelected(interview.id)">check</i>
+      </div>
+      
       <div class="interview-header">
         <h3>{{ interview.role }} at {{ interview.company }}</h3>
         <span class="interview-date">{{ formatDate(interview.date) }}</span>

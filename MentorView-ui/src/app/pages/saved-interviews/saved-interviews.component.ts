@@ -16,6 +16,11 @@ export class SavedInterviewsComponent implements OnInit {
   error = '';
   selectedInterview: SavedInterview | null = null;
   @ViewChild('videoPlayer') videoPlayer!: ElementRef<HTMLVideoElement>;
+  
+  // Selection state variables
+  selectedInterviews: Set<string> = new Set<string>();
+  selectionMode = false;
+  deleting = false;
 
   constructor(private apiService: ApiService, private router: Router) { }
 
@@ -40,7 +45,14 @@ export class SavedInterviewsComponent implements OnInit {
     });
   }
 
-  viewInterview(interview: SavedInterview): void {
+  viewInterview(interview: SavedInterview, event?: MouseEvent): void {
+    // If in selection mode, toggle selection instead of viewing
+    if (this.selectionMode) {
+      if (event) event.stopPropagation();
+      this.toggleInterviewSelection(interview.id);
+      return;
+    }
+    
     this.selectedInterview = interview;
     // Wait for the view to update with the video element
     setTimeout(() => {
@@ -104,5 +116,52 @@ export class SavedInterviewsComponent implements OnInit {
     }
     
     return 'N/A';
+  }
+  
+  // Multi-select functionality
+  toggleSelectionMode(): void {
+    this.selectionMode = !this.selectionMode;
+    if (!this.selectionMode) {
+      // Clear selections when exiting selection mode
+      this.selectedInterviews.clear();
+    }
+  }
+  
+  toggleInterviewSelection(interviewId: string): void {
+    if (this.selectedInterviews.has(interviewId)) {
+      this.selectedInterviews.delete(interviewId);
+    } else {
+      this.selectedInterviews.add(interviewId);
+    }
+  }
+  
+  isInterviewSelected(interviewId: string): boolean {
+    return this.selectedInterviews.has(interviewId);
+  }
+  
+  getSelectedCount(): number {
+    return this.selectedInterviews.size;
+  }
+  
+  deleteSelectedInterviews(): void {
+    if (this.selectedInterviews.size === 0) return;
+    
+    this.deleting = true;
+    const interviewIds = Array.from(this.selectedInterviews);
+    
+    // Use a local array to track interviews that need to be removed from UI
+    const interviewsToRemove = this.savedInterviews.filter(interview => 
+      this.selectedInterviews.has(interview.id)
+    );
+    
+    // Remove selected interviews from the UI immediately
+    this.savedInterviews = this.savedInterviews.filter(interview => 
+      !this.selectedInterviews.has(interview.id)
+    );
+    
+    // Reset selection state
+    this.selectedInterviews.clear();
+    this.selectionMode = false;
+    this.deleting = false;
   }
 }
