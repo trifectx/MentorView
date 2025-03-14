@@ -7,6 +7,8 @@ import { InterviewDetailsComponent } from '../../components/interview-details/in
 import { InterviewDetails } from '../../shared/types';
 import { INTERVIEW_STYLES, ROLES, COMPANIES, InterviewStyle } from '../../components/interview-details/interview-details.constants';
 import { ApiService } from '../../services/api.service';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'app-interview',
@@ -36,13 +38,45 @@ export class InterviewComponent implements OnInit {
   isLoadingQuestions = false;
   showStylesMenu = false;
   dropdownHeight = 0; // Track dropdown height for spacing
+  
+  // Track previous values to detect changes
+  private previousCompany: string = '';
+  private previousRole: string = '';
+  private previousStyle: string = '';
 
-  constructor(private apiService: ApiService) {}
+  // Debounce subjects for input fields
+  private roleInputSubject = new Subject<string>();
+  private companyInputSubject = new Subject<string>();
+
+  constructor(private apiService: ApiService) {
+    // Set up debounce for role input - wait 800ms after user stops typing
+    this.roleInputSubject.pipe(
+      debounceTime(800),
+      distinctUntilChanged()
+    ).subscribe(role => {
+      if (role !== this.previousRole && role) {
+        this.previousRole = role;
+        this.checkAndLoadQuestions();
+      }
+    });
+    
+    // Set up debounce for company input - wait 800ms after user stops typing
+    this.companyInputSubject.pipe(
+      debounceTime(800),
+      distinctUntilChanged()
+    ).subscribe(company => {
+      if (company !== this.previousCompany && company) {
+        this.previousCompany = company;
+        this.checkAndLoadQuestions();
+      }
+    });
+  }
 
   ngOnInit(): void {
-    if (this.interviewDetails.role && this.interviewDetails.company && this.interviewDetails.style) {
-      this.loadQuestions();
-    }
+    // Initialize tracking variables with current values to prevent unnecessary reloading
+    this.previousCompany = this.interviewDetails.company;
+    this.previousRole = this.interviewDetails.role;
+    this.previousStyle = this.interviewDetails.style;
   }
 
   openStylesMenu(): void {
@@ -52,16 +86,19 @@ export class InterviewComponent implements OnInit {
   }
 
   selectInterviewStyle(styleId: string): void {
+    // Store previous style to check if it changed
+    const styleChanged = this.interviewDetails.style !== styleId;
+    
     this.interviewDetails.style = styleId;
     this.interviewDetails.question = '';
     this.showStylesMenu = false;
     this.dropdownHeight = 0;
     
-    if (styleId !== 'custom') {
-      this.loadQuestions();
+    // Check if style has changed and reload questions if needed
+    if (styleId !== 'custom' && styleChanged) {
+      this.previousStyle = styleId;
+      this.checkAndLoadQuestions();
     }
-    
-    this.onDetailsChange();
   }
 
   getSelectedStyleName(): string {
@@ -69,10 +106,16 @@ export class InterviewComponent implements OnInit {
     return selectedStyle ? selectedStyle.name : 'Select Interview Type';
   }
 
+  onRoleInput(): void {
+    this.roleInputSubject.next(this.interviewDetails.role);
+  }
+  
+  onCompanyInput(): void {
+    this.companyInputSubject.next(this.interviewDetails.company);
+  }
+
   onDetailsChange(): void {
-    if (this.interviewDetails.role && this.interviewDetails.company && this.interviewDetails.style !== 'custom') {
-      this.loadQuestions();
-    }
+    // No immediate action - debounced inputs will handle changes
   }
 
   /**
@@ -81,7 +124,7 @@ export class InterviewComponent implements OnInit {
    */
   selectQuestion(question: string): void {
     this.interviewDetails.question = question;
-    this.onDetailsChange();
+    // Removing the onDetailsChange call to prevent questions from reloading
   }
 
   /**
@@ -91,6 +134,15 @@ export class InterviewComponent implements OnInit {
     this.interviewDetails.style = 'custom';
     this.interviewDetails.question = '';
     this.onDetailsChange();
+  }
+
+  private checkAndLoadQuestions(): void {
+    // Check if we have all required data and if so, load questions
+    if (this.interviewDetails.role && 
+        this.interviewDetails.company && 
+        this.interviewDetails.style !== 'custom') {
+      this.loadQuestions();
+    }
   }
 
   private loadQuestions(): void {

@@ -327,26 +327,46 @@ select.question-select option {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 0;
+  justify-content: center;
+  padding: 30px 0;
+  background-color: rgba(26, 26, 26, 0.5);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin: 20px 0;
+  min-height: 180px;
 }
 
 .spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid rgba(41, 121, 255, 0.3);
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(41, 121, 255, 0.3);
   border-top-color: rgb(41, 121, 255);
   border-radius: 50%;
-  animation: spinner 0.8s linear infinite;
-  margin-bottom: 12px;
+  animation: spinner 1s linear infinite;
+  margin-bottom: 16px;
+  box-shadow: 0 0 10px rgba(41, 121, 255, 0.5);
 }
 
 .loading-questions p {
-  font-size: 14px;
-  color: #b3b3b3;
+  font-size: 16px;
+  color: #ffffff;
+  text-align: center;
+  font-weight: 500;
 }
 
 @keyframes spinner {
   to { transform: rotate(360deg); }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Right content area */

@@ -36,7 +36,7 @@
                         type="text" 
                         placeholder="Sample associate" 
                         [(ngModel)]="interviewDetails.role" 
-                        (ngModelChange)="onDetailsChange()"
+                        (ngModelChange)="onRoleInput()"
                         [matAutocomplete]="autoRole"
                     >
                 </div>
@@ -56,7 +56,7 @@
                         type="text" 
                         placeholder="Costco" 
                         [(ngModel)]="interviewDetails.company" 
-                        (ngModelChange)="onDetailsChange()"
+                        (ngModelChange)="onCompanyInput()"
                         [matAutocomplete]="autoCompany"
                     >
                 </div>
@@ -83,12 +83,12 @@
             </div>
             
             <!-- Interview Questions Section Header -->
-            <div class="section-header" *ngIf="selectedQuestions.length > 0 && interviewDetails.style !== 'custom'">
+            <div class="section-header" *ngIf="selectedQuestions.length > 0 && interviewDetails.style !== 'custom' && !isLoadingQuestions">
                 <h3>Interview practice questions</h3>
             </div>
             
             <!-- Question Cards -->
-            <div class="question-cards" *ngIf="selectedQuestions.length > 0 && interviewDetails.style !== 'custom'">
+            <div class="question-cards" *ngIf="selectedQuestions.length > 0 && interviewDetails.style !== 'custom' && !isLoadingQuestions">
                 <div class="question-card" *ngFor="let question of selectedQuestions; let i = index"
                      [class.active]="interviewDetails.question === question"
                      (click)="selectQuestion(question)">
