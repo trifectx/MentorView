@@ -1,9 +1,9 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FriendService, FriendRequest } from '../../services/friend.service';
 import { Auth, User } from '@angular/fire/auth';
-import { Observable } from 'rxjs';
+import { Observable, Subscription, map } from 'rxjs';
 
 @Component({
   selector: 'app-friends',
@@ -12,7 +12,7 @@ import { Observable } from 'rxjs';
   templateUrl: './friends.component.html',
   styleUrls: ['./friends.component.css']
 })
-export class FriendsComponent implements OnInit {
+export class FriendsComponent implements OnInit, OnDestroy {
   private auth = inject(Auth);
   private friendService = inject(FriendService);
 
@@ -21,6 +21,11 @@ export class FriendsComponent implements OnInit {
   friends$: Observable<User[]>;
   pendingRequests$: Observable<FriendRequest[]>;
   sentRequests$: Observable<FriendRequest[]>;
+  
+  // Track friends and sent requests to check status
+  private friendsList: User[] = [];
+  private sentRequestsList: FriendRequest[] = [];
+  private subscriptions: Subscription[] = [];
 
   activeTab: 'allUsers' | 'friends' | 'requests' = 'allUsers';
   isLoading = true;
@@ -30,6 +35,19 @@ export class FriendsComponent implements OnInit {
     this.friends$ = this.friendService.friends$;
     this.pendingRequests$ = this.friendService.getPendingRequests();
     this.sentRequests$ = this.friendService.getSentRequests();
+    
+    // Subscribe to keep lists updated
+    this.subscriptions.push(
+      this.friends$.subscribe(friends => {
+        this.friendsList = friends;
+      })
+    );
+    
+    this.subscriptions.push(
+      this.friendService.getSentRequests().subscribe(requests => {
+        this.sentRequestsList = requests;
+      })
+    );
   }
 
   ngOnInit(): void {
@@ -39,6 +57,11 @@ export class FriendsComponent implements OnInit {
         this.isLoading = false;
       }, 1000);
     });
+  }
+  
+  ngOnDestroy(): void {
+    // Clean up subscriptions
+    this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
   changeTab(tab: 'allUsers' | 'friends' | 'requests'): void {
@@ -66,22 +89,19 @@ export class FriendsComponent implements OnInit {
   removeFriend(friendId: string): void {
     this.friendService.removeFriend(friendId).subscribe(() => {
       // Friend removed successfully
+      console.log('Friend removed successfully');
+    }, error => {
+      console.error('Error removing friend:', error);
     });
   }
 
   isFriendRequestSent(userId: string): boolean {
-    let result = false;
-    this.friendService.getSentRequests().subscribe(requests => {
-      result = requests.some(r => r.receiverId === userId);
-    });
-    return result;
+    // Use stored list instead of creating new subscription each time
+    return this.sentRequestsList.some(r => r.receiverId === userId && r.status === 'pending');
   }
 
   isFriend(userId: string): boolean {
-    let result = false;
-    this.friendService.friends$.subscribe(friends => {
-      result = friends.some(f => f.uid === userId);
-    });
-    return result;
+    // Use stored list instead of creating new subscription each time
+    return this.friendsList.some(f => f.uid === userId);
   }
 }

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Auth, User } from '@angular/fire/auth';
 import { Firestore, collection, doc, setDoc, getDoc, getDocs, query, where, updateDoc, arrayUnion, arrayRemove, onSnapshot } from '@angular/fire/firestore';
-import { BehaviorSubject, Observable, catchError, from, map, of, switchMap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, from, map, of, switchMap, throwError, finalize } from 'rxjs';
 
 export interface FriendRequest {
   id: string;
@@ -192,7 +192,7 @@ export class FriendService {
     console.log('Sending friend request to:', receiverId);
     if (!this.auth.currentUser) {
       console.error('No authenticated user');
-      return of(undefined);
+      return throwError(() => new Error('No authenticated user'));
     }
 
     const sender = this.auth.currentUser;
@@ -212,11 +212,18 @@ export class FriendService {
     return from(setDoc(requestRef, request)).pipe(
       map(() => {
         console.log('Friend request sent successfully');
+        
+        // Refresh friend requests list immediately after sending
+        if (sender) {
+          console.log('Refreshing friend requests after sending new request');
+          this.loadFriendRequests(sender.uid);
+        }
+        
         return undefined;
       }),
       catchError(error => {
         console.error('Error sending friend request:', error);
-        throw error;
+        return throwError(() => error);
       })
     );
   }
@@ -257,17 +264,28 @@ export class FriendService {
         return from(Promise.all([updateRequest, updateSender, updateReceiver])).pipe(
           map(() => {
             console.log('Friend request accepted successfully');
-            return void 0;
+            return request; // Return the request so we can use it in the next step
           }),
           catchError(error => {
             console.error('Error accepting friend request:', error);
-            throw error;
+            return throwError(() => error);
           })
         );
       }),
+      switchMap(request => {
+        console.log('Refreshing friends list after accepting request');
+        // Manually update the friends list immediately
+        if (this.auth.currentUser) {
+          this.loadFriends(this.auth.currentUser.uid);
+          
+          // Also manually update friend requests to reflect the status change
+          this.loadFriendRequests(this.auth.currentUser.uid);
+        }
+        return of(void 0);
+      }),
       catchError(error => {
         console.error('Error getting friend request:', error);
-        throw error;
+        return throwError(() => error);
       })
     );
   }
@@ -281,11 +299,18 @@ export class FriendService {
     return from(updateDoc(requestRef, { status: 'rejected' })).pipe(
       map(() => {
         console.log('Friend request rejected successfully');
+        
+        // Refresh friend requests list immediately
+        if (this.auth.currentUser) {
+          console.log('Refreshing friend requests after rejection');
+          this.loadFriendRequests(this.auth.currentUser.uid);
+        }
+        
         return void 0;
       }),
       catchError(error => {
         console.error('Error rejecting friend request:', error);
-        throw error;
+        return throwError(() => error);
       })
     );
   }
@@ -297,29 +322,56 @@ export class FriendService {
     console.log('Removing friend:', friendId);
     if (!this.auth.currentUser) {
       console.error('No authenticated user');
-      return of(undefined);
+      return throwError(() => new Error('No authenticated user'));
     }
     
     const currentUserId = this.auth.currentUser.uid;
+    console.log(`Current user ID: ${currentUserId}, Friend ID: ${friendId}`);
+    
+    // First verify documents exist
     const userRef = doc(this.firestore, 'users', currentUserId);
     const friendRef = doc(this.firestore, 'users', friendId);
     
-    const updateUser = updateDoc(userRef, {
-      friends: arrayRemove(friendId)
-    });
-    
-    const updateFriend = updateDoc(friendRef, {
-      friends: arrayRemove(currentUserId)
-    });
-    
-    return from(Promise.all([updateUser, updateFriend])).pipe(
+    return from(Promise.all([getDoc(userRef), getDoc(friendRef)])).pipe(
+      switchMap(([userDoc, friendDoc]) => {
+        if (!userDoc.exists()) {
+          console.error('Current user document does not exist');
+          return throwError(() => new Error('Current user document not found'));
+        }
+        
+        if (!friendDoc.exists()) {
+          console.error('Friend document does not exist');
+          return throwError(() => new Error('Friend document not found'));
+        }
+        
+        console.log('Both documents exist, proceeding with friend removal');
+        
+        // Get current friends arrays to log them
+        const userData = userDoc.data() as any;
+        const friendData = friendDoc.data() as any;
+        
+        console.log('Current user friends before:', userData.friends || []);
+        console.log('Friend\'s friends before:', friendData.friends || []);
+        
+        const updateUser = updateDoc(userRef, {
+          friends: arrayRemove(friendId)
+        });
+        
+        const updateFriend = updateDoc(friendRef, {
+          friends: arrayRemove(currentUserId)
+        });
+        
+        return from(Promise.all([updateUser, updateFriend]));
+      }),
       map(() => {
-        console.log('Friend removed successfully');
+        console.log('Friend removed successfully, reloading friends list');
+        // Explicitly reload the friends list
+        this.loadFriends(currentUserId);
         return void 0;
       }),
       catchError(error => {
         console.error('Error removing friend:', error);
-        throw error;
+        return throwError(() => error);
       })
     );
   }
