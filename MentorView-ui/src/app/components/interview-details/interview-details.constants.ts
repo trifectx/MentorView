@@ -41,6 +41,11 @@ export const INTERVIEW_STYLES: InterviewStyle[] = [
         description: 'Questions about how you would handle hypothetical scenarios'
     },
     { 
+        id: 'assessment-centre',
+        name: 'Assessment Centre',
+        description: 'Group exercise scenarios for assessment centres with collaborative tasks'
+    },
+    { 
         id: 'custom',
         name: 'Custom Question',
         description: 'Write your own interview question'

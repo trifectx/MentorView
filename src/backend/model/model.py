@@ -20,66 +20,92 @@ class Model:
     
 
     def construct_prompt_for_questions(self, role, company, style):
+        # Always use assessment centre style format for this app now
+        return self.construct_prompt_for_assessment_centre(role, company)
+    
+    def construct_prompt_for_assessment_centre(self, role, company):
+        """
+        Constructs a prompt specifically for assessment centre group tasks.
+        """
         return [
             {
                 "role": "system",
-                "content": "You are an expert interviewer creating interview questions."
+                "content": "You are an expert recruiter who designs assessment centre group exercises for evaluating multiple candidates simultaneously."
             },
             {
                 "role": "user",
                 "content": f"""
-                Create interview questions for a {role} position at {company}.
-                The interview style selected is: {style}
+                Create 5 group assessment tasks for {role} candidates at {company}.
 
-                Based on the style:
-                - Technical Interview: Focus on technical skills, problem-solving, and domain knowledge
-                - Behavioral Interview: Focus on past experiences, soft skills, and how candidates handled situations
-                - Cultural Interview: Focus on values alignment, team fit, and company culture
-                - Situational Interview: Present hypothetical scenarios to assess decision-making
+                Format each task EXACTLY as follows:
+                
+                Scenario:
+                [Describe a realistic workplace scenario relevant to {role} at {company} that involves group decision-making or problem-solving]
+                
+                Instructions:
+                [List 3-5 clear, step-by-step instructions for the group to follow]
+                [Include specific roles or perspectives each participant should take]
+                [Include a deliverable or outcome the group must produce]
+                [Specify a timeframe (between 10-30 minutes)]
+                
+                THE FORMAT MUST BE EXACTLY LIKE THIS EXAMPLE:
+                
+                Scenario:
+                Your group has been given a limited budget and must decide how to distribute it among several departmental initiatives (e.g., marketing, research and development, staffing). Each participant represents a different department, and all believe their department should receive the most funding.
 
-                Generate 5 thoughtful interview questions tailored to this specific role, company, and interview style.
-                Format each question on a new line with a number.
+                Instructions:
+                Discuss and list the key priorities of the organization (e.g., growth, innovation, customer retention).
+                Present your department's case for funding.
+                Negotiate with the other "departments" in the group to reach a consensus on the final budget allocation.
+                Prepare a short presentation explaining your group's final decision to the assessors.
+                
+                Generate 5 unique, engaging scenarios with instructions relevant to {role} at {company}.
+                Make each scenario distinctly different to test various competencies (leadership, teamwork, communication, problem-solving, decision-making).
                 """
             }
         ]
     
     def clean_question(self, question):
-        # Remove any existing numbering and extra whitespace
-        cleaned = re.sub(r'^\d+\.?\s*', '', question.strip())
-        # Remove any other dots at the start
-        cleaned = re.sub(r'^\.*\s*', '', cleaned)
-        return cleaned
-
+        # For assessment centre questions, preserve the formatting but ensure it matches our exact template
+        if "Scenario:" in question and "Instructions:" in question:
+            # Split the question into scenario and instructions
+            parts = question.split("Instructions:")
+            if len(parts) == 2:
+                scenario = parts[0].strip()
+                instructions = parts[1].strip()
+                
+                # Format exactly according to the template
+                formatted_question = f"{scenario}\n\nInstructions:\n{instructions}"
+                return formatted_question
+            
+        # If it doesn't fit our expected format, return as is
+        return question.strip()
+        
     def get_questions_from_model(self, role, company, style):
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name, 
-                messages=self.construct_prompt_for_questions(role, company, style),
-                max_tokens=5000,
-                temperature=0.7,
-                stream=False
-            )
-            
-            # Extract content from the response
-            content = response.choices[0].message.content
-            
-            # Split the response into individual questions
-            raw_questions = [q.strip() for q in content.split('\n') if q.strip()]
-            
-            # Filter out any non-question lines and clean the questions
-            questions = []
-            for line in raw_questions:
-                # Check if line starts with a number or looks like a question
-                if re.match(r'^\d+\.', line) or '?' in line:
-                    questions.append(self.clean_question(line))
-            
-            # Ensure we return at most 5 questions
-            return questions[:5]
-            
-        except Exception as e:
-            print(f"Error in get_questions_from_model: {str(e)}")
-            return "Error generating questions. Please try again."
-
+        response = self.client.chat.completions.create(
+            model=self.model_name, 
+            messages=self.construct_prompt_for_questions(role, company, style),
+            max_tokens=5000,
+            temperature=0.7,
+            stream=False
+        )
+        
+        content = response.choices[0].message.content
+        
+        # Split the response by numbered points if we have them
+        questions_raw = re.split(r'\n\d+\.\s+|\n\n', content)
+        questions_raw = [q for q in questions_raw if q.strip() and "Scenario:" in q]
+        
+        # If we couldn't find any questions with our splitting logic, try a different approach
+        if not questions_raw:
+            # Try splitting by "Scenario:" to get the different assessment tasks
+            questions_raw = content.split("Scenario:")
+            questions_raw = [f"Scenario:{q}" for q in questions_raw if q.strip()]
+        
+        # Clean up each question
+        questions = [self.clean_question(q) for q in questions_raw]
+        
+        return questions
 
     def construct_prompt_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0):
         # Prepare filler word analysis for the prompt

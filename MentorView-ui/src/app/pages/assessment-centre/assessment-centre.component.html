@@ -1,123 +1,147 @@
-<div class="assessment-container">
-  <header class="assessment-header">
-    <div class="header-left">
-      <button class="back-button" routerLink="/dashboard">←</button>
-      <h1>Assessment Centre</h1>
+<div class="assessment-centre-container">
+  <div class="header">
+    <h1>Assessment Centre</h1>
+    <div class="controls">
+      <button class="btn" (click)="toggleQuestionsPanel()">
+        {{ showQuestionsPanel ? 'Hide Questions' : 'Show Questions' }}
+      </button>
     </div>
-    <div class="header-right">
-      <div class="participants-count">
-        <span>{{ participantCount }}/4 Participants</span>
+  </div>
+
+  <div class="participant-grid">
+    <div class="participant-container" *ngFor="let slot of videoSlots; let i = index">
+      <div class="participant-video" [ngClass]="{'active': slot.active}">
+        <video 
+          #videoElement1 
+          *ngIf="i === 0" 
+          autoplay 
+          [muted]="true" 
+          [ngClass]="{'video-off': !slot.camActive}">
+        </video>
+        <video 
+          #videoElement2 
+          *ngIf="i === 1" 
+          autoplay 
+          [muted]="true" 
+          [ngClass]="{'video-off': !slot.camActive}">
+        </video>
+        <video 
+          #videoElement3 
+          *ngIf="i === 2" 
+          autoplay 
+          [muted]="true" 
+          [ngClass]="{'video-off': !slot.camActive}">
+        </video>
+        <video 
+          #videoElement4 
+          *ngIf="i === 3" 
+          autoplay 
+          [muted]="true" 
+          [ngClass]="{'video-off': !slot.camActive}">
+        </video>
+        <div class="participant-info">
+          <span class="participant-name">Participant {{ i + 1 }}</span>
+          <div class="participant-controls" *ngIf="slot.active">
+            <button class="control-btn" [ngClass]="{'active': !slot.micMuted}" (click)="toggleMic(i)">
+              <span class="material-icons">{{ slot.micMuted ? 'mic_off' : 'mic' }}</span>
+            </button>
+            <button class="control-btn" [ngClass]="{'active': slot.camActive}" (click)="toggleCam(i)">
+              <span class="material-icons">{{ slot.camActive ? 'videocam' : 'videocam_off' }}</span>
+            </button>
+          </div>
+        </div>
+        <button class="join-btn" (click)="joinParticipantSlot(i)">
+          {{ slot.active ? 'Leave' : 'Join' }}
+        </button>
       </div>
     </div>
-  </header>
-  
-  <main class="assessment-content">
-    <div class="video-container">
-      <div class="video-grid">
-        <!-- Video Slots -->
-        <div class="video-slot" [class.active]="videoSlots[0].active">
-          <div class="video-placeholder" *ngIf="!videoSlots[0].active" (click)="joinParticipantSlot(0)">
-            <i class="fas fa-user"></i>
-            <p>Participant 1 (Click to join)</p>
-          </div>
-          <video #videoElement1 [class.hidden]="!videoSlots[0].active" autoplay muted playsinline></video>
-          <div class="participant-info" *ngIf="videoSlots[0].active">
-            <span class="participant-name">{{ videoSlots[0].name || 'Participant 1' }}</span>
-            <div class="video-controls">
-              <button class="control-btn mic" [class.muted]="videoSlots[0].micMuted" (click)="toggleMic(0)">
-                <i class="fas" [class.fa-microphone]="!videoSlots[0].micMuted" [class.fa-microphone-slash]="videoSlots[0].micMuted"></i>
-              </button>
-              <button class="control-btn cam" [class.off]="!videoSlots[0].camActive" (click)="toggleCam(0)">
-                <i class="fas" [class.fa-video]="videoSlots[0].camActive" [class.fa-video-slash]="!videoSlots[0].camActive"></i>
-              </button>
-              <button class="control-btn leave" (click)="leaveParticipantSlot(0)" *ngIf="videoSlots[0].active">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div class="video-slot" [class.active]="videoSlots[1].active">
-          <div class="video-placeholder" *ngIf="!videoSlots[1].active" (click)="joinParticipantSlot(1)">
-            <i class="fas fa-user"></i>
-            <p>Participant 2 (Click to join)</p>
-          </div>
-          <video #videoElement2 [class.hidden]="!videoSlots[1].active" autoplay muted playsinline></video>
-          <div class="participant-info" *ngIf="videoSlots[1].active">
-            <span class="participant-name">{{ videoSlots[1].name || 'Participant 2' }}</span>
-            <div class="video-controls">
-              <button class="control-btn mic" [class.muted]="videoSlots[1].micMuted" (click)="toggleMic(1)">
-                <i class="fas" [class.fa-microphone]="!videoSlots[1].micMuted" [class.fa-microphone-slash]="videoSlots[1].micMuted"></i>
-              </button>
-              <button class="control-btn cam" [class.off]="!videoSlots[1].camActive" (click)="toggleCam(1)">
-                <i class="fas" [class.fa-video]="videoSlots[1].camActive" [class.fa-video-slash]="!videoSlots[1].camActive"></i>
-              </button>
-              <button class="control-btn leave" (click)="leaveParticipantSlot(1)" *ngIf="videoSlots[1].active">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div class="video-slot" [class.active]="videoSlots[2].active">
-          <div class="video-placeholder" *ngIf="!videoSlots[2].active" (click)="joinParticipantSlot(2)">
-            <i class="fas fa-user"></i>
-            <p>Participant 3 (Click to join)</p>
-          </div>
-          <video #videoElement3 [class.hidden]="!videoSlots[2].active" autoplay muted playsinline></video>
-          <div class="participant-info" *ngIf="videoSlots[2].active">
-            <span class="participant-name">{{ videoSlots[2].name || 'Participant 3' }}</span>
-            <div class="video-controls">
-              <button class="control-btn mic" [class.muted]="videoSlots[2].micMuted" (click)="toggleMic(2)">
-                <i class="fas" [class.fa-microphone]="!videoSlots[2].micMuted" [class.fa-microphone-slash]="videoSlots[2].micMuted"></i>
-              </button>
-              <button class="control-btn cam" [class.off]="!videoSlots[2].camActive" (click)="toggleCam(2)">
-                <i class="fas" [class.fa-video]="videoSlots[2].camActive" [class.fa-video-slash]="!videoSlots[2].camActive"></i>
-              </button>
-              <button class="control-btn leave" (click)="leaveParticipantSlot(2)" *ngIf="videoSlots[2].active">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div class="video-slot" [class.active]="videoSlots[3].active">
-          <div class="video-placeholder" *ngIf="!videoSlots[3].active" (click)="joinParticipantSlot(3)">
-            <i class="fas fa-user"></i>
-            <p>Participant 4 (Click to join)</p>
-          </div>
-          <video #videoElement4 [class.hidden]="!videoSlots[3].active" autoplay muted playsinline></video>
-          <div class="participant-info" *ngIf="videoSlots[3].active">
-            <span class="participant-name">{{ videoSlots[3].name || 'Participant 4' }}</span>
-            <div class="video-controls">
-              <button class="control-btn mic" [class.muted]="videoSlots[3].micMuted" (click)="toggleMic(3)">
-                <i class="fas" [class.fa-microphone]="!videoSlots[3].micMuted" [class.fa-microphone-slash]="videoSlots[3].micMuted"></i>
-              </button>
-              <button class="control-btn cam" [class.off]="!videoSlots[3].camActive" (click)="toggleCam(3)">
-                <i class="fas" [class.fa-video]="videoSlots[3].camActive" [class.fa-video-slash]="!videoSlots[3].camActive"></i>
-              </button>
-              <button class="control-btn leave" (click)="leaveParticipantSlot(3)" *ngIf="videoSlots[3].active">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-          </div>
+  </div>
+
+  <div class="global-controls">
+    <button class="control-btn" [ngClass]="{'active': !globalMicMuted}" (click)="toggleGlobalMic()">
+      <span class="material-icons">{{ globalMicMuted ? 'mic_off' : 'mic' }}</span>
+      <span>{{ globalMicMuted ? 'All Muted' : 'All Unmuted' }}</span>
+    </button>
+    <button class="control-btn" [ngClass]="{'active': globalCamActive}" (click)="toggleGlobalCam()">
+      <span class="material-icons">{{ globalCamActive ? 'videocam' : 'videocam_off' }}</span>
+      <span>{{ globalCamActive ? 'All Cameras On' : 'All Cameras Off' }}</span>
+    </button>
+  </div>
+
+  <!-- Current Question Display -->
+  <div class="current-question-container" *ngIf="showQuestionsPanel && currentQuestion">
+    <div class="question-card current" [innerHTML]="currentQuestion | safeHtml"></div>
+  </div>
+
+  <!-- Questions Panel -->
+  <div class="questions-panel" *ngIf="showQuestionsPanel" [@slideInOut]>
+    <div class="questions-form">
+      <h2>Generate Assessment Questions</h2>
+      
+      <div class="form-row">
+        <mat-form-field appearance="fill">
+          <mat-label>Role</mat-label>
+          <input 
+            matInput
+            [(ngModel)]="role" 
+            (input)="onRoleInput()"
+            [matAutocomplete]="autoRole"
+            placeholder="e.g. Software Engineer">
+          <mat-autocomplete #autoRole="matAutocomplete">
+            <mat-option *ngFor="let option of roles" [value]="option">
+              {{option}}
+            </mat-option>
+          </mat-autocomplete>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="fill">
+          <mat-label>Company</mat-label>
+          <input 
+            matInput
+            [(ngModel)]="company" 
+            (input)="onCompanyInput()"
+            [matAutocomplete]="autoCompany"
+            placeholder="e.g. Google">
+          <mat-autocomplete #autoCompany="matAutocomplete">
+            <mat-option *ngFor="let option of companies" [value]="option">
+              {{option}}
+            </mat-option>
+          </mat-autocomplete>
+        </mat-form-field>
+      </div>
+
+      <div class="error-message" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </div>
+
+      <button class="generate-btn" (click)="generateNewQuestions()" [disabled]="isLoadingQuestions">
+        <span *ngIf="!isLoadingQuestions">Generate Questions</span>
+        <mat-spinner *ngIf="isLoadingQuestions" [diameter]="24"></mat-spinner>
+      </button>
+    </div>
+
+    <div class="questions-list" *ngIf="selectedQuestions.length > 0">
+      <h3>Assessment Questions ({{ selectedQuestions.length }})</h3>
+      <div class="questions-grid">
+        <div class="question-card" *ngFor="let question of selectedQuestions" 
+             [class.current]="question === currentQuestion"
+             (click)="selectQuestion(question)"
+             [innerHTML]="question | safeHtml">
         </div>
       </div>
     </div>
-    
-    <div class="global-controls">
-      <button class="control-btn leave" (click)="leaveAllSlots()">
-        <i class="fas fa-phone-slash"></i>
-        Leave All
-      </button>
-      <button class="control-btn mic-global" [class.muted]="globalMicMuted" (click)="toggleGlobalMic()">
-        <i class="fas" [class.fa-microphone]="!globalMicMuted" [class.fa-microphone-slash]="globalMicMuted"></i>
-        Mic
-      </button>
-      <button class="control-btn cam-global" [class.off]="!globalCamActive" (click)="toggleGlobalCam()">
-        <i class="fas" [class.fa-video]="globalCamActive" [class.fa-video-slash]="!globalCamActive"></i>
-        Camera
-      </button>
+
+    <!-- Loading State -->
+    <div class="loading-container" *ngIf="isLoadingQuestions">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Generating assessment questions...</p>
     </div>
-  </main>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!isLoadingQuestions && selectedQuestions.length === 0 && !errorMessage">
+      <p>No questions generated yet. Enter role and company details to generate questions.</p>
+    </div>
+  </div>
 </div>
