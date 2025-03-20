@@ -35,9 +35,9 @@ class Model:
             {
                 "role": "user",
                 "content": f"""
-                Create 5 group assessment tasks for {role} candidates at {company}.
+                Create 1 group assessment task for {role} candidates at {company}.
 
-                Format each task EXACTLY as follows:
+                Format the task EXACTLY as follows:
                 
                 Scenario:
                 [Describe a realistic workplace scenario relevant to {role} at {company} that involves group decision-making or problem-solving]
@@ -59,8 +59,8 @@ class Model:
                 Negotiate with the other "departments" in the group to reach a consensus on the final budget allocation.
                 Prepare a short presentation explaining your group's final decision to the assessors.
                 
-                Generate 5 unique, engaging scenarios with instructions relevant to {role} at {company}.
-                Make each scenario distinctly different to test various competencies (leadership, teamwork, communication, problem-solving, decision-making).
+                Generate a unique, engaging scenario with instructions relevant to {role} at {company}.
+                Make the scenario test various competencies (leadership, teamwork, communication, problem-solving, decision-making).
                 """
             }
         ]
@@ -92,20 +92,23 @@ class Model:
         
         content = response.choices[0].message.content
         
-        # Split the response by numbered points if we have them
-        questions_raw = re.split(r'\n\d+\.\s+|\n\n', content)
-        questions_raw = [q for q in questions_raw if q.strip() and "Scenario:" in q]
-        
-        # If we couldn't find any questions with our splitting logic, try a different approach
-        if not questions_raw:
-            # Try splitting by "Scenario:" to get the different assessment tasks
-            questions_raw = content.split("Scenario:")
-            questions_raw = [f"Scenario:{q}" for q in questions_raw if q.strip()]
-        
-        # Clean up each question
-        questions = [self.clean_question(q) for q in questions_raw]
-        
-        return questions
+        # Since we're now only generating one scenario, we can simplify the parsing
+        if "Scenario:" in content and "Instructions:" in content:
+            return [self.clean_question(content)]
+        else:
+            # Fallback to previous parsing logic if the format is unexpected
+            questions_raw = re.split(r'\n\d+\.\s+|\n\n', content)
+            questions_raw = [q for q in questions_raw if q.strip() and "Scenario:" in q]
+            
+            if not questions_raw:
+                questions_raw = content.split("Scenario:")
+                questions_raw = [f"Scenario:{q}" for q in questions_raw if q.strip()]
+            
+            # Return just the first question if multiple were generated
+            if questions_raw:
+                return [self.clean_question(questions_raw[0])]
+            else:
+                return ["Failed to generate a scenario in the proper format. Please try again."]
 
     def construct_prompt_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0):
         # Prepare filler word analysis for the prompt

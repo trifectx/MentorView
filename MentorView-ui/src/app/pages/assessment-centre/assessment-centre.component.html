@@ -8,140 +8,148 @@
     </div>
   </div>
 
-  <div class="participant-grid">
-    <div class="participant-container" *ngFor="let slot of videoSlots; let i = index">
-      <div class="participant-video" [ngClass]="{'active': slot.active}">
-        <video 
-          #videoElement1 
-          *ngIf="i === 0" 
-          autoplay 
-          [muted]="true" 
-          [ngClass]="{'video-off': !slot.camActive}">
-        </video>
-        <video 
-          #videoElement2 
-          *ngIf="i === 1" 
-          autoplay 
-          [muted]="true" 
-          [ngClass]="{'video-off': !slot.camActive}">
-        </video>
-        <video 
-          #videoElement3 
-          *ngIf="i === 2" 
-          autoplay 
-          [muted]="true" 
-          [ngClass]="{'video-off': !slot.camActive}">
-        </video>
-        <video 
-          #videoElement4 
-          *ngIf="i === 3" 
-          autoplay 
-          [muted]="true" 
-          [ngClass]="{'video-off': !slot.camActive}">
-        </video>
-        <div class="participant-info">
-          <span class="participant-name">Participant {{ i + 1 }}</span>
-          <div class="participant-controls" *ngIf="slot.active">
-            <button class="control-btn" [ngClass]="{'active': !slot.micMuted}" (click)="toggleMic(i)">
-              <span class="material-icons">{{ slot.micMuted ? 'mic_off' : 'mic' }}</span>
-            </button>
-            <button class="control-btn" [ngClass]="{'active': slot.camActive}" (click)="toggleCam(i)">
-              <span class="material-icons">{{ slot.camActive ? 'videocam' : 'videocam_off' }}</span>
+  <div class="content-container">
+    <!-- Left sidebar for questions -->
+    <div class="sidebar" *ngIf="showQuestionsPanel">
+      <div class="questions-form">
+        <h2>Generate Assessment Questions</h2>
+        
+        <div class="form-row">
+          <mat-form-field appearance="fill">
+            <mat-label>Role</mat-label>
+            <input 
+              matInput
+              [(ngModel)]="role" 
+              (input)="onRoleInput()"
+              [matAutocomplete]="autoRole"
+              placeholder="e.g. Software Engineer">
+            <mat-autocomplete #autoRole="matAutocomplete">
+              <mat-option *ngFor="let option of roles" [value]="option">
+                {{option}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="fill">
+            <mat-label>Company</mat-label>
+            <input 
+              matInput
+              [(ngModel)]="company" 
+              (input)="onCompanyInput()"
+              [matAutocomplete]="autoCompany"
+              placeholder="e.g. Google">
+            <mat-autocomplete #autoCompany="matAutocomplete">
+              <mat-option *ngFor="let option of companies" [value]="option">
+                {{option}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <div class="error-message" *ngIf="errorMessage">
+          {{ errorMessage }}
+        </div>
+
+        <button class="generate-btn" (click)="generateNewQuestions()" [disabled]="isLoadingQuestions">
+          <span *ngIf="!isLoadingQuestions">Generate Questions</span>
+          <mat-spinner *ngIf="isLoadingQuestions" [diameter]="24"></mat-spinner>
+        </button>
+
+        <!-- Loading State -->
+        <div class="loading-container" *ngIf="isLoadingQuestions">
+          <mat-spinner [diameter]="40"></mat-spinner>
+          <p>Generating assessment questions...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" *ngIf="!isLoadingQuestions && selectedQuestions.length === 0 && !errorMessage">
+          <p>No questions generated yet. Enter role and company details to generate questions.</p>
+        </div>
+
+        <!-- Questions List -->
+        <div class="questions-list" *ngIf="selectedQuestions.length > 0">
+          <h3>Assessment Tasks ({{ selectedQuestions.length }})</h3>
+          <div class="questions-scrollable">
+            <div class="question-card" *ngFor="let question of selectedQuestions" 
+                 [class.selected]="question === currentQuestion"
+                 (click)="selectQuestion(question)">
+              <p>{{ question.split('\n')[0] }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main content area -->
+    <div class="main-content">
+      <!-- Current Question Display -->
+      <div class="current-question-container" *ngIf="currentQuestion">
+        <div class="question-card current" [innerHTML]="currentQuestion | safeHtml"></div>
+      </div>
+
+      <!-- Participant Grid -->
+      <div class="participant-grid">
+        <div class="participant-container" *ngFor="let slot of videoSlots; let i = index">
+          <div class="participant-video" [ngClass]="{'active': slot.active}">
+            <video 
+              #videoElement1 
+              *ngIf="i === 0" 
+              autoplay 
+              [muted]="true" 
+              [ngClass]="{'video-off': !slot.camActive}">
+            </video>
+            <video 
+              #videoElement2 
+              *ngIf="i === 1" 
+              autoplay 
+              [muted]="true" 
+              [ngClass]="{'video-off': !slot.camActive}">
+            </video>
+            <video 
+              #videoElement3 
+              *ngIf="i === 2" 
+              autoplay 
+              [muted]="true" 
+              [ngClass]="{'video-off': !slot.camActive}">
+            </video>
+            <video 
+              #videoElement4 
+              *ngIf="i === 3" 
+              autoplay 
+              [muted]="true" 
+              [ngClass]="{'video-off': !slot.camActive}">
+            </video>
+            <div class="participant-info">
+              <span class="participant-name">Participant {{ i + 1 }}</span>
+              <div class="participant-controls" *ngIf="slot.active">
+                <button class="control-btn" [ngClass]="{'active': !slot.micMuted}" (click)="toggleMic(i)">
+                  <span class="material-icons">{{ slot.micMuted ? 'mic_off' : 'mic' }}</span>
+                </button>
+                <button class="control-btn" [ngClass]="{'active': slot.camActive}" (click)="toggleCam(i)">
+                  <span class="material-icons">{{ slot.camActive ? 'videocam' : 'videocam_off' }}</span>
+                </button>
+              </div>
+            </div>
+            <button class="join-btn" (click)="joinParticipantSlot(i)">
+              {{ slot.active ? 'Leave' : 'Join' }}
             </button>
           </div>
         </div>
-        <button class="join-btn" (click)="joinParticipantSlot(i)">
-          {{ slot.active ? 'Leave' : 'Join' }}
+      </div>
+
+      <!-- Global Controls -->
+      <div class="global-controls">
+        <button class="control-btn" [ngClass]="{'active': !globalMicMuted}" (click)="toggleGlobalMic()">
+          <span class="material-icons">{{ globalMicMuted ? 'mic_off' : 'mic' }}</span>
+          <span>{{ globalMicMuted ? 'All Muted' : 'All Unmuted' }}</span>
+        </button>
+        <button class="control-btn" [ngClass]="{'active': globalCamActive}" (click)="toggleGlobalCam()">
+          <span class="material-icons">{{ globalCamActive ? 'videocam' : 'videocam_off' }}</span>
+          <span>{{ globalCamActive ? 'All Cameras On' : 'All Cameras Off' }}</span>
         </button>
       </div>
-    </div>
-  </div>
-
-  <div class="global-controls">
-    <button class="control-btn" [ngClass]="{'active': !globalMicMuted}" (click)="toggleGlobalMic()">
-      <span class="material-icons">{{ globalMicMuted ? 'mic_off' : 'mic' }}</span>
-      <span>{{ globalMicMuted ? 'All Muted' : 'All Unmuted' }}</span>
-    </button>
-    <button class="control-btn" [ngClass]="{'active': globalCamActive}" (click)="toggleGlobalCam()">
-      <span class="material-icons">{{ globalCamActive ? 'videocam' : 'videocam_off' }}</span>
-      <span>{{ globalCamActive ? 'All Cameras On' : 'All Cameras Off' }}</span>
-    </button>
-  </div>
-
-  <!-- Current Question Display -->
-  <div class="current-question-container" *ngIf="showQuestionsPanel && currentQuestion">
-    <div class="question-card current" [innerHTML]="currentQuestion | safeHtml"></div>
-  </div>
-
-  <!-- Questions Panel -->
-  <div class="questions-panel" *ngIf="showQuestionsPanel" [@slideInOut]>
-    <div class="questions-form">
-      <h2>Generate Assessment Questions</h2>
-      
-      <div class="form-row">
-        <mat-form-field appearance="fill">
-          <mat-label>Role</mat-label>
-          <input 
-            matInput
-            [(ngModel)]="role" 
-            (input)="onRoleInput()"
-            [matAutocomplete]="autoRole"
-            placeholder="e.g. Software Engineer">
-          <mat-autocomplete #autoRole="matAutocomplete">
-            <mat-option *ngFor="let option of roles" [value]="option">
-              {{option}}
-            </mat-option>
-          </mat-autocomplete>
-        </mat-form-field>
-      </div>
-
-      <div class="form-row">
-        <mat-form-field appearance="fill">
-          <mat-label>Company</mat-label>
-          <input 
-            matInput
-            [(ngModel)]="company" 
-            (input)="onCompanyInput()"
-            [matAutocomplete]="autoCompany"
-            placeholder="e.g. Google">
-          <mat-autocomplete #autoCompany="matAutocomplete">
-            <mat-option *ngFor="let option of companies" [value]="option">
-              {{option}}
-            </mat-option>
-          </mat-autocomplete>
-        </mat-form-field>
-      </div>
-
-      <div class="error-message" *ngIf="errorMessage">
-        {{ errorMessage }}
-      </div>
-
-      <button class="generate-btn" (click)="generateNewQuestions()" [disabled]="isLoadingQuestions">
-        <span *ngIf="!isLoadingQuestions">Generate Questions</span>
-        <mat-spinner *ngIf="isLoadingQuestions" [diameter]="24"></mat-spinner>
-      </button>
-    </div>
-
-    <div class="questions-list" *ngIf="selectedQuestions.length > 0">
-      <h3>Assessment Questions ({{ selectedQuestions.length }})</h3>
-      <div class="questions-grid">
-        <div class="question-card" *ngFor="let question of selectedQuestions" 
-             [class.current]="question === currentQuestion"
-             (click)="selectQuestion(question)"
-             [innerHTML]="question | safeHtml">
-        </div>
-      </div>
-    </div>
-
-    <!-- Loading State -->
-    <div class="loading-container" *ngIf="isLoadingQuestions">
-      <mat-spinner [diameter]="40"></mat-spinner>
-      <p>Generating assessment questions...</p>
-    </div>
-
-    <!-- Empty State -->
-    <div class="empty-state" *ngIf="!isLoadingQuestions && selectedQuestions.length === 0 && !errorMessage">
-      <p>No questions generated yet. Enter role and company details to generate questions.</p>
     </div>
   </div>
 </div>
