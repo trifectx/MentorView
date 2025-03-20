@@ -7,6 +7,7 @@ import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { InterviewComponent } from './pages/interview/interview.component';
 import { SavedInterviewsComponent } from './pages/saved-interviews/saved-interviews.component';
 import { OverviewComponent } from './pages/overview/overview.component';
+import { FriendsComponent } from './pages/friends/friends.component';
 
 export const routes: Routes = [
     {
@@ -48,6 +49,11 @@ export const routes: Routes = [
         path: 'overview',
         component: OverviewComponent,
         title: 'Performance Overview',
+    },
+    {
+        path: 'friends',
+        component: FriendsComponent,
+        title: 'Friends',
     },
     {
         path: '**',

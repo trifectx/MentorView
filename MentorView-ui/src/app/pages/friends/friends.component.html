@@ -1,0 +1,176 @@
+<div class="friends-container">
+  <header class="friends-header">
+    <div class="header-left">
+      <button class="back-button" routerLink="/dashboard">←</button>
+      <h1 class="page-title">Friends</h1>
+    </div>
+  </header>
+
+  <div class="tabs-container">
+    <div class="tabs">
+      <button 
+        class="tab-button" 
+        [class.active]="activeTab === 'allUsers'"
+        (click)="changeTab('allUsers')"
+      >
+        All Users
+      </button>
+      <button 
+        class="tab-button" 
+        [class.active]="activeTab === 'friends'"
+        (click)="changeTab('friends')"
+      >
+        My Friends
+      </button>
+      <button 
+        class="tab-button" 
+        [class.active]="activeTab === 'requests'"
+        (click)="changeTab('requests')"
+      >
+        Friend Requests
+      </button>
+    </div>
+  </div>
+
+  <main class="friends-content">
+    <!-- Loading spinner -->
+    <div class="loading-container" *ngIf="isLoading">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- All Users Tab -->
+    <div class="tab-content" *ngIf="activeTab === 'allUsers' && !isLoading">
+      <h2 class="section-title">All Users</h2>
+      
+      <div class="users-grid">
+        <div class="user-card" *ngFor="let user of users$ | async">
+          <div class="user-info">
+            <div class="user-avatar">
+              {{ user.displayName?.charAt(0) || user.email?.charAt(0) || '?' }}
+            </div>
+            <div class="user-details">
+              <h3 class="user-name">{{ user.displayName || 'User' }}</h3>
+              <p class="user-email">{{ user.email }}</p>
+            </div>
+          </div>
+          <div class="action-buttons">
+            <button 
+              class="add-button" 
+              (click)="sendFriendRequest(user.uid)"
+              *ngIf="!isFriend(user.uid) && !isFriendRequestSent(user.uid)"
+            >
+              Add Friend
+            </button>
+            <button 
+              class="pending-button" 
+              *ngIf="isFriendRequestSent(user.uid)"
+              disabled
+            >
+              Request Sent
+            </button>
+            <button 
+              class="friend-button" 
+              *ngIf="isFriend(user.uid)"
+              disabled
+            >
+              Already Friends
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="(users$ | async)?.length === 0">
+        <p>No users found.</p>
+      </div>
+    </div>
+
+    <!-- My Friends Tab -->
+    <div class="tab-content" *ngIf="activeTab === 'friends' && !isLoading">
+      <h2 class="section-title">My Friends</h2>
+      
+      <div class="users-grid">
+        <div class="user-card" *ngFor="let friend of friends$ | async">
+          <div class="user-info">
+            <div class="user-avatar">
+              {{ friend.displayName?.charAt(0) || friend.email?.charAt(0) || '?' }}
+            </div>
+            <div class="user-details">
+              <h3 class="user-name">{{ friend.displayName || 'User' }}</h3>
+              <p class="user-email">{{ friend.email }}</p>
+            </div>
+          </div>
+          <div class="action-buttons">
+            <button 
+              class="remove-button" 
+              (click)="removeFriend(friend.uid)"
+            >
+              Remove Friend
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="(friends$ | async)?.length === 0">
+        <p>You don't have any friends yet. Add some!</p>
+      </div>
+    </div>
+
+    <!-- Friend Requests Tab -->
+    <div class="tab-content" *ngIf="activeTab === 'requests' && !isLoading">
+      <h2 class="section-title">Friend Requests</h2>
+      
+      <div class="requests-section">
+        <h3>Pending Requests</h3>
+        
+        <div class="users-grid">
+          <div class="user-card" *ngFor="let request of pendingRequests$ | async">
+            <div class="user-info">
+              <div class="user-avatar">
+                {{ request.senderName.charAt(0) || '?' }}
+              </div>
+              <div class="user-details">
+                <h3 class="user-name">{{ request.senderName }}</h3>
+                <p class="user-email">{{ request.senderEmail }}</p>
+              </div>
+            </div>
+            <div class="action-buttons">
+              <button 
+                class="accept-button" 
+                (click)="acceptRequest(request.id)"
+              >
+                Accept
+              </button>
+              <button 
+                class="reject-button" 
+                (click)="rejectRequest(request.id)"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="(pendingRequests$ | async)?.length === 0">
+          <p>No pending friend requests.</p>
+        </div>
+        
+        <h3>Sent Requests</h3>
+        
+        <div class="users-grid">
+          <div class="user-card" *ngFor="let request of sentRequests$ | async">
+            <div class="user-info">
+              <div class="user-details">
+                <h3 class="user-name">Request to {{ request.receiverId }}</h3>
+                <p class="user-status">Status: {{ request.status }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="(sentRequests$ | async)?.length === 0">
+          <p>You haven't sent any friend requests.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
