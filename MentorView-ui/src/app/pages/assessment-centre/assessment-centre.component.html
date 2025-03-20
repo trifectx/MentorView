@@ -8,6 +8,14 @@
     </div>
   </div>
 
+  <!-- Hidden file input for video selection -->
+  <input 
+    type="file" 
+    #fileInput
+    style="display: none"
+    accept="video/*"
+    (change)="onFileSelected($event)">
+
   <div class="content-container">
     <!-- Left sidebar for questions -->
     <div class="sidebar" *ngIf="showQuestionsPanel">
@@ -104,7 +112,7 @@
               #videoElement2 
               *ngIf="i === 1" 
               autoplay 
-              [muted]="true" 
+              [muted]="false" 
               [ngClass]="{'video-off': !slot.camActive}">
             </video>
             <video 
@@ -134,6 +142,10 @@
             </div>
             <button class="join-btn" (click)="joinParticipantSlot(i)">
               {{ slot.active ? 'Leave' : 'Join' }}
+            </button>
+            <!-- Special button for participant 2 (index 1) to load test video -->
+            <button class="test-video-btn" *ngIf="i === 1" (click)="loadTestVideo()">
+              {{ selectedVideoFile ? 'Change Video' : 'Select Video' }}
             </button>
           </div>
         </div>

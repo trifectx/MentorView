@@ -56,6 +56,7 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
   @ViewChild('videoElement2') videoElement2!: ElementRef<HTMLVideoElement>;
   @ViewChild('videoElement3') videoElement3!: ElementRef<HTMLVideoElement>;
   @ViewChild('videoElement4') videoElement4!: ElementRef<HTMLVideoElement>;
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   videoSlots: VideoSlot[] = [
     { active: false, micMuted: true, camActive: true },
@@ -64,6 +65,10 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
     { active: false, micMuted: true, camActive: true }
   ];
 
+  // Test video URL for voice isolation testing
+  testVideoUrl: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  selectedVideoFile: File | null = null;
+  
   globalMicMuted = true;
   globalCamActive = true;
 
@@ -391,6 +396,82 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
       case 2: return this.videoElement3;
       case 3: return this.videoElement4;
       default: return null;
+    }
+  }
+
+  /**
+   * Opens the file selector to choose a video file
+   */
+  selectVideoFile(): void {
+    this.fileInput.nativeElement.click();
+  }
+
+  /**
+   * Handles file selection for the test video
+   * @param event The file input change event
+   */
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      
+      // Check if the file is a video
+      if (file.type.startsWith('video/')) {
+        this.selectedVideoFile = file;
+        console.log('Video file selected:', file.name);
+        
+        // Automatically load the selected video
+        this.loadTestVideo();
+      } else {
+        alert('Please select a valid video file.');
+        this.selectedVideoFile = null;
+      }
+    }
+  }
+
+  /**
+   * Loads a test video into participant slot 2 for voice isolation testing
+   */
+  loadTestVideo(): void {
+    // If slot is already active, leave it first
+    if (this.videoSlots[1].active) {
+      this.leaveParticipantSlot(1);
+    }
+    
+    const videoElement = this.getVideoElement(1);
+    if (videoElement) {
+      // If a file was selected, use that; otherwise use the default URL
+      if (this.selectedVideoFile) {
+        const objectUrl = URL.createObjectURL(this.selectedVideoFile);
+        videoElement.nativeElement.src = objectUrl;
+      } else {
+        // Prompt user to select a file if none is selected
+        this.selectVideoFile();
+        return;
+      }
+      
+      videoElement.nativeElement.muted = false; // Allow sound for testing
+      
+      // Set up event listeners
+      videoElement.nativeElement.onloadeddata = () => {
+        console.log('Test video loaded successfully');
+        this.videoSlots[1].active = true;
+        this.videoSlots[1].micMuted = false; // Unmute for voice isolation testing
+        this.videoSlots[1].camActive = true;
+      };
+      
+      videoElement.nativeElement.onerror = (e) => {
+        console.error('Error loading test video:', e);
+        alert('Could not load test video. Please try selecting a different file.');
+        this.selectedVideoFile = null;
+      };
+      
+      // Start playing the video
+      videoElement.nativeElement.play().catch(error => {
+        console.error('Error playing test video:', error);
+        alert('Could not play test video. Browser may be blocking autoplay.');
+      });
     }
   }
 }
