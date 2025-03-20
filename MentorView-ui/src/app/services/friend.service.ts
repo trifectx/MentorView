@@ -23,7 +23,8 @@ export class FriendService {
   private _users = new BehaviorSubject<User[]>([]);
   private _friendRequests = new BehaviorSubject<FriendRequest[]>([]);
   private _friends = new BehaviorSubject<User[]>([]);
-  
+  private unsubscribeRequests: () => void;
+
   users$ = this._users.asObservable();
   friendRequests$ = this._friendRequests.asObservable();
   friends$ = this._friends.asObservable();
@@ -102,14 +103,36 @@ export class FriendService {
       console.error('Error loading friend requests:', error);
     });
 
+    // Clean up any previous listeners
+    if (this.unsubscribeRequests) {
+      this.unsubscribeRequests();
+    }
+
     // Set up real-time listener for future updates
     try {
-      onSnapshot(receivedQuery, snapshot => {
-        snapshot.docChanges().forEach(change => {
-          if (change.type === 'added' || change.type === 'modified') {
-            this.loadFriendRequests(userId);
-          }
-        });
+      this.unsubscribeRequests = onSnapshot(receivedQuery, snapshot => {
+        if (snapshot.docChanges().length > 0) {
+          // Instead of calling loadFriendRequests again (which was causing the infinite loop),
+          // just reload the data directly
+          Promise.all([getDocs(sentQuery), getDocs(receivedQuery)]).then(([sentSnapshot, receivedSnapshot]) => {
+            const requests: FriendRequest[] = [];
+            
+            sentSnapshot.forEach(doc => {
+              requests.push({ id: doc.id, ...doc.data() } as FriendRequest);
+            });
+            
+            receivedSnapshot.forEach(doc => {
+              const request = { id: doc.id, ...doc.data() } as FriendRequest;
+              // Avoid duplicates
+              if (!requests.some(r => r.id === request.id)) {
+                requests.push(request);
+              }
+            });
+            
+            this._friendRequests.next(requests);
+            console.log('Friend requests updated, total:', requests.length);
+          });
+        }
       }, error => {
         console.error('Error in friend requests listener:', error);
       });
