@@ -9,6 +9,8 @@ export interface FriendRequest {
   senderName: string;
   senderEmail: string;
   receiverId: string;
+  receiverName?: string;  // Optional for backward compatibility
+  receiverEmail?: string; // Optional for backward compatibility
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: Date;
 }
@@ -73,22 +75,29 @@ export class FriendService {
    */
   private loadFriendRequests(userId: string) {
     console.log('Loading friend requests for user:', userId);
-    const requestsRef = collection(this.firestore, 'friendRequests');
+    const requestsCollection = collection(this.firestore, 'friendRequests');
     
-    // Get sent requests
-    const sentQuery = query(requestsRef, where('senderId', '==', userId));
-    // Get received requests
-    const receivedQuery = query(requestsRef, where('receiverId', '==', userId));
-
-    // Combine both queries
+    // Get requests sent by this user
+    const sentQuery = query(
+      requestsCollection,
+      where('senderId', '==', userId)
+    );
+    
+    // Get requests received by this user
+    const receivedQuery = query(
+      requestsCollection,
+      where('receiverId', '==', userId)
+    );
+    
     Promise.all([getDocs(sentQuery), getDocs(receivedQuery)]).then(([sentSnapshot, receivedSnapshot]) => {
-      console.log('Friend requests snapshots:', sentSnapshot.size, receivedSnapshot.size);
       const requests: FriendRequest[] = [];
       
+      // Process sent requests
       sentSnapshot.forEach(doc => {
         requests.push({ id: doc.id, ...doc.data() } as FriendRequest);
       });
       
+      // Process received requests
       receivedSnapshot.forEach(doc => {
         const request = { id: doc.id, ...doc.data() } as FriendRequest;
         // Avoid duplicates
@@ -97,8 +106,11 @@ export class FriendService {
         }
       });
       
-      this._friendRequests.next(requests);
-      console.log('Friend requests loaded:', requests.length);
+      // Enhance requests with any missing receiver information
+      this.enhanceRequestsWithUserInfo(requests).then(enhancedRequests => {
+        this._friendRequests.next(enhancedRequests);
+        console.log('Friend requests loaded:', enhancedRequests.length);
+      });
     }).catch(error => {
       console.error('Error loading friend requests:', error);
     });
@@ -129,16 +141,76 @@ export class FriendService {
               }
             });
             
-            this._friendRequests.next(requests);
-            console.log('Friend requests updated, total:', requests.length);
+            // Enhance requests with any missing receiver information
+            this.enhanceRequestsWithUserInfo(requests).then(enhancedRequests => {
+              this._friendRequests.next(enhancedRequests);
+              console.log('Friend requests updated via listener:', enhancedRequests.length);
+            });
           });
         }
-      }, error => {
-        console.error('Error in friend requests listener:', error);
       });
     } catch (error) {
-      console.error('Failed to set up friend requests listener:', error);
+      console.error('Error setting up friend requests listener:', error);
     }
+  }
+
+  /**
+   * Enhance friend requests with user information that might be missing
+   */
+  private async enhanceRequestsWithUserInfo(requests: FriendRequest[]): Promise<FriendRequest[]> {
+    const enhancedRequests = [...requests];
+    const userInfoPromises: Promise<void>[] = [];
+    
+    for (let i = 0; i < enhancedRequests.length; i++) {
+      const request = enhancedRequests[i];
+      
+      // Add receiver information if missing
+      if (!request.receiverName && request.receiverId) {
+        const promise = getDoc(doc(this.firestore, 'users', request.receiverId))
+          .then(userDoc => {
+            if (userDoc.exists()) {
+              const userData = userDoc.data() as any;
+              enhancedRequests[i] = {
+                ...request,
+                receiverName: userData.displayName || 'Unknown User',
+                receiverEmail: userData.email || ''
+              };
+            }
+          })
+          .catch(error => {
+            console.error(`Error enhancing request with receiver info:`, error);
+          });
+        
+        userInfoPromises.push(promise);
+      }
+      
+      // Add sender information if missing
+      if (!request.senderName && request.senderId) {
+        const promise = getDoc(doc(this.firestore, 'users', request.senderId))
+          .then(userDoc => {
+            if (userDoc.exists()) {
+              const userData = userDoc.data() as any;
+              enhancedRequests[i] = {
+                ...enhancedRequests[i],
+                senderName: userData.displayName || 'Unknown User',
+                senderEmail: userData.email || ''
+              };
+            }
+          })
+          .catch(error => {
+            console.error(`Error enhancing request with sender info:`, error);
+          });
+        
+        userInfoPromises.push(promise);
+      }
+    }
+    
+    // Wait for all enhancements to complete
+    if (userInfoPromises.length > 0) {
+      await Promise.all(userInfoPromises);
+    }
+    
+    return enhancedRequests;
   }
 
   /**
@@ -198,31 +270,51 @@ export class FriendService {
     const sender = this.auth.currentUser;
     const requestId = `${sender.uid}_${receiverId}`;
     const requestRef = doc(this.firestore, 'friendRequests', requestId);
-
-    const request: Omit<FriendRequest, 'id'> = {
-      senderId: sender.uid,
-      senderName: sender.displayName || 'Unknown',
-      senderEmail: sender.email || '',
-      receiverId,
-      status: 'pending',
-      createdAt: new Date()
-    };
-
-    console.log('Creating friend request document:', request);
-    return from(setDoc(requestRef, request)).pipe(
-      map(() => {
-        console.log('Friend request sent successfully');
-        
-        // Refresh friend requests list immediately after sending
-        if (sender) {
-          console.log('Refreshing friend requests after sending new request');
-          this.loadFriendRequests(sender.uid);
+    
+    // First get the receiver's user information
+    const receiverRef = doc(this.firestore, 'users', receiverId);
+    
+    return from(getDoc(receiverRef)).pipe(
+      switchMap(receiverDoc => {
+        if (!receiverDoc.exists()) {
+          console.error('Receiver user document not found');
+          return throwError(() => new Error('Receiver not found'));
         }
         
-        return undefined;
+        const receiverData = receiverDoc.data() as any;
+        
+        const request: Omit<FriendRequest, 'id'> = {
+          senderId: sender.uid,
+          senderName: sender.displayName || 'Unknown',
+          senderEmail: sender.email || '',
+          receiverId,
+          receiverName: receiverData.displayName || 'Unknown',
+          receiverEmail: receiverData.email || '',
+          status: 'pending',
+          createdAt: new Date()
+        };
+
+        console.log('Creating friend request document:', request);
+        return from(setDoc(requestRef, request)).pipe(
+          map(() => {
+            console.log('Friend request sent successfully');
+            
+            // Refresh friend requests list immediately after sending
+            if (sender) {
+              console.log('Refreshing friend requests after sending new request');
+              this.loadFriendRequests(sender.uid);
+            }
+            
+            return undefined;
+          }),
+          catchError(error => {
+            console.error('Error sending friend request:', error);
+            return throwError(() => error);
+          })
+        );
       }),
       catchError(error => {
-        console.error('Error sending friend request:', error);
+        console.error('Error getting receiver information:', error);
         return throwError(() => error);
       })
     );
