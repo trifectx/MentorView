@@ -8,6 +8,7 @@ import { InterviewComponent } from './pages/interview/interview.component';
 import { SavedInterviewsComponent } from './pages/saved-interviews/saved-interviews.component';
 import { OverviewComponent } from './pages/overview/overview.component';
 import { FriendsComponent } from './pages/friends/friends.component';
+import { AssessmentCentreComponent } from './pages/assessment-centre/assessment-centre.component';
 
 export const routes: Routes = [
     {
@@ -54,6 +55,11 @@ export const routes: Routes = [
         path: 'friends',
         component: FriendsComponent,
         title: 'Friends',
+    },
+    {
+        path: 'assessment-centre',
+        component: AssessmentCentreComponent,
+        title: 'Assessment Centre',
     },
     {
         path: '**',

@@ -1,0 +1,123 @@
+<div class="assessment-container">
+  <header class="assessment-header">
+    <div class="header-left">
+      <button class="back-button" routerLink="/dashboard">←</button>
+      <h1>Assessment Centre</h1>
+    </div>
+    <div class="header-right">
+      <div class="participants-count">
+        <span>{{ participantCount }}/4 Participants</span>
+      </div>
+    </div>
+  </header>
+  
+  <main class="assessment-content">
+    <div class="video-container">
+      <div class="video-grid">
+        <!-- Video Slots -->
+        <div class="video-slot" [class.active]="videoSlots[0].active">
+          <div class="video-placeholder" *ngIf="!videoSlots[0].active" (click)="joinParticipantSlot(0)">
+            <i class="fas fa-user"></i>
+            <p>Participant 1 (Click to join)</p>
+          </div>
+          <video #videoElement1 [class.hidden]="!videoSlots[0].active" autoplay muted playsinline></video>
+          <div class="participant-info" *ngIf="videoSlots[0].active">
+            <span class="participant-name">{{ videoSlots[0].name || 'Participant 1' }}</span>
+            <div class="video-controls">
+              <button class="control-btn mic" [class.muted]="videoSlots[0].micMuted" (click)="toggleMic(0)">
+                <i class="fas" [class.fa-microphone]="!videoSlots[0].micMuted" [class.fa-microphone-slash]="videoSlots[0].micMuted"></i>
+              </button>
+              <button class="control-btn cam" [class.off]="!videoSlots[0].camActive" (click)="toggleCam(0)">
+                <i class="fas" [class.fa-video]="videoSlots[0].camActive" [class.fa-video-slash]="!videoSlots[0].camActive"></i>
+              </button>
+              <button class="control-btn leave" (click)="leaveParticipantSlot(0)" *ngIf="videoSlots[0].active">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="video-slot" [class.active]="videoSlots[1].active">
+          <div class="video-placeholder" *ngIf="!videoSlots[1].active" (click)="joinParticipantSlot(1)">
+            <i class="fas fa-user"></i>
+            <p>Participant 2 (Click to join)</p>
+          </div>
+          <video #videoElement2 [class.hidden]="!videoSlots[1].active" autoplay muted playsinline></video>
+          <div class="participant-info" *ngIf="videoSlots[1].active">
+            <span class="participant-name">{{ videoSlots[1].name || 'Participant 2' }}</span>
+            <div class="video-controls">
+              <button class="control-btn mic" [class.muted]="videoSlots[1].micMuted" (click)="toggleMic(1)">
+                <i class="fas" [class.fa-microphone]="!videoSlots[1].micMuted" [class.fa-microphone-slash]="videoSlots[1].micMuted"></i>
+              </button>
+              <button class="control-btn cam" [class.off]="!videoSlots[1].camActive" (click)="toggleCam(1)">
+                <i class="fas" [class.fa-video]="videoSlots[1].camActive" [class.fa-video-slash]="!videoSlots[1].camActive"></i>
+              </button>
+              <button class="control-btn leave" (click)="leaveParticipantSlot(1)" *ngIf="videoSlots[1].active">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="video-slot" [class.active]="videoSlots[2].active">
+          <div class="video-placeholder" *ngIf="!videoSlots[2].active" (click)="joinParticipantSlot(2)">
+            <i class="fas fa-user"></i>
+            <p>Participant 3 (Click to join)</p>
+          </div>
+          <video #videoElement3 [class.hidden]="!videoSlots[2].active" autoplay muted playsinline></video>
+          <div class="participant-info" *ngIf="videoSlots[2].active">
+            <span class="participant-name">{{ videoSlots[2].name || 'Participant 3' }}</span>
+            <div class="video-controls">
+              <button class="control-btn mic" [class.muted]="videoSlots[2].micMuted" (click)="toggleMic(2)">
+                <i class="fas" [class.fa-microphone]="!videoSlots[2].micMuted" [class.fa-microphone-slash]="videoSlots[2].micMuted"></i>
+              </button>
+              <button class="control-btn cam" [class.off]="!videoSlots[2].camActive" (click)="toggleCam(2)">
+                <i class="fas" [class.fa-video]="videoSlots[2].camActive" [class.fa-video-slash]="!videoSlots[2].camActive"></i>
+              </button>
+              <button class="control-btn leave" (click)="leaveParticipantSlot(2)" *ngIf="videoSlots[2].active">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="video-slot" [class.active]="videoSlots[3].active">
+          <div class="video-placeholder" *ngIf="!videoSlots[3].active" (click)="joinParticipantSlot(3)">
+            <i class="fas fa-user"></i>
+            <p>Participant 4 (Click to join)</p>
+          </div>
+          <video #videoElement4 [class.hidden]="!videoSlots[3].active" autoplay muted playsinline></video>
+          <div class="participant-info" *ngIf="videoSlots[3].active">
+            <span class="participant-name">{{ videoSlots[3].name || 'Participant 4' }}</span>
+            <div class="video-controls">
+              <button class="control-btn mic" [class.muted]="videoSlots[3].micMuted" (click)="toggleMic(3)">
+                <i class="fas" [class.fa-microphone]="!videoSlots[3].micMuted" [class.fa-microphone-slash]="videoSlots[3].micMuted"></i>
+              </button>
+              <button class="control-btn cam" [class.off]="!videoSlots[3].camActive" (click)="toggleCam(3)">
+                <i class="fas" [class.fa-video]="videoSlots[3].camActive" [class.fa-video-slash]="!videoSlots[3].camActive"></i>
+              </button>
+              <button class="control-btn leave" (click)="leaveParticipantSlot(3)" *ngIf="videoSlots[3].active">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="global-controls">
+      <button class="control-btn leave" (click)="leaveAllSlots()">
+        <i class="fas fa-phone-slash"></i>
+        Leave All
+      </button>
+      <button class="control-btn mic-global" [class.muted]="globalMicMuted" (click)="toggleGlobalMic()">
+        <i class="fas" [class.fa-microphone]="!globalMicMuted" [class.fa-microphone-slash]="globalMicMuted"></i>
+        Mic
+      </button>
+      <button class="control-btn cam-global" [class.off]="!globalCamActive" (click)="toggleGlobalCam()">
+        <i class="fas" [class.fa-video]="globalCamActive" [class.fa-video-slash]="!globalCamActive"></i>
+        Camera
+      </button>
+    </div>
+  </main>
+</div>
