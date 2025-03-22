@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, Subject } from 'rxjs';
+import { Observable, Subject, catchError, of } from 'rxjs';
 
 type Questions = { questions: string[] };
 type Transcript = { transcript: string };
@@ -144,5 +144,18 @@ export class ApiService {
         });
 
         return deleteObservable;
+    }
+
+    /**
+     * Checks the status of the API
+     * @returns Observable with API status
+     */
+    checkApiStatus(): Observable<any> {
+        return this.http.get<any>(`${this.baseUrl}/status`).pipe(
+            catchError(error => {
+                console.error('API status check failed:', error);
+                return of({ status: 'error', message: error.message });
+            })
+        );
     }
 }

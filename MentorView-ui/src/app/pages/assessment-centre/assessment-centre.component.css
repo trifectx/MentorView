@@ -184,26 +184,26 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px 0;
-  color: #b3b3b3;
+  padding: 20px;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  animation: fadeSlideIn 0.3s ease;
 }
 
 .loading-container p {
   margin-top: 12px;
-  font-size: 14px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 20px 0;
   color: #b3b3b3;
   font-size: 14px;
 }
 
-.questions-list h3 {
-  color: #ffffff;
-  margin: 16px 0 10px 0;
-  font-size: 1rem;
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  color: #b3b3b3;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  font-style: italic;
 }
 
 /* Participant grid styles */
@@ -449,4 +449,447 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Interview Controls */
+.interview-controls {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  animation: fadeSlideIn 0.3s ease;
+}
+
+.interview-controls .control-btn {
+  padding: 10px 16px;
+  border-radius: 4px;
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.interview-controls .record-btn {
+  background-color: rgba(41, 121, 255, 0.8);
+}
+
+.interview-controls .record-btn:hover:not(:disabled) {
+  background-color: rgb(41, 121, 255);
+}
+
+.interview-controls .stop-btn {
+  background-color: rgba(255, 59, 48, 0.8);
+}
+
+.interview-controls .stop-btn:hover:not(:disabled) {
+  background-color: rgb(255, 59, 48);
+}
+
+.interview-controls .control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.interview-controls .control-btn i {
+  font-size: 18px;
+}
+
+/* Combined Transcript Section */
+.combined-transcript-section {
+  margin-top: 24px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 20px;
+  animation: fadeSlideIn 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.transcript-content {
+  min-height: 100px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.combined-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transcript-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  animation: fadeSlideIn 0.3s ease;
+}
+
+.participant-label {
+  font-weight: 500;
+  color: rgb(41, 121, 255);
+  font-size: 14px;
+}
+
+.transcript-text {
+  color: #b3b3b3;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.save-btn {
+  background-color: rgb(41, 121, 255);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+  align-self: flex-start;
+}
+
+.save-btn:hover {
+  background-color: rgb(65, 135, 255);
+}
+
+.save-btn:disabled {
+  background-color: rgba(41, 121, 255, 0.4);
+  cursor: not-allowed;
+}
+
+/* Recording Status Indicator */
+.recording-status {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 59, 48, 0.8);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  animation: fadeIn 0.3s ease;
+}
+
+.recording-indicator {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+  border-radius: 50%;
+  margin-right: 6px;
+  animation: pulse 1.5s infinite;
+}
+
+.recording-text {
+  color: white;
+  font-weight: 500;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Recording transcript container */
+.recording-transcript-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  background-color: rgba(255, 59, 48, 0.1);
+  border-radius: 8px;
+  animation: fadeSlideIn 0.3s ease;
+}
+
+.recording-indicator-large {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.recording-pulse {
+  width: 16px;
+  height: 16px;
+  background-color: rgba(255, 59, 48, 0.9);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+.recording-indicator-large span {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 18px;
+}
+
+.recording-transcript-note {
+  color: #b3b3b3;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* Prerecorded video indicator */
+.prerecorded-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: rgba(0, 123, 255, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 5;
+  animation: fadeIn 0.3s ease;
+}
+
+.prerecorded-indicator .material-icons {
+  font-size: 16px;
+}
+
+/* Transcribing indicator */
+.transcribing-indicator {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: rgba(33, 150, 243, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 5;
+  animation: pulse 1.5s infinite;
+}
+
+.transcribing-indicator .material-icons {
+  font-size: 16px;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.7;
+  }
+}
+
+/* Custom question section */
+.custom-question-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.custom-question-section h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #ffffff;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.add-question-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: rgba(41, 121, 255, 0.8);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.add-question-btn:hover:not(:disabled) {
+  background-color: rgba(41, 121, 255, 1);
+}
+
+.add-question-btn:disabled {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+}
+
+.add-question-btn .material-icons {
+  font-size: 18px;
+}
+
+/* Debug Panel */
+.debug-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 16px;
+}
+
+.debug-btn:hover {
+  background-color: #f57c00;
+}
+
+.debug-panel {
+  margin-top: 16px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.debug-panel h4 {
+  color: #ff9800;
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.debug-section {
+  margin-bottom: 20px;
+  padding: 12px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  border-left: 3px solid #2979ff;
+}
+
+.debug-panel h5 {
+  color: #2979ff;
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 4px;
+}
+
+.debug-info p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: #b3b3b3;
+}
+
+.debug-info strong {
+  color: #ffffff;
+}
+
+.transcript-preview {
+  margin-top: 8px;
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.transcript-preview pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 11px;
+  color: #b3b3b3;
+  font-family: monospace;
+}
+
+.debug-transcript-entry {
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.debug-transcript-entry pre {
+  margin: 4px 0 0 0;
+  white-space: pre-wrap;
+  font-size: 11px;
+  color: #b3b3b3;
+  font-family: monospace;
+}
+
+.debug-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.debug-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #2979ff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.debug-action-btn:hover {
+  background-color: #2962ff;
+}
+
+.debug-action-btn .material-icons {
+  font-size: 18px;
 }

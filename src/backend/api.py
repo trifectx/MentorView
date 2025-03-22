@@ -1,5 +1,10 @@
 import os
 import json
+import uuid
+import time
+import random
+import string
+import tempfile
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_file
@@ -364,6 +369,25 @@ def delete_interview(interview_id):
         
     except Exception as e:
         return jsonify({"error": f"Error deleting interview: {str(e)}"}), 500
+
+
+# API Status endpoint
+@app.route('/status', methods=['GET'])
+def status():
+    try:
+        return jsonify({
+            "status": "ok",
+            "message": "API is running",
+            "timestamp": datetime.now().isoformat(),
+            "transcription_service": "deepgram",
+            "deepgram_api_key_configured": bool(DEEPGRAM_API_KEY)
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 500
 
 
 # Run the app

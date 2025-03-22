@@ -20,6 +20,18 @@ interface VideoSlot {
   micMuted: boolean;
   camActive: boolean;
   name?: string;
+  isRecording: boolean;
+  mediaRecorder?: MediaRecorder;
+  recordedBlobs?: Blob[];
+  videoBlob?: Blob;
+  transcript?: string;
+  loadingTranscript?: boolean;
+}
+
+interface TranscriptEntry {
+  participantIndex: number;
+  text: string;
+  timestamp: Date;
 }
 
 @Component({
@@ -59,10 +71,10 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   videoSlots: VideoSlot[] = [
-    { active: false, micMuted: true, camActive: true },
-    { active: false, micMuted: true, camActive: true },
-    { active: false, micMuted: true, camActive: true },
-    { active: false, micMuted: true, camActive: true }
+    { active: false, micMuted: true, camActive: true, isRecording: false },
+    { active: false, micMuted: true, camActive: true, isRecording: false },
+    { active: false, micMuted: true, camActive: true, isRecording: false },
+    { active: false, micMuted: true, camActive: true, isRecording: false }
   ];
 
   // Test video URL for voice isolation testing
@@ -71,6 +83,13 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
   
   globalMicMuted = true;
   globalCamActive = true;
+
+  // Interview recording related properties
+  isRecording = false;
+  transcriptEntries: TranscriptEntry[] = [];
+  isSaving = false;
+  saveSuccess = false;
+  saveError = '';
 
   // Question generation related properties
   roles: string[] = ROLES;
@@ -82,14 +101,12 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
   showQuestionsPanel = true; // Always show questions panel initially
   currentQuestion: string = '';
   errorMessage: string = '';
+  customQuestion: string = '';
+  debugMode: boolean = false; // Debug mode flag
 
   // Debounce subjects for input fields
   private roleInputSubject = new Subject<string>();
   private companyInputSubject = new Subject<string>();
-
-  get participantCount(): number {
-    return this.videoSlots.filter(slot => slot.active).length;
-  }
 
   constructor(private apiService: ApiService) {
     // Set up debounce for role input - wait 800ms after user stops typing
@@ -114,7 +131,8 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Initialize the component
+    // Load questions
+    this.loadQuestions();
   }
 
   ngOnDestroy(): void {
@@ -199,11 +217,58 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
 
   /**
    * Selects a question to display prominently
+   * @param question The question to select
    */
   selectQuestion(question: string): void {
     this.currentQuestion = question;
+    console.log('Selected question:', question);
+  }
+
+  /**
+   * Adds a custom question created by the user
+   */
+  addCustomQuestion(): void {
+    if (!this.customQuestion || this.customQuestion.trim() === '') {
+      return;
+    }
+
+    // Format the custom question to match the style of generated questions
+    const formattedQuestion = this.formatCustomQuestion(this.customQuestion);
+    
+    // Add to the questions list
+    this.selectedQuestions.push(formattedQuestion);
+    
+    // Select the new question
+    this.selectQuestion(formattedQuestion);
+    
+    // Clear the input
+    this.customQuestion = '';
+    
+    console.log('Added custom question:', formattedQuestion);
   }
   
+  /**
+   * Formats a custom question to match the style of generated questions
+   * @param question The raw question text
+   * @returns Formatted question
+   */
+  private formatCustomQuestion(question: string): string {
+    // Add formatting to make it look like the generated questions
+    // First line is the question title, rest is description
+    const lines = question.trim().split('\n');
+    
+    if (lines.length === 1) {
+      // If only one line, treat it as a title and add a generic description
+      return `<strong>${lines[0]}</strong>\n\nThis is a custom question created by the interviewer.`;
+    } else {
+      // If multiple lines, treat first as title and rest as description
+      const title = lines[0];
+      const description = lines.slice(1).join('\n');
+      
+      return `<strong>${title}</strong>\n\n${description}`;
+    }
+  }
+
   /**
    * Generates new assessment centre questions
    */
@@ -281,7 +346,8 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
     this.videoSlots[slotIndex] = {
       active: false,
       micMuted: true,
-      camActive: true
+      camActive: true,
+      isRecording: false
     };
 
     console.log(`Participant left slot ${slotIndex + 1}`);
@@ -459,6 +525,9 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
         this.videoSlots[1].active = true;
         this.videoSlots[1].micMuted = false; // Unmute for voice isolation testing
         this.videoSlots[1].camActive = true;
+        
+        // Store the video file for later transcription
+        this.videoSlots[1].videoBlob = this.selectedVideoFile as Blob;
       };
       
       videoElement.nativeElement.onerror = (e) => {
@@ -473,5 +542,467 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
         alert('Could not play test video. Browser may be blocking autoplay.');
       });
     }
+  }
+
+  /**
+   * Starts the interview recording for all active participants
+   */
+  startInterview(): void {
+    if (this.isRecording) return;
+    
+    this.isRecording = true;
+    
+    // Clear any existing transcripts
+    this.transcriptEntries = [];
+    
+    // Set loading state for all active participants
+    this.videoSlots.forEach((slot, index) => {
+      if (slot.active && slot.stream) {
+        // Set loading state to indicate transcript generation is in progress
+        slot.loadingTranscript = true;
+        
+        // For participant 2 (index 1) with prerecorded video, handle differently
+        if (index === 1 && slot.videoBlob) {
+          console.log('Participant 2 has a prerecorded video, preparing for transcription');
+          // We don't start recording for prerecorded video
+          slot.isRecording = false;
+        } else {
+          // Start recording for live participants
+          this.startRecording(index);
+        }
+      }
+    });
+    
+    console.log('Interview recording started, transcripts will be generated for all participants');
+    
+    // Generate initial transcripts for all active participants
+    this.generateInitialTranscripts();
+    
+    // For prerecorded video in slot 2, start transcription immediately
+    if (this.videoSlots[1].active && this.videoSlots[1].videoBlob) {
+      this.transcribePrerecordedVideo();
+    }
+  }
+  
+  /**
+   * Transcribes the prerecorded video in participant slot 2
+   */
+  private transcribePrerecordedVideo(): void {
+    const slot = this.videoSlots[1];
+    
+    if (!slot.active || !slot.videoBlob) {
+      console.log('No prerecorded video to transcribe');
+      return;
+    }
+    
+    console.log('Starting transcription for prerecorded video in participant slot 2');
+    
+    // Send the prerecorded video for transcription
+    this.sendToServerAndTranscribe(1);
+  }
+  
+  /**
+   * Generates initial transcripts for all active participants
+   * This provides immediate feedback to the user when starting the interview
+   */
+  private generateInitialTranscripts(): void {
+    // Wait a short time to ensure recordings have started
+    setTimeout(() => {
+      this.videoSlots.forEach((slot, index) => {
+        if (slot.active && slot.loadingTranscript) {
+          // For prerecorded video, show different message
+          if (index === 1 && slot.videoBlob) {
+            const initialTranscript = "Processing prerecorded video... Transcript will be available shortly.";
+            slot.transcript = initialTranscript;
+            
+            // Add to combined transcript
+            this.addToTranscript(index, initialTranscript);
+            
+            console.log(`Initial transcript generated for prerecorded video (participant ${index + 1})`);
+          } else {
+            // Generate an initial "recording in progress" transcript for live participants
+            const initialTranscript = "Recording in progress... Transcript will update when interview is completed.";
+            slot.transcript = initialTranscript;
+            
+            // Add to combined transcript
+            this.addToTranscript(index, initialTranscript);
+            
+            console.log(`Initial transcript generated for participant ${index + 1}`);
+          }
+        }
+      });
+    }, 2000); // Wait 2 seconds to ensure recordings have started
+  }
+
+  /**
+   * Stops the interview recording for all participants
+   */
+  stopInterview(): void {
+    if (!this.isRecording) return;
+    
+    console.log('Stopping interview recording and preparing for transcription...');
+    
+    this.isRecording = false;
+    
+    // Clear temporary transcripts
+    this.transcriptEntries = [];
+    
+    // Stop recording for all recording participants
+    this.videoSlots.forEach((slot, index) => {
+      if (!slot.active) return; // Skip inactive slots
+      
+      // For participant 2 (index 1) with prerecorded video, just ensure transcript is loading
+      if (index === 1 && slot.videoBlob && !slot.isRecording) {
+        // If transcript is not already loading, start the process
+        if (!slot.loadingTranscript) {
+          slot.loadingTranscript = true;
+          slot.transcript = ""; // Clear the temporary transcript
+          this.sendToServerAndTranscribe(index);
+        }
+      } 
+      // For live recordings, stop the recording
+      else if (slot.isRecording) {
+        // Set loading state before stopping to ensure UI shows loading indicator immediately
+        slot.loadingTranscript = true;
+        slot.transcript = ""; // Clear the temporary transcript
+        this.stopRecording(index);
+      }
+    });
+    
+    console.log('Interview recording stopped, transcription will begin automatically');
+    
+    // Ensure transcripts are loaded automatically after stopping
+    // This gives a small delay to allow the mediaRecorder.onstop events to fire
+    setTimeout(() => {
+      this.videoSlots.forEach((slot, index) => {
+        if (slot.active && slot.loadingTranscript) {
+          console.log(`Ensuring transcript is loaded for participant ${index + 1}`);
+          // The transcription will be handled by the mediaRecorder.onstop event
+          // This is just a safety check to ensure it happens
+        }
+      });
+      
+      // Force refresh transcripts after a delay to ensure they're displayed
+      setTimeout(() => {
+        this.forceRefreshTranscripts();
+      }, 5000);
+    }, 1500);
+  }
+
+  /**
+   * Starts recording for a specific participant
+   * @param slotIndex The index of the slot to start recording
+   */
+  private startRecording(slotIndex: number): void {
+    const slot = this.videoSlots[slotIndex];
+    
+    if (!slot.active || !slot.stream || slot.isRecording) {
+      return;
+    }
+    
+    try {
+      // Setup media recorder
+      const mediaRecorderOptions: MediaRecorderOptions = { mimeType: 'video/mp4' };
+      slot.mediaRecorder = new MediaRecorder(slot.stream, mediaRecorderOptions);
+      slot.recordedBlobs = [];
+      
+      // Set up the ondataavailable event to store recorded data
+      slot.mediaRecorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data && event.data.size > 0) {
+          slot.recordedBlobs?.push(event.data);
+        }
+      };
+      
+      // Set up the onstop event to handle the recording stop and video preparation
+      slot.mediaRecorder.onstop = () => {
+        console.log(`Recording stopped for participant ${slotIndex + 1}, processing video...`);
+        
+        if (slot.recordedBlobs && slot.recordedBlobs.length > 0) {
+          slot.videoBlob = new Blob(slot.recordedBlobs, { type: 'video/mp4' });
+          
+          // Send the recorded video to the server and get transcript
+          this.sendToServerAndTranscribe(slotIndex);
+        }
+      };
+      
+      // Start recording
+      slot.mediaRecorder.start(1000); // Collect data every second
+      slot.isRecording = true;
+      
+      console.log(`Recording started for participant ${slotIndex + 1}`);
+    } catch (error) {
+      console.error(`Error starting recording for participant ${slotIndex + 1}:`, error);
+    }
+  }
+
+  /**
+   * Stops recording for a specific participant
+   * @param slotIndex The index of the slot to stop recording
+   */
+  private stopRecording(slotIndex: number): void {
+    const slot = this.videoSlots[slotIndex];
+    
+    if (!slot.isRecording || !slot.mediaRecorder) {
+      return;
+    }
+    
+    try {
+      console.log(`Stopping recording for participant ${slotIndex + 1}...`);
+      
+      // Set loading state before stopping to ensure UI shows loading indicator immediately
+      slot.loadingTranscript = true;
+      
+      // Stop the media recorder - this will trigger the onstop event
+      slot.mediaRecorder.stop();
+      slot.isRecording = false;
+      
+      console.log(`Recording stopped for participant ${slotIndex + 1}, waiting for processing...`);
+    } catch (error) {
+      console.error(`Error stopping recording for participant ${slotIndex + 1}:`, error);
+      slot.isRecording = false;
+      slot.loadingTranscript = false;
+    }
+  }
+
+  /**
+   * Sends the recorded video to the server and gets the transcript
+   * @param slotIndex The index of the slot to process
+   */
+  private sendToServerAndTranscribe(slotIndex: number): void {
+    const slot = this.videoSlots[slotIndex];
+    
+    if (!slot.videoBlob) {
+      console.error(`No video blob available for participant ${slotIndex + 1}`);
+      slot.loadingTranscript = false;
+      return;
+    }
+    
+    console.log(`Sending video to server for participant ${slotIndex + 1} and initiating transcription...`);
+    
+    // Upload the video
+    this.apiService.uploadVideo(slot.videoBlob)
+      .subscribe({
+        next: () => {
+          console.log(`Video uploaded for participant ${slotIndex + 1}`);
+          
+          // Get transcript
+          this.getTranscript(slotIndex);
+          
+          // Add a retry mechanism in case the transcript is not available immediately
+          let retryCount = 0;
+          const maxRetries = 3;
+          
+          const retryInterval = setInterval(() => {
+            if (slot.transcript && slot.transcript !== "No transcript available" && slot.transcript !== "Error generating transcript") {
+              console.log(`Transcript successfully loaded for participant ${slotIndex + 1} after ${retryCount} retries`);
+              clearInterval(retryInterval);
+              return;
+            }
+            
+            if (retryCount >= maxRetries) {
+              console.log(`Max retries reached for participant ${slotIndex + 1}, stopping retry attempts`);
+              clearInterval(retryInterval);
+              return;
+            }
+            
+            retryCount++;
+            console.log(`Retry ${retryCount}/${maxRetries} for participant ${slotIndex + 1} transcript`);
+            this.getTranscript(slotIndex);
+          }, 5000); // Retry every 5 seconds
+        },
+        error: (error) => {
+          console.error(`Error uploading video for participant ${slotIndex + 1}:`, error);
+          slot.loadingTranscript = false;
+        }
+      });
+  }
+
+  /**
+   * Gets the transcript for a participant's recording
+   * @param slotIndex The index of the slot to get transcript for
+   */
+  private getTranscript(slotIndex: number): void {
+    const slot = this.videoSlots[slotIndex];
+    
+    console.log(`Requesting transcript for participant ${slotIndex + 1}...`);
+    
+    this.apiService.transcribeVideo()
+      .subscribe({
+        next: (response) => {
+          console.log(`Received transcript response for participant ${slotIndex + 1}:`, response);
+          
+          if (response && response.transcript) {
+            slot.transcript = response.transcript;
+            
+            // Add to combined transcript
+            this.addToTranscript(slotIndex, response.transcript);
+            
+            console.log(`Transcript successfully generated for participant ${slotIndex + 1}`);
+            
+            // Force refresh to ensure UI updates
+            this.forceRefreshTranscripts();
+          } else {
+            slot.transcript = "No transcript available";
+            console.warn(`No transcript data received for participant ${slotIndex + 1}`);
+          }
+          
+          slot.loadingTranscript = false;
+        },
+        error: (error) => {
+          console.error(`Error getting transcript for participant ${slotIndex + 1}:`, error);
+          slot.transcript = "Error generating transcript";
+          slot.loadingTranscript = false;
+          
+          // Add error details to help with debugging
+          if (error.status) {
+            console.error(`HTTP Status: ${error.status}, Message: ${error.message}`);
+          }
+          
+          // Attempt to add a placeholder to the transcript
+          this.addToTranscript(slotIndex, "Error generating transcript. Please try again.");
+        }
+      });
+  }
+
+  /**
+   * Adds a transcript entry to the combined transcript
+   * @param participantIndex The index of the participant
+   * @param text The transcript text
+   */
+  private addToTranscript(participantIndex: number, text: string): void {
+    // Check if this is a duplicate entry (same participant and similar text)
+    const isDuplicate = this.transcriptEntries.some(entry => 
+      entry.participantIndex === participantIndex && 
+      entry.text === text
+    );
+    
+    if (isDuplicate) {
+      console.log(`Skipping duplicate transcript entry for participant ${participantIndex + 1}`);
+      return;
+    }
+    
+    console.log(`Adding transcript entry for participant ${participantIndex + 1}: ${text.substring(0, 50)}...`);
+    
+    this.transcriptEntries.push({
+      participantIndex,
+      text,
+      timestamp: new Date()
+    });
+    
+    // Sort entries by timestamp
+    this.transcriptEntries.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  }
+
+  /**
+   * Force refreshes the transcripts for debugging purposes
+   */
+  forceRefreshTranscripts(): void {
+    console.log('Force refreshing transcripts...');
+    
+    // Clear existing entries
+    this.transcriptEntries = [];
+    
+    // Add entries from each participant that has a transcript
+    this.videoSlots.forEach((slot, index) => {
+      if (slot.transcript) {
+        console.log(`Adding transcript from participant ${index + 1} to combined transcript`);
+        this.addToTranscript(index, slot.transcript);
+      }
+    });
+  }
+
+  /**
+   * Gets the combined transcript from all participants
+   * @returns Array of transcript entries
+   */
+  getCombinedTranscript(): TranscriptEntry[] {
+    return this.transcriptEntries;
+  }
+
+  /**
+   * Checks if any transcript is available
+   * @returns True if any transcript is available
+   */
+  isAnyTranscriptAvailable(): boolean {
+    return this.transcriptEntries.length > 0;
+  }
+
+  /**
+   * Checks if any transcript is currently loading
+   * @returns True if any transcript is loading
+   */
+  isLoadingAnyTranscript(): boolean {
+    return this.videoSlots.some(slot => slot.loadingTranscript);
+  }
+
+  /**
+   * Saves all interviews with their transcripts
+   */
+  saveAllInterviews(): void {
+    if (this.isSaving) return;
+    
+    this.isSaving = true;
+    this.saveSuccess = false;
+    this.saveError = '';
+    
+    // Combine all transcripts into one text
+    const combinedTranscript = this.transcriptEntries
+      .map(entry => `Participant ${entry.participantIndex + 1}: ${entry.text}`)
+      .join('\n\n');
+    
+    const data = {
+      role: this.role,
+      company: this.company,
+      style: 'Assessment Centre',
+      question: this.currentQuestion,
+      transcript: combinedTranscript,
+      feedback: '' // No feedback for assessment centre interviews
+    };
+    
+    this.apiService.saveInterview(data)
+      .subscribe({
+        next: (response) => {
+          this.isSaving = false;
+          this.saveSuccess = true;
+          console.log('Interview saved successfully:', response);
+          
+          // Reset after a few seconds
+          setTimeout(() => {
+            this.saveSuccess = false;
+          }, 3000);
+        },
+        error: (error) => {
+          console.error('Error saving interview:', error);
+          this.isSaving = false;
+          this.saveError = error.error?.error || 'Failed to save interview. Please try again.';
+        }
+      });
+  }
+
+  /**
+   * Gets the participant count
+   * @returns The number of active participants
+   */
+  get participantCount(): number {
+    return this.videoSlots.filter(slot => slot.active).length;
+  }
+
+  /**
+   * Checks the API status for debugging purposes
+   */
+  checkApiStatus(): void {
+    console.log('Checking API status...');
+    
+    this.apiService.checkApiStatus()
+      .subscribe({
+        next: (response) => {
+          console.log('API Status:', response);
+          alert(`API Status: ${JSON.stringify(response, null, 2)}`);
+        },
+        error: (error) => {
+          console.error('Error checking API status:', error);
+          alert(`API Status Error: ${error.message}`);
+        }
+      });
   }
 }
