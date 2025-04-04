@@ -20,9 +20,44 @@ class Model:
     
 
     def construct_prompt_for_questions(self, role, company, style):
-        # Always use assessment centre style format for this app now
-        return self.construct_prompt_for_assessment_centre(role, company)
+        # Check the interview style and use the appropriate prompt generator
+        if style == "assessment":
+            return self.construct_prompt_for_assessment_centre(role, company)
+        else:
+            return self.construct_prompt_for_interview_questions(role, company, style)
     
+    def construct_prompt_for_interview_questions(self, role, company, style):
+        """
+        Constructs a prompt for generating typical job interview questions.
+        """
+        return [
+            {
+                "role": "system",
+                "content": "You are an expert recruiter who designs interview questions specific to job roles and company cultures."
+            },
+            {
+                "role": "user",
+                "content": f"""
+                Create 5 realistic interview questions for a {role} position at {company} with a {style} interview style.
+                
+                Make sure the questions:
+                1. Are specific to the {role} position
+                2. Reflect {company}'s industry and values
+                3. Follow a {style} interview format
+                4. Cover a mix of technical, behavioral, and situational aspects relevant to the role
+                5. Are challenging but fair
+                
+                Format each question as a numbered list item.
+                
+                For example:
+                1. [Interview Question 1]
+                2. [Interview Question 2]
+                3. [Interview Question 3]
+                ...
+                """
+            }
+        ]
+
     def construct_prompt_for_assessment_centre(self, role, company):
         """
         Constructs a prompt specifically for assessment centre group tasks.
@@ -66,7 +101,7 @@ class Model:
         ]
     
     def clean_question(self, question):
-        # For assessment centre questions, preserve the formatting but ensure it matches our exact template
+        # For assessment centre questions, preserve the formatting
         if "Scenario:" in question and "Instructions:" in question:
             # Split the question into scenario and instructions
             parts = question.split("Instructions:")
@@ -77,9 +112,10 @@ class Model:
                 # Format exactly according to the template
                 formatted_question = f"{scenario}\n\nInstructions:\n{instructions}"
                 return formatted_question
-            
-        # If it doesn't fit our expected format, return as is
-        return question.strip()
+        
+        # Remove any numbering (e.g., "1.", "Question 1:") at the beginning of the question
+        cleaned = re.sub(r'^(\d+\.|\d+\)|\[Question \d+\]:|Question \d+:)\s*', '', question.strip())
+        return cleaned.strip()
         
     def get_questions_from_model(self, role, company, style):
         response = self.client.chat.completions.create(
@@ -92,23 +128,23 @@ class Model:
         
         content = response.choices[0].message.content
         
-        # Since we're now only generating one scenario, we can simplify the parsing
+        # Check if this is an assessment centre question with the expected format
         if "Scenario:" in content and "Instructions:" in content:
             return [self.clean_question(content)]
         else:
-            # Fallback to previous parsing logic if the format is unexpected
-            questions_raw = re.split(r'\n\d+\.\s+|\n\n', content)
-            questions_raw = [q for q in questions_raw if q.strip() and "Scenario:" in q]
+            # Parse regular interview questions
+            # Split by numbered patterns (1., 2., etc.) or double newlines
+            questions_raw = re.split(r'\n\d+\.|\n\d+\)|\n\n', content)
+            questions_raw = [q for q in questions_raw if q.strip()]
             
-            if not questions_raw:
-                questions_raw = content.split("Scenario:")
-                questions_raw = [f"Scenario:{q}" for q in questions_raw if q.strip()]
+            # If the split didn't work, try another approach
+            if len(questions_raw) <= 1:
+                questions_raw = re.split(r'(?:\d+\.|\d+\)|\n\n)', content)
+                questions_raw = [q for q in questions_raw if q.strip()]
             
-            # Return just the first question if multiple were generated
-            if questions_raw:
-                return [self.clean_question(questions_raw[0])]
-            else:
-                return ["Failed to generate a scenario in the proper format. Please try again."]
+            # Clean each question and return up to 5
+            cleaned_questions = [self.clean_question(q) for q in questions_raw]
+            return cleaned_questions[:5] if cleaned_questions else ["Failed to generate questions. Please try again."]
 
     def construct_prompt_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0):
         # Prepare filler word analysis for the prompt
