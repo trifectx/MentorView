@@ -9,6 +9,7 @@ import { INTERVIEW_STYLES, ROLES, COMPANIES, InterviewStyle } from '../../compon
 import { ApiService } from '../../services/api.service';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-interview',
@@ -39,6 +40,9 @@ export class InterviewComponent implements OnInit {
   showStylesMenu = false;
   dropdownHeight = 0; // Track dropdown height for spacing
   
+  // Flag to track if this is a reattempt
+  isReattempt = false;
+  
   // Track previous values to detect changes
   private previousCompany: string = '';
   private previousRole: string = '';
@@ -48,7 +52,7 @@ export class InterviewComponent implements OnInit {
   private roleInputSubject = new Subject<string>();
   private companyInputSubject = new Subject<string>();
 
-  constructor(private apiService: ApiService) {
+  constructor(private apiService: ApiService, private router: Router) {
     // Set up debounce for role input - wait 800ms after user stops typing
     this.roleInputSubject.pipe(
       debounceTime(800),
@@ -70,6 +74,23 @@ export class InterviewComponent implements OnInit {
         this.checkAndLoadQuestions();
       }
     });
+    
+    // Check if we have reattempt data from router state
+    const navigation = this.router.getCurrentNavigation();
+    if (navigation?.extras.state) {
+      const state = navigation.extras.state as { reattemptData?: any };
+      if (state.reattemptData) {
+        this.isReattempt = true;
+        this.interviewDetails = {
+          role: state.reattemptData.role || this.interviewDetails.role,
+          company: state.reattemptData.company || this.interviewDetails.company,
+          style: state.reattemptData.style || this.interviewDetails.style,
+          question: state.reattemptData.question || this.interviewDetails.question
+        };
+        
+        console.log('Reattempting interview with question:', this.interviewDetails.question);
+      }
+    }
   }
 
   ngOnInit(): void {
@@ -77,6 +98,14 @@ export class InterviewComponent implements OnInit {
     this.previousCompany = this.interviewDetails.company;
     this.previousRole = this.interviewDetails.role;
     this.previousStyle = this.interviewDetails.style;
+    
+    // If this is a reattempt and we don't have a specific question yet, load questions
+    if (!this.isReattempt && !this.interviewDetails.question) {
+      this.checkAndLoadQuestions();
+    } else if (this.isReattempt && this.interviewDetails.question) {
+      // For reattempts, we already have the question, so we'll add it to the selected questions
+      this.selectedQuestions = [this.interviewDetails.question];
+    }
   }
 
   openStylesMenu(): void {
@@ -146,6 +175,11 @@ export class InterviewComponent implements OnInit {
   }
 
   private loadQuestions(): void {
+    // If already reattempting with a question, don't load new questions
+    if (this.isReattempt && this.interviewDetails.question) {
+      return;
+    }
+    
     if (this.interviewDetails.role && this.interviewDetails.company && this.interviewDetails.style) {
       this.isLoadingQuestions = true;
       this.getQuestions();

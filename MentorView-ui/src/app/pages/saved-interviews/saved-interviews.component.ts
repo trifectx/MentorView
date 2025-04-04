@@ -251,4 +251,19 @@ export class SavedInterviewsComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  // Method to reattempt an interview with the same question
+  reattemptInterview(interview: SavedInterview): void {
+    // Navigate to the interview page with the question data
+    this.router.navigate(['/interview'], { 
+      state: { 
+        reattemptData: {
+          question: interview.question,
+          role: interview.role,
+          company: interview.company,
+          style: interview.style
+        }
+      }
+    });
+  }
 }
