@@ -179,7 +179,7 @@ class Model:
                 Candidate's Answer: {answer}
                 {wpm_analysis}{filler_word_analysis}
                 Please evaluate this answer and provide:
-                1. Overall assessment (score out of 10)
+                1. Overall assessment (score out of 10 and in the format "Score: 8/10")
                 2. Content strengths of the answer
                 3. Areas for improvement in content and delivery
                 4. Language quality (comment on filler word usage and suggestions to reduce them)
