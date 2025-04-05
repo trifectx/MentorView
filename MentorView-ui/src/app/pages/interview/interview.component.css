@@ -379,6 +379,87 @@ select.question-select option {
   background-color: rgba(26, 26, 26, 0.8);
 }
 
+/* Interview header with level indicator */
+.interview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background-color: #1e293b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.navigation-buttons {
+  display: flex;
+  align-items: center;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.back-button i {
+  margin-right: 6px;
+  font-size: 18px;
+}
+
+/* Small back button in the top-left corner */
+.back-button-small {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(26, 31, 46, 0.9);
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  transition: all 0.2s ease;
+}
+
+.back-button-small:hover {
+  background-color: rgba(74, 0, 224, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.back-button-small i {
+  font-size: 20px;
+}
+
+/* Media query for responsiveness */
+@media (max-width: 768px) {
+  .back-button-small {
+    top: 10px;
+    left: 10px;
+    width: 32px;
+    height: 32px;
+  }
+  
+  .back-button-small i {
+    font-size: 18px;
+  }
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .interview-container {

@@ -1,0 +1,9 @@
+<div class="level-indicator">
+  <div class="level-badge" [class.level-up]="isLevelingUp">{{ level }}</div>
+  <div class="xp-info">
+    <div class="xp-label">XP: {{ currentLevelXP }} / {{ xpForNextLevel }}</div>
+    <div class="progress-container">
+      <div class="progress-bar" [style.width.%]="progressPercentage"></div>
+    </div>
+  </div>
+</div>

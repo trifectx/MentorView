@@ -1,0 +1,130 @@
+:host {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  z-index: 1000;
+}
+
+.level-indicator {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #2b3147, #1a1f2e);
+  border-radius: 20px;
+  padding: 8px 12px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: transform 0.3s ease;
+}
+
+.level-indicator:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.level-badge {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #6c63ff, #4a00e0);
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  margin-right: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.level-details {
+  margin-left: 8px;
+  flex-grow: 1;
+  min-width: 120px;
+}
+
+.level-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.level-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+
+.xp-total {
+  font-size: 12px;
+  color: #b8c7ff;
+}
+
+.xp-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.xp-label {
+  font-size: 12px;
+  color: #aaaaaa;
+  margin-bottom: 4px;
+}
+
+.progress-container {
+  width: 100px;
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(to right, #6c63ff, #4a00e0);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Animation for level up */
+@keyframes levelUp {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.level-badge.level-up {
+  animation: levelUp 0.5s ease-in-out;
+}
+
+/* Add media query for responsiveness */
+@media (max-width: 768px) {
+  :host {
+    top: 10px;
+    right: 10px;
+  }
+  
+  .level-indicator {
+    padding: 6px 10px;
+  }
+  
+  .level-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .xp-label {
+    font-size: 10px;
+  }
+  
+  .progress-container {
+    width: 80px;
+    height: 5px;
+  }
+}

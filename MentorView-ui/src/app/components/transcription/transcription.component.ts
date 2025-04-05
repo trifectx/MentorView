@@ -1,8 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, ViewChild, Input, OnInit } from '@angular/core';
+import { Component, ElementRef, ViewChild, Input, OnInit, ComponentRef, ApplicationRef, Injector, ViewContainerRef } from '@angular/core';
 import { ApiService } from '../../services/api.service';
 import { InterviewDetails } from '../../shared/types';
 import { Router } from '@angular/router';
+import { XpService } from '../../services/xp.service';
+import { XpNotificationComponent } from '../xp-notification/xp-notification.component';
+import { createComponent } from '@angular/core';
 
 declare const faceapi: any;
 
@@ -21,7 +24,7 @@ interface FacialDetectionResults {
 @Component({
     selector: 'app-transcription',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, XpNotificationComponent],
     templateUrl: './transcription.component.html',
     styleUrl: './transcription.component.css',
 })
@@ -93,7 +96,7 @@ export class TranscriptionComponent implements OnInit {
     totalFillerWords: number = 0;
 
     // Injecting ApiService for API calls
-    constructor(private apiService: ApiService, private router: Router) { }
+    constructor(private apiService: ApiService, private router: Router, private xpService: XpService, private injector: Injector, private appRef: ApplicationRef, private viewContainerRef: ViewContainerRef) { }
 
     ngOnInit() {
         setTimeout(() => {
@@ -399,8 +402,12 @@ export class TranscriptionComponent implements OnInit {
         this.apiService.rateAnswer(data)
             .subscribe({
                 next: (response: any) => {
+                    console.log('Got rating response:', response);
                     this.rating = response.feedback;
                     this.loadingRating = false;
+                    
+                    // Extract rating score for XP award
+                    this.awardXPForInterview(this.rating, this.interviewDetails.question, this.interviewDetails.style);
                 },
                 error: (error) => {
                     console.error('Error getting rating:', error);
@@ -475,6 +482,67 @@ export class TranscriptionComponent implements OnInit {
         
         console.log('Filler word analysis:', this.fillerWords);
         console.log('Total filler words:', this.totalFillerWords);
+    }
+
+    // Award XP to the user based on their interview rating
+    private async awardXPForInterview(feedback: string, question: string, interviewStyle: string): Promise<void> {
+        // Extract the rating score from the feedback (1-10)
+        // Updated regex to handle decimal ratings (e.g., 6.5/10)
+        const ratingRegex = /score:\s*(\d+(?:\.\d+)?)\/10|(\d+(?:\.\d+)?)\s*\/\s*10/i;
+        const match = feedback.match(ratingRegex);
+        
+        if (match) {
+            // Get the rating number from the match
+            const rating = parseFloat(match[1] || match[2]);
+            
+            if (!isNaN(rating) && rating >= 1 && rating <= 10) {
+                // Calculate difficulty modifier based on the question and interview style
+                const difficultyModifier = this.xpService.calculateDifficultyModifier(question, interviewStyle);
+                
+                try {
+                    // Award XP based on the rating and difficulty
+                    const newTotalXP = await this.xpService.awardInterviewXP(rating, difficultyModifier);
+                    console.log(`Awarded XP for interview! Rating: ${rating}, Difficulty: ${difficultyModifier.toFixed(2)}, New Total XP: ${newTotalXP}`);
+                    
+                    // Show XP notification (could expand this to a more detailed UI notification)
+                    this.showXPAwardNotification(rating, difficultyModifier);
+                } catch (error) {
+                    console.error('Error awarding XP:', error);
+                }
+            } else {
+                console.warn('Invalid rating extracted from feedback:', rating);
+            }
+        } else {
+            console.warn('Could not extract rating from feedback');
+        }
+    }
+    
+    // Show a notification when XP is awarded
+    private showXPAwardNotification(rating: number, difficultyModifier: number): void {
+        const xpAwarded = Math.round(rating * 10 * difficultyModifier);
+        
+        // Create the notification component dynamically
+        const notificationComponent = createComponent(XpNotificationComponent, {
+            environmentInjector: this.appRef.injector,
+            elementInjector: this.injector
+        });
+        
+        // Set the input properties
+        notificationComponent.instance.xpAmount = xpAwarded;
+        notificationComponent.instance.rating = rating;
+        notificationComponent.instance.difficulty = difficultyModifier;
+        
+        // Add to the DOM
+        document.body.appendChild(notificationComponent.location.nativeElement);
+        
+        // Detect changes to show the component
+        notificationComponent.changeDetectorRef.detectChanges();
+        
+        // Remove the component after animation completes
+        setTimeout(() => {
+            document.body.removeChild(notificationComponent.location.nativeElement);
+            notificationComponent.destroy();
+        }, 5500); // 5.5 seconds (5s display + 0.5s for animation)
     }
 
     // WPM tracking methods

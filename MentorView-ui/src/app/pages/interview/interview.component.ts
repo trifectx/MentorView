@@ -2,8 +2,10 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { RouterModule } from '@angular/router';
 import { TranscriptionComponent } from '../../components/transcription/transcription.component';
 import { InterviewDetailsComponent } from '../../components/interview-details/interview-details.component';
+import { LevelIndicatorComponent } from '../../components/level-indicator/level-indicator.component';
 import { InterviewDetails } from '../../shared/types';
 import { INTERVIEW_STYLES, ROLES, COMPANIES, InterviewStyle } from '../../components/interview-details/interview-details.constants';
 import { ApiService } from '../../services/api.service';
@@ -15,11 +17,13 @@ import { Router } from '@angular/router';
   selector: 'app-interview',
   standalone: true,
   imports: [
-    TranscriptionComponent, 
-    InterviewDetailsComponent, 
+    CommonModule, 
     FormsModule, 
-    CommonModule,
-    MatAutocompleteModule
+    RouterModule,
+    MatAutocompleteModule,
+    TranscriptionComponent,
+    InterviewDetailsComponent,
+    LevelIndicatorComponent
   ],
   templateUrl: './interview.component.html',
   styleUrls: ['./interview.component.css']
