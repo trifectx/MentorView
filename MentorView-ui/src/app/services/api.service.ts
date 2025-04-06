@@ -22,6 +22,7 @@ export interface SavedInterview {
     wpm?: number;
     fillerWords?: string;
     totalFillerWords?: number;
+    fillerWordsPercentage?: number;
 }
 
 @Injectable({
@@ -94,6 +95,7 @@ export class ApiService {
         wpm?: number;
         fillerWords?: string;
         totalFillerWords?: number;
+        fillerWordsPercentage?: number;
     }): Observable<SaveInterviewResponse> {
         const saveObservable = this.http.post<SaveInterviewResponse>(this.endpoints.saveInterview, data);
 

@@ -3,6 +3,7 @@ import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ApiService, SavedInterview } from '../../services/api.service';
 import { Subscription } from 'rxjs';
+import { FillerWordsService, FillerWordData } from '../../services/filler-words.service';
 
 interface InterviewStats {
   totalInterviews: number;
@@ -37,12 +38,17 @@ export class OverviewComponent implements OnInit, OnDestroy {
     recentInterviews: [] // Will be populated from actual data
   };
 
+  // Filler word data
+  fillerWordData: FillerWordData | null = null;
+  loadingFillerData = false;
+  fillerDataError = '';
+
   // Charts data
   progressChartData = {
     scores: [],
     wpm: []
   };
-  
+
   // Interview tracking data
   interviewStats: InterviewStats = {
     totalInterviews: 0,
@@ -53,35 +59,42 @@ export class OverviewComponent implements OnInit, OnDestroy {
     interviewDates: [],
     interviewScores: []
   };
-  
+
   loading = false;
   error = '';
   private subscription: Subscription = new Subscription();
-  
-  constructor(private apiService: ApiService) {}
+
+  constructor(
+    private apiService: ApiService,
+    private fillerWordsService: FillerWordsService
+  ) {}
 
   ngOnInit(): void {
     // Fetch the saved interviews data
     this.loadInterviewData();
-    
+
+    // Fetch filler word data
+    this.loadFillerWordData();
+
     // Subscribe to interview updates
     this.subscription.add(
       this.apiService.interviewsUpdated$.subscribe(() => {
         console.log('Interview data updated, refreshing overview...');
         this.loadInterviewData();
+        this.loadFillerWordData();
       })
     );
   }
-  
+
   ngOnDestroy(): void {
     // Clean up subscriptions when component is destroyed
     this.subscription.unsubscribe();
   }
-  
+
   loadInterviewData(): void {
     this.loading = true;
     this.error = '';
-    
+
     this.apiService.getSavedInterviews().subscribe({
       next: (response) => {
         if (response.interviews && response.interviews.length > 0) {
@@ -96,52 +109,71 @@ export class OverviewComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
+
+  loadFillerWordData(): void {
+    this.loadingFillerData = true;
+    this.fillerDataError = '';
+
+    this.subscription.add(
+      this.fillerWordsService.getCurrentFillerWordData().subscribe({
+        next: (data) => {
+          this.fillerWordData = data;
+          this.loadingFillerData = false;
+        },
+        error: (error) => {
+          console.error('Error loading filler word data:', error);
+          this.fillerDataError = 'Failed to load filler word data.';
+          this.loadingFillerData = false;
+        }
+      })
+    );
+  }
+
   processInterviewData(interviews: SavedInterview[]): void {
     // Sort interviews by date (newest first)
-    const sortedInterviews = [...interviews].sort((a, b) => 
+    const sortedInterviews = [...interviews].sort((a, b) =>
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-    
+
     // Get recent interviews (top 5)
     const recentInterviews = sortedInterviews.slice(0, 5);
-    
+
     // Calculate scores
     let totalScore = 0;
     let topScore = 0;
     let totalWpm = 0;
     let wpmCount = 0;
-    
+
     // Map of interview style to scores
-    const styleScores: {[key: string]: {total: number, count: number}} = {};
-    
+    const styleScores: { [key: string]: { total: number, count: number } } = {};
+
     sortedInterviews.forEach(interview => {
       // Process score
       const score = this.extractScoreValue(interview.feedback);
       if (score > 0) {
         totalScore += score;
         if (score > topScore) topScore = score;
-        
+
         // Track scores by interview style
         if (!styleScores[interview.style]) {
-          styleScores[interview.style] = {total: 0, count: 0};
+          styleScores[interview.style] = { total: 0, count: 0 };
         }
         styleScores[interview.style].total += score;
         styleScores[interview.style].count += 1;
       }
-      
+
       // Process WPM - only include interviews with actual WPM data
       if (interview.wpm && interview.wpm > 0) {
         totalWpm += interview.wpm;
         wpmCount++;
       }
     });
-    
+
     // Calculate average score for interviews with feedback
     const interviewsWithScores = sortedInterviews.filter(i => this.extractScoreValue(i.feedback) > 0);
-    const averageScore = interviewsWithScores.length > 0 ? 
+    const averageScore = interviewsWithScores.length > 0 ?
       parseFloat((totalScore / interviewsWithScores.length).toFixed(1)) : 0;
-    
+
     // Calculate average WPM - only using interviews with actual WPM data
     if (wpmCount > 0) {
       this.performanceData.averageWpm = Math.round(totalWpm / wpmCount);
@@ -149,7 +181,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
       // Only use default if there are no WPM data points at all
       this.performanceData.averageWpm = DEFAULT_WPM;
     }
-    
+
     // Calculate speaking pace status
     if (this.performanceData.averageWpm > MAX_OPTIMAL_WPM) {
       this.performanceData.speakingPaceStatus = 'Too Fast';
@@ -158,35 +190,35 @@ export class OverviewComponent implements OnInit, OnDestroy {
     } else {
       this.performanceData.speakingPaceStatus = 'Optimal';
     }
-    
+
     // Calculate average score by category
-    const scoreByCategory: {[key: string]: number} = {};
+    const scoreByCategory: { [key: string]: number } = {};
     Object.keys(styleScores).forEach(style => {
       scoreByCategory[style] = Number((styleScores[style].total / styleScores[style].count).toFixed(1));
     });
-    
+
     // Prepare chart data
-    const interviewDates = recentInterviews.map(interview => 
-      new Date(interview.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})
+    const interviewDates = recentInterviews.map(interview =>
+      new Date(interview.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     ).reverse();
-    
-    const interviewScores = recentInterviews.map(interview => 
+
+    const interviewScores = recentInterviews.map(interview =>
       this.extractScoreValue(interview.feedback)
     ).reverse();
-    
+
     // Update progress chart data
     this.progressChartData.scores = interviewScores;
-    
+
     // Only include interviews with actual WPM data in the chart
     const wpmDataPoints = recentInterviews
       .filter(interview => interview.wpm && interview.wpm > 0)
       .map(interview => interview.wpm as number)
       .reverse();
-    
+
     if (wpmDataPoints.length > 0) {
       this.progressChartData.wpm = wpmDataPoints;
     }
-    
+
     // Update the stats
     this.interviewStats = {
       totalInterviews: sortedInterviews.length,
@@ -197,7 +229,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
       interviewDates: interviewDates,
       interviewScores: interviewScores
     };
-    
+
     // Update the performance data
     this.performanceData.averageScore = this.interviewStats.averageScore;
     this.performanceData.recentInterviews = recentInterviews.map(interview => ({
@@ -207,10 +239,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
       wpm: interview.wpm || 0  // Use 0 to indicate no WPM data available
     }));
   }
-  
+
   extractScoreValue(feedback: string): number {
     if (!feedback) return 0;
-    
+
     // Different patterns to match various feedback formats
     const patterns = [
       // Format: "Overall assessment: 1/10"
@@ -226,7 +258,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
       // Format: "score: 6"
       /score:\s*(\d+)/i
     ];
-    
+
     // Try each pattern until we find a match
     for (const pattern of patterns) {
       const match = feedback.match(pattern);
@@ -237,13 +269,13 @@ export class OverviewComponent implements OnInit, OnDestroy {
         return Math.round((score / scale) * 10 * 10) / 10;
       }
     }
-    
+
     return 0;
   }
 
   extractScore(feedback: string): string {
     if (!feedback) return 'N/A';
-    
+
     // Different patterns to match various feedback formats
     const patterns = [
       // Format: "Overall assessment: 1/10"
@@ -259,7 +291,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
       // Format: "score: 6"
       /score:\s*(\d+)/i
     ];
-    
+
     // Try each pattern until we find a match
     for (const pattern of patterns) {
       const match = feedback.match(pattern);
@@ -268,8 +300,48 @@ export class OverviewComponent implements OnInit, OnDestroy {
         return match[2] ? `${match[1]}/${match[2]}` : `${match[1]}/10`;
       }
     }
-    
+
     return 'N/A';
+  }
+
+  getTopFillerWords(): { word: string, count: number }[] {
+    if (!this.fillerWordData || !this.fillerWordData.wordCounts) {
+      return [];
+    }
+
+    return Object.entries(this.fillerWordData.wordCounts)
+      .map(([word, count]) => ({ word, count }))
+      .filter(item => item.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3); // Top 3 filler words
+  }
+
+  getFillerWordClass(): string {
+    if (!this.fillerWordData) return '';
+
+    const percentage = this.fillerWordData.percentage;
+
+    if (percentage < 3) {
+      return 'status-excellent';
+    } else if (percentage < 6) {
+      return 'status-good';
+    } else {
+      return 'status-needs-improvement';
+    }
+  }
+
+  getFillerWordStatus(): string {
+    if (!this.fillerWordData) return '';
+
+    const percentage = this.fillerWordData.percentage;
+
+    if (percentage < 3) {
+      return 'Excellent';
+    } else if (percentage < 6) {
+      return 'Good';
+    } else {
+      return 'Needs Improvement';
+    }
   }
 
   getPaceClass(): string {
@@ -292,7 +364,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
       return 'needs-improvement';
     }
   }
-  
+
   formatDate(dateString: string): string {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',

@@ -40,12 +40,49 @@
         </div>
         
         <div class="tab-content">
-          <!-- No Data State -->
-          <div class="no-data-container">
+          <!-- No Data State - Show only when no data is available -->
+          <div *ngIf="!fillerWordData" class="no-data-container">
             <div class="no-data-icon">📊</div>
             <h3 class="no-data-title">No data yet!</h3>
             <p class="no-data-text">Practice now for 30 seconds to get an initial diagnostic on your filler words.</p>
             <button class="practice-button">Practice Now</button>
+          </div>
+          
+          <!-- Data Available State -->
+          <div *ngIf="fillerWordData" class="filler-words-data">
+            <div class="data-header">
+              <h3 class="data-title">Filler Word Analysis</h3>
+              <div class="data-stats">
+                <div class="stat-value">{{fillerWordData.percentage}}%</div>
+                <div class="status-indicator" [ngClass]="getFillerWordClass()">
+                  {{getFillerWordStatus()}}
+                </div>
+              </div>
+              <p class="data-description">
+                Of your words are fillers. The average speaker uses 5-6% filler words.
+              </p>
+            </div>
+            
+            <div class="data-details">
+              <h4>Your most common filler words:</h4>
+              <ul class="top-filler-words">
+                <li *ngFor="let word of getTopFillerWords()">
+                  <span class="word">{{word.word}}</span>
+                  <span class="count">({{word.count}} times)</span>
+                </li>
+                <li *ngIf="getTopFillerWords().length === 0">No filler words detected yet</li>
+              </ul>
+              <div class="total-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Total filler words:</span>
+                  <span class="stat-number">{{fillerWordData.totalFillerWords}}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Total words analyzed:</span>
+                  <span class="stat-number">{{fillerWordData.totalWords}}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

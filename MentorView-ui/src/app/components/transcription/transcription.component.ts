@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { XpService } from '../../services/xp.service';
 import { XpNotificationComponent } from '../xp-notification/xp-notification.component';
 import { createComponent } from '@angular/core';
+import { FillerWordsService } from '../../services/filler-words.service';
 
 declare const faceapi: any;
 
@@ -94,9 +95,19 @@ export class TranscriptionComponent implements OnInit {
         'sort of': 0
     };
     totalFillerWords: number = 0;
+    fillerWordsPercentage: number = 0;
+    totalWordCount: number = 0;
 
     // Injecting ApiService for API calls
-    constructor(private apiService: ApiService, private router: Router, private xpService: XpService, private injector: Injector, private appRef: ApplicationRef, private viewContainerRef: ViewContainerRef) { }
+    constructor(
+        private apiService: ApiService, 
+        private router: Router, 
+        private xpService: XpService, 
+        private injector: Injector, 
+        private appRef: ApplicationRef, 
+        private viewContainerRef: ViewContainerRef,
+        private fillerWordsService: FillerWordsService
+    ) { }
 
     ngOnInit() {
         setTimeout(() => {
@@ -431,7 +442,8 @@ export class TranscriptionComponent implements OnInit {
             feedback: this.rating,
             wpm: this.averageWpm,
             fillerWords: JSON.stringify(this.fillerWords),
-            totalFillerWords: this.totalFillerWords
+            totalFillerWords: this.totalFillerWords,
+            fillerWordsPercentage: this.fillerWordsPercentage
         };
         
         this.apiService.saveInterview(data)
@@ -469,6 +481,10 @@ export class TranscriptionComponent implements OnInit {
         // Convert transcript to lowercase for case-insensitive matching
         const lowerTranscript = this.transcript.toLowerCase();
         
+        // Count total words in transcript (rough approximation)
+        const words = lowerTranscript.split(/\s+/).filter(word => word.length > 0);
+        this.totalWordCount = words.length;
+        
         // Count each filler word
         Object.keys(this.fillerWords).forEach(word => {
             // Use regex to find whole word matches only
@@ -480,8 +496,22 @@ export class TranscriptionComponent implements OnInit {
             }
         });
         
+        // Calculate percentage
+        this.fillerWordsPercentage = this.totalWordCount > 0 
+            ? parseFloat(((this.totalFillerWords / this.totalWordCount) * 100).toFixed(2))
+            : 0;
+            
+        // Save to Firebase
+        this.fillerWordsService.saveFillerWordData(this.fillerWords, this.totalFillerWords, this.totalWordCount)
+            .subscribe({
+                next: () => console.log('Filler word data saved to Firebase'),
+                error: (err) => console.error('Error saving filler word data:', err)
+            });
+        
         console.log('Filler word analysis:', this.fillerWords);
         console.log('Total filler words:', this.totalFillerWords);
+        console.log('Total words:', this.totalWordCount);
+        console.log('Filler words percentage:', this.fillerWordsPercentage + '%');
     }
 
     // Award XP to the user based on their interview rating

@@ -181,6 +181,7 @@ def save_interview():
     wpm = data.get('wpm', 0)
     filler_words = data.get('fillerWords', '{}')
     total_filler_words = data.get('totalFillerWords', 0)
+    filler_words_percentage = data.get('fillerWordsPercentage', 0)
     
     # Validate required fields
     if not all([role, company, question, answer]):
@@ -203,7 +204,8 @@ def save_interview():
             "feedback": feedback,
             "wpm": wpm,
             "fillerWords": filler_words,
-            "totalFillerWords": total_filler_words
+            "totalFillerWords": total_filler_words,
+            "fillerWordsPercentage": filler_words_percentage
         }
         
         # Save to a JSON file
