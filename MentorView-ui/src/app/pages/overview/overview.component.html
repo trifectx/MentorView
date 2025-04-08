@@ -1,0 +1,142 @@
+<div class="overview-container">
+  <header class="overview-header">
+    <div class="header-content">
+      <div class="time-filters">
+        <span class="filter-label">Show data from the last</span>
+        <div class="dropdown-filter">
+          <button class="filter-button">7 days <span class="dropdown-icon">▾</span></button>
+        </div>
+        <span class="filter-label">by</span>
+        <div class="dropdown-filter">
+          <button class="filter-button">all <span class="dropdown-icon">▾</span></button>
+        </div>
+      </div>
+      
+      <div class="date-info">
+        <span class="streak-icon">🔥</span>
+        <span class="streak-text">5 DAY STREAK</span>
+        <span class="date-text">11 March 2025</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="overview-content">
+    <!-- Focus Analytics Section -->
+    <section class="analytics-section">
+      <h2 class="section-title">FOCUS ANALYTICS</h2>
+      
+      <div class="tabs-container">
+        <div class="tabs">
+          <button class="tab-button active">Filler Words</button>
+          <button class="tab-button">Pacing</button>
+          <button class="tab-button">Questions Asked</button>
+          <div class="spacer"></div>
+          <div class="focus-selector">
+            <button class="focus-button">
+              <span class="info-icon">i</span>
+              Choose a focus
+            </button>
+          </div>
+        </div>
+        
+        <div class="tab-content">
+          <!-- No Data State - Show only when no data is available -->
+          <div *ngIf="!fillerWordData" class="no-data-container">
+            <div class="no-data-icon">📊</div>
+            <h3 class="no-data-title">No data yet!</h3>
+            <p class="no-data-text">Practice now for 30 seconds to get an initial diagnostic on your filler words.</p>
+            <button class="practice-button">Practice Now</button>
+          </div>
+          
+          <!-- Data Available State -->
+          <div *ngIf="fillerWordData" class="filler-words-data">
+            <div class="data-header">
+              <h3 class="data-title">Filler Word Analysis</h3>
+              <div class="data-stats">
+                <div class="stat-value">{{fillerWordData.percentage}}%</div>
+                <div class="status-indicator" [ngClass]="getFillerWordClass()">
+                  {{getFillerWordStatus()}}
+                </div>
+              </div>
+              <p class="data-description">
+                Of your words are fillers. The average speaker uses 5-6% filler words.
+              </p>
+            </div>
+            
+            <div class="data-details">
+              <h4>Your most common filler words:</h4>
+              <ul class="top-filler-words">
+                <li *ngFor="let word of getTopFillerWords()">
+                  <span class="word">{{word.word}}</span>
+                  <span class="count">({{word.count}} times)</span>
+                </li>
+                <li *ngIf="getTopFillerWords().length === 0">No filler words detected yet</li>
+              </ul>
+              <div class="total-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Total filler words:</span>
+                  <span class="stat-number">{{fillerWordData.totalFillerWords}}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Total words analyzed:</span>
+                  <span class="stat-number">{{fillerWordData.totalWords}}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Insights Section -->
+    <section class="insights-section">
+      <h2 class="section-title">INSIGHTS</h2>
+      
+      <div class="insights-grid">
+        <div class="insight-card">
+          <h3 class="insight-title">See how you tend to start your sentences</h3>
+          <button class="insight-action">Start Yoodlin' to find out</button>
+        </div>
+        
+        <div class="insight-card">
+          <h3 class="insight-title">Who's your celeb speaking match?</h3>
+          <button class="insight-action">Start Yoodlin' to find out</button>
+        </div>
+        
+        <div class="insight-card">
+          <h3 class="insight-title">Get private, real-time coaching during your online meetings</h3>
+          <button class="insight-action">Download the Yoodli desktop app</button>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Performance Stats -->
+    <section class="performance-section">
+      <h2 class="section-title">PERFORMANCE STATS</h2>
+      
+      <div class="stats-grid">
+        <div class="stat-card wpm-card">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-info">
+            <h3>Average Speaking Rate</h3>
+            <div class="stat-value">{{ performanceData.averageWpm }} <span class="unit">WPM</span></div>
+            <div class="status-indicator" [ngClass]="getPaceClass()">
+              {{ performanceData.speakingPaceStatus }}
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card score-card">
+          <div class="stat-icon">🏆</div>
+          <div class="stat-info">
+            <h3>Average Interview Score</h3>
+            <div class="stat-value">{{ performanceData.averageScore }}<span class="unit">/10</span></div>
+            <div class="status-indicator" [ngClass]="getScoreClass()">
+              {{ performanceData.averageScore >= 8 ? 'Excellent' : performanceData.averageScore >= 6 ? 'Good' : 'Needs Improvement' }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>

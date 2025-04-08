@@ -1,7 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, ViewChild, Input, OnInit } from '@angular/core';
+import { Component, ElementRef, ViewChild, Input, OnInit, ComponentRef, ApplicationRef, Injector, ViewContainerRef } from '@angular/core';
 import { ApiService } from '../../services/api.service';
 import { InterviewDetails } from '../../shared/types';
+import { Router } from '@angular/router';
+import { XpService } from '../../services/xp.service';
+import { XpNotificationComponent } from '../xp-notification/xp-notification.component';
+import { createComponent } from '@angular/core';
+import { FillerWordsService } from '../../services/filler-words.service';
 
 declare const faceapi: any;
 
@@ -20,7 +25,7 @@ interface FacialDetectionResults {
 @Component({
     selector: 'app-transcription',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, XpNotificationComponent],
     templateUrl: './transcription.component.html',
     styleUrl: './transcription.component.css',
 })
@@ -54,10 +59,55 @@ export class TranscriptionComponent implements OnInit {
         sad: 0,
         surprised: 0
     };
+    
+    // Save interview states
+    loadingSave = false;
+    saveSuccess = false;
+    saveError = '';
+    isSaved = false;
+    savedInterviewId = '';
+    
     private intervalId: any;
 
+    // WPM tracking properties
+    currentWpm: number = 0;
+    wordCount: number = 0;
+    recordingStartTime: number = 0;
+    speechRecognition: any = null;
+    wpmUpdateIntervalId: any = null;
+    wpmHistory: number[] = [];
+    averageWpm: number = 0;
+    recognizedText: string = '';
+    lastProcessedLength: number = 0;
+    
+    // Filler word tracking
+    fillerWords: {[key: string]: number} = {
+        'um': 0,
+        'uh': 0,
+        'like': 0,
+        'you know': 0,
+        'actually': 0,
+        'basically': 0,
+        'literally': 0,
+        'so': 0,
+        'i mean': 0,
+        'kind of': 0,
+        'sort of': 0
+    };
+    totalFillerWords: number = 0;
+    fillerWordsPercentage: number = 0;
+    totalWordCount: number = 0;
+
     // Injecting ApiService for API calls
-    constructor(private apiService: ApiService) { }
+    constructor(
+        private apiService: ApiService, 
+        private router: Router, 
+        private xpService: XpService, 
+        private injector: Injector, 
+        private appRef: ApplicationRef, 
+        private viewContainerRef: ViewContainerRef,
+        private fillerWordsService: FillerWordsService
+    ) { }
 
     ngOnInit() {
         setTimeout(() => {
@@ -136,6 +186,31 @@ export class TranscriptionComponent implements OnInit {
         this.isRecording = true;
         this.showVideos = false;
         this.isFacialRecognitionPaused = true; // Start paused
+        
+        // Reset save state
+        this.isSaved = false;
+        this.saveSuccess = false;
+        this.saveError = '';
+        this.savedInterviewId = '';
+        this.transcript = '';
+        this.rating = '';
+
+        // Reset WPM tracking
+        this.currentWpm = 0;
+        this.wordCount = 0;
+        this.recordingStartTime = Date.now();
+        this.wpmHistory = [];
+        this.averageWpm = 0;
+        this.recognizedText = '';
+        this.lastProcessedLength = 0;
+
+        // Start WPM tracking
+        this.startSpeechRecognition();
+        
+        // Update WPM every second
+        this.wpmUpdateIntervalId = setInterval(() => {
+            this.updateWpm();
+        }, 1000);
 
         console.log('Recording started. Facial recognition is paused.');
 
@@ -197,6 +272,7 @@ export class TranscriptionComponent implements OnInit {
 
             // Set up the onstop event to handle the recording stop and video preparation
             this.mediaRecorder.onstop = () => {
+                console.log('Recording stopped, processing video...');
                 this.videoBlob = new Blob(this.recordedBlobs, { type: 'video/mp4' });
 
                 // Send the recorded video to the server
@@ -204,6 +280,13 @@ export class TranscriptionComponent implements OnInit {
 
                 // Update the recorded video element
                 this.recordVideoElement.src = URL.createObjectURL(this.videoBlob);
+                
+                // Show loading indicators immediately
+                this.loadingTranscript = true;
+                this.transcript = 'Generating transcript...';
+                
+                // The getTranscript will be called from the stop() method
+                // to avoid duplicate calls and race conditions
             };
 
             console.log('Media recorder set up successfully');
@@ -226,10 +309,34 @@ export class TranscriptionComponent implements OnInit {
 
     // Stop recording
     stop() {
+        console.log('Stopping recording...');
         this.mediaRecorder?.stop();
         this.isRecording = false;
         clearInterval(this.intervalId);
+        clearInterval(this.wpmUpdateIntervalId);
+        this.stopSpeechRecognition();
         this.showVideos = true;
+        
+        // Show loading indicator immediately
+        this.loadingTranscript = true;
+        this.transcript = 'Generating transcript...';
+        
+        // Calculate final average WPM
+        if (this.wpmHistory.length > 0) {
+            this.averageWpm = Math.round(
+                this.wpmHistory.reduce((sum, wpm) => sum + wpm, 0) / this.wpmHistory.length
+            );
+        }
+
+        // Give the mediaRecorder.onstop event time to process
+        // then get the transcript automatically
+        console.log('Automatically initiating transcript generation from stop method...');
+        setTimeout(() => {
+            // Ensure we only call getTranscript if recording has definitely stopped
+            if (!this.isRecording) {
+                this.getTranscript();
+            }
+        }, 1000); // Slightly longer timeout to ensure the recording is fully processed
     }
 
     sendToServer() {
@@ -240,17 +347,34 @@ export class TranscriptionComponent implements OnInit {
     }
 
     getTranscript() {
+        console.log('Starting transcript generation process...');
         this.loadingTranscript = true;
-        this.transcript = ''; // Clear previous transcript when starting a new request
+        this.transcript = 'Generating transcript...'; // Show loading message
 
         this.apiService.transcribeVideo()
             .subscribe({
                 next: (response: any) => {
-                    this.transcript = response.transcript || "No transcript available";
-                    this.loadingTranscript = false;
+                    console.log('Transcript API response received:', response);
+                    if (response && response.transcript) {
+                        this.transcript = response.transcript;
+                        console.log('Transcript loaded successfully');
+                        this.loadingTranscript = false;
+                        
+                        // Immediately start rating process without delay
+                        if (this.transcript && this.transcript !== "No transcript available") {
+                            console.log('Automatically starting rating process...');
+                            // Start rating process immediately
+                            this.getRating();
+                        }
+                    } else {
+                        this.transcript = "No transcript available";
+                        console.warn('Empty or invalid transcript response');
+                        this.loadingTranscript = false;
+                    }
                 },
                 error: (error: any) => {
-                    this.transcript = error.error?.error || "Error occurred while fetching the transcript";
+                    console.error('Error fetching transcript:', error);
+                    this.transcript = "Error occurred while fetching the transcript. Please try again.";
                     this.loadingTranscript = false;
                 }
             });
@@ -260,12 +384,28 @@ export class TranscriptionComponent implements OnInit {
         this.loadingRating = true;
         this.rating = ''; // Clear previous rating when starting a new request
 
+        // Calculate final WPM statistics if not already done
+        if (this.isRecording) {
+            this.stopSpeechRecognition();
+            if (this.wpmHistory.length > 0) {
+                this.averageWpm = Math.round(
+                    this.wpmHistory.reduce((sum, wpm) => sum + wpm, 0) / this.wpmHistory.length
+                );
+            }
+        }
+        
+        // Analyze filler words in the transcript
+        this.analyzeFillerWords();
+
         const data = {
             role: this.interviewDetails.role,
             company: this.interviewDetails.company,
             style: this.interviewDetails.style,
             transcript: this.transcript,
-            question: this.interviewDetails.question
+            question: this.interviewDetails.question,
+            wpm: this.averageWpm,
+            fillerWords: this.fillerWords,
+            totalFillerWords: this.totalFillerWords
         };
 
         console.log(data);
@@ -273,8 +413,12 @@ export class TranscriptionComponent implements OnInit {
         this.apiService.rateAnswer(data)
             .subscribe({
                 next: (response: any) => {
+                    console.log('Got rating response:', response);
                     this.rating = response.feedback;
                     this.loadingRating = false;
+                    
+                    // Extract rating score for XP award
+                    this.awardXPForInterview(this.rating, this.interviewDetails.question, this.interviewDetails.style);
                 },
                 error: (error) => {
                     console.error('Error getting rating:', error);
@@ -282,5 +426,219 @@ export class TranscriptionComponent implements OnInit {
                     this.rating = 'Error getting feedback. Please try again.';
                 }
             });
+    }
+    
+    saveInterview() {
+        this.loadingSave = true;
+        this.saveSuccess = false;
+        this.saveError = '';
+        
+        const data = {
+            role: this.interviewDetails.role,
+            company: this.interviewDetails.company,
+            style: this.interviewDetails.style,
+            question: this.interviewDetails.question,
+            transcript: this.transcript,
+            feedback: this.rating,
+            wpm: this.averageWpm,
+            fillerWords: JSON.stringify(this.fillerWords),
+            totalFillerWords: this.totalFillerWords,
+            fillerWordsPercentage: this.fillerWordsPercentage
+        };
+        
+        this.apiService.saveInterview(data)
+            .subscribe({
+                next: (response) => {
+                    this.loadingSave = false;
+                    this.saveSuccess = true;
+                    this.isSaved = true;
+                    this.savedInterviewId = response.id;
+                    
+                    // Show success message for 3 seconds then navigate to saved interviews
+                    setTimeout(() => {
+                        this.saveSuccess = false; // Hide success message
+                        this.router.navigate(['/saved-interviews']);
+                    }, 3000);
+                },
+                error: (error) => {
+                    console.error('Error saving interview:', error);
+                    this.loadingSave = false;
+                    this.saveError = error.error?.error || 'Failed to save interview. Please try again.';
+                }
+            });
+    }
+
+    // Analyze filler words in the transcript
+    private analyzeFillerWords() {
+        if (!this.transcript) return;
+        
+        // Reset filler word counts
+        Object.keys(this.fillerWords).forEach(word => {
+            this.fillerWords[word] = 0;
+        });
+        this.totalFillerWords = 0;
+        
+        // Convert transcript to lowercase for case-insensitive matching
+        const lowerTranscript = this.transcript.toLowerCase();
+        
+        // Count total words in transcript (rough approximation)
+        const words = lowerTranscript.split(/\s+/).filter(word => word.length > 0);
+        this.totalWordCount = words.length;
+        
+        // Count each filler word
+        Object.keys(this.fillerWords).forEach(word => {
+            // Use regex to find whole word matches only
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            const matches = lowerTranscript.match(regex);
+            if (matches) {
+                this.fillerWords[word] = matches.length;
+                this.totalFillerWords += matches.length;
+            }
+        });
+        
+        // Calculate percentage
+        this.fillerWordsPercentage = this.totalWordCount > 0 
+            ? parseFloat(((this.totalFillerWords / this.totalWordCount) * 100).toFixed(2))
+            : 0;
+            
+        // Save to Firebase
+        this.fillerWordsService.saveFillerWordData(this.fillerWords, this.totalFillerWords, this.totalWordCount)
+            .subscribe({
+                next: () => console.log('Filler word data saved to Firebase'),
+                error: (err) => console.error('Error saving filler word data:', err)
+            });
+        
+        console.log('Filler word analysis:', this.fillerWords);
+        console.log('Total filler words:', this.totalFillerWords);
+        console.log('Total words:', this.totalWordCount);
+        console.log('Filler words percentage:', this.fillerWordsPercentage + '%');
+    }
+
+    // Award XP to the user based on their interview rating
+    private async awardXPForInterview(feedback: string, question: string, interviewStyle: string): Promise<void> {
+        // Extract the rating score from the feedback (1-10)
+        // Updated regex to handle decimal ratings (e.g., 6.5/10)
+        const ratingRegex = /score:\s*(\d+(?:\.\d+)?)\/10|(\d+(?:\.\d+)?)\s*\/\s*10/i;
+        const match = feedback.match(ratingRegex);
+        
+        if (match) {
+            // Get the rating number from the match
+            const rating = parseFloat(match[1] || match[2]);
+            
+            if (!isNaN(rating) && rating >= 1 && rating <= 10) {
+                // Calculate difficulty modifier based on the question and interview style
+                const difficultyModifier = this.xpService.calculateDifficultyModifier(question, interviewStyle);
+                
+                try {
+                    // Award XP based on the rating and difficulty
+                    const newTotalXP = await this.xpService.awardInterviewXP(rating, difficultyModifier);
+                    console.log(`Awarded XP for interview! Rating: ${rating}, Difficulty: ${difficultyModifier.toFixed(2)}, New Total XP: ${newTotalXP}`);
+                    
+                    // Show XP notification (could expand this to a more detailed UI notification)
+                    this.showXPAwardNotification(rating, difficultyModifier);
+                } catch (error) {
+                    console.error('Error awarding XP:', error);
+                }
+            } else {
+                console.warn('Invalid rating extracted from feedback:', rating);
+            }
+        } else {
+            console.warn('Could not extract rating from feedback');
+        }
+    }
+    
+    // Show a notification when XP is awarded
+    private showXPAwardNotification(rating: number, difficultyModifier: number): void {
+        const xpAwarded = Math.round(rating * 10 * difficultyModifier);
+        
+        // Create the notification component dynamically
+        const notificationComponent = createComponent(XpNotificationComponent, {
+            environmentInjector: this.appRef.injector,
+            elementInjector: this.injector
+        });
+        
+        // Set the input properties
+        notificationComponent.instance.xpAmount = xpAwarded;
+        notificationComponent.instance.rating = rating;
+        notificationComponent.instance.difficulty = difficultyModifier;
+        
+        // Add to the DOM
+        document.body.appendChild(notificationComponent.location.nativeElement);
+        
+        // Detect changes to show the component
+        notificationComponent.changeDetectorRef.detectChanges();
+        
+        // Remove the component after animation completes
+        setTimeout(() => {
+            document.body.removeChild(notificationComponent.location.nativeElement);
+            notificationComponent.destroy();
+        }, 5500); // 5.5 seconds (5s display + 0.5s for animation)
+    }
+
+    // WPM tracking methods
+    private startSpeechRecognition() {
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+            // Use the appropriate speech recognition API
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            this.speechRecognition = new SpeechRecognition();
+            
+            // Configure speech recognition
+            this.speechRecognition.continuous = true;
+            this.speechRecognition.interimResults = true;
+            this.speechRecognition.lang = 'en-US';
+            
+            // Handle speech recognition results
+            this.speechRecognition.onresult = (event: any) => {
+                let transcript = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                this.recognizedText = transcript;
+                
+                // Count new words since last update
+                const words = this.recognizedText.trim().split(/\s+/);
+                const newWordCount = words.length;
+                
+                // Update word count if we have new words
+                if (newWordCount > this.lastProcessedLength) {
+                    this.wordCount += (newWordCount - this.lastProcessedLength);
+                    this.lastProcessedLength = newWordCount;
+                }
+            };
+            
+            // Handle errors
+            this.speechRecognition.onerror = (event: any) => {
+                console.error('Speech recognition error:', event.error);
+            };
+            
+            // Start recognition
+            this.speechRecognition.start();
+            console.log('Speech recognition started for WPM tracking');
+        } else {
+            console.error('Speech recognition not supported in this browser');
+        }
+    }
+    
+    private stopSpeechRecognition() {
+        if (this.speechRecognition) {
+            this.speechRecognition.stop();
+            this.speechRecognition = null;
+            console.log('Speech recognition stopped');
+        }
+    }
+    
+    private updateWpm() {
+        if (!this.isRecording) return;
+        
+        const elapsedMinutes = (Date.now() - this.recordingStartTime) / 60000;
+        if (elapsedMinutes > 0) {
+            this.currentWpm = Math.round(this.wordCount / elapsedMinutes);
+            this.wpmHistory.push(this.currentWpm);
+            
+            // Calculate running average
+            this.averageWpm = Math.round(
+                this.wpmHistory.reduce((sum, wpm) => sum + wpm, 0) / this.wpmHistory.length
+            );
+        }
     }
 }

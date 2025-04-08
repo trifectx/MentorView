@@ -20,68 +20,148 @@ class Model:
     
 
     def construct_prompt_for_questions(self, role, company, style):
+        # Check the interview style and use the appropriate prompt generator
+        if style == "assessment":
+            return self.construct_prompt_for_assessment_centre(role, company)
+        else:
+            return self.construct_prompt_for_interview_questions(role, company, style)
+    
+    def construct_prompt_for_interview_questions(self, role, company, style):
+        """
+        Constructs a prompt for generating typical job interview questions.
+        """
         return [
             {
                 "role": "system",
-                "content": "You are an expert interviewer creating interview questions."
+                "content": "You are an expert recruiter who designs interview questions specific to job roles and company cultures."
             },
             {
                 "role": "user",
                 "content": f"""
-                Create interview questions for a {role} position at {company}.
-                The interview style selected is: {style}
+                Create 5 realistic interview questions for a {role} position at {company} with a {style} interview style.
+                
+                Make sure the questions:
+                1. Are specific to the {role} position
+                2. Reflect {company}'s industry and values
+                3. Follow a {style} interview format
+                4. Cover a mix of technical, behavioral, and situational aspects relevant to the role
+                5. Are challenging but fair
+                
+                Format each question as a numbered list item.
+                
+                For example:
+                1. [Interview Question 1]
+                2. [Interview Question 2]
+                3. [Interview Question 3]
+                ...
+                """
+            }
+        ]
 
-                Based on the style:
-                - Technical Interview: Focus on technical skills, problem-solving, and domain knowledge
-                - Behavioral Interview: Focus on past experiences, soft skills, and how candidates handled situations
-                - Cultural Interview: Focus on values alignment, team fit, and company culture
-                - Situational Interview: Present hypothetical scenarios to assess decision-making
+    def construct_prompt_for_assessment_centre(self, role, company):
+        """
+        Constructs a prompt specifically for assessment centre group tasks.
+        """
+        return [
+            {
+                "role": "system",
+                "content": "You are an expert recruiter who designs assessment centre group exercises for evaluating multiple candidates simultaneously."
+            },
+            {
+                "role": "user",
+                "content": f"""
+                Create 1 group assessment task for {role} candidates at {company}.
 
-                Generate 5 thoughtful interview questions tailored to this specific role, company, and interview style.
-                Format each question on a new line with a number.
+                Format the task EXACTLY as follows:
+                
+                Scenario:
+                [Describe a realistic workplace scenario relevant to {role} at {company} that involves group decision-making or problem-solving]
+                
+                Instructions:
+                [List 3-5 clear, step-by-step instructions for the group to follow]
+                [Include specific roles or perspectives each participant should take]
+                [Include a deliverable or outcome the group must produce]
+                [Specify a timeframe (between 10-30 minutes)]
+                
+                THE FORMAT MUST BE EXACTLY LIKE THIS EXAMPLE:
+                
+                Scenario:
+                Your group has been given a limited budget and must decide how to distribute it among several departmental initiatives (e.g., marketing, research and development, staffing). Each participant represents a different department, and all believe their department should receive the most funding.
+
+                Instructions:
+                Discuss and list the key priorities of the organization (e.g., growth, innovation, customer retention).
+                Present your department's case for funding.
+                Negotiate with the other "departments" in the group to reach a consensus on the final budget allocation.
+                Prepare a short presentation explaining your group's final decision to the assessors.
+                
+                Generate a unique, engaging scenario with instructions relevant to {role} at {company}.
+                Make the scenario test various competencies (leadership, teamwork, communication, problem-solving, decision-making).
                 """
             }
         ]
     
     def clean_question(self, question):
-        # Remove any existing numbering and extra whitespace
-        cleaned = re.sub(r'^\d+\.?\s*', '', question.strip())
-        # Remove any other dots at the start
-        cleaned = re.sub(r'^\.*\s*', '', cleaned)
-        return cleaned
-
+        # For assessment centre questions, preserve the formatting
+        if "Scenario:" in question and "Instructions:" in question:
+            # Split the question into scenario and instructions
+            parts = question.split("Instructions:")
+            if len(parts) == 2:
+                scenario = parts[0].strip()
+                instructions = parts[1].strip()
+                
+                # Format exactly according to the template
+                formatted_question = f"{scenario}\n\nInstructions:\n{instructions}"
+                return formatted_question
+        
+        # Remove any numbering (e.g., "1.", "Question 1:") at the beginning of the question
+        cleaned = re.sub(r'^(\d+\.|\d+\)|\[Question \d+\]:|Question \d+:)\s*', '', question.strip())
+        return cleaned.strip()
+        
     def get_questions_from_model(self, role, company, style):
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name, 
-                messages=self.construct_prompt_for_questions(role, company, style),
-                max_tokens=5000,
-                temperature=0.7,
-                stream=False
-            )
+        response = self.client.chat.completions.create(
+            model=self.model_name, 
+            messages=self.construct_prompt_for_questions(role, company, style),
+            max_tokens=5000,
+            temperature=0.7,
+            stream=False
+        )
+        
+        content = response.choices[0].message.content
+        
+        # Check if this is an assessment centre question with the expected format
+        if "Scenario:" in content and "Instructions:" in content:
+            return [self.clean_question(content)]
+        else:
+            # Parse regular interview questions
+            # Split by numbered patterns (1., 2., etc.) or double newlines
+            questions_raw = re.split(r'\n\d+\.|\n\d+\)|\n\n', content)
+            questions_raw = [q for q in questions_raw if q.strip()]
             
-            # Extract content from the response
-            content = response.choices[0].message.content
+            # If the split didn't work, try another approach
+            if len(questions_raw) <= 1:
+                questions_raw = re.split(r'(?:\d+\.|\d+\)|\n\n)', content)
+                questions_raw = [q for q in questions_raw if q.strip()]
             
-            # Split the response into individual questions
-            raw_questions = [q.strip() for q in content.split('\n') if q.strip()]
-            
-            # Filter out any non-question lines and clean the questions
-            questions = []
-            for line in raw_questions:
-                # Check if line starts with a number or looks like a question
-                if re.match(r'^\d+\.', line) or '?' in line:
-                    questions.append(self.clean_question(line))
-            
-            # Ensure we return at most 5 questions
-            return questions[:5]
-            
-        except Exception as e:
-            print(f"Error in get_questions_from_model: {str(e)}")
-            return "Error generating questions. Please try again."
+            # Clean each question and return up to 5
+            cleaned_questions = [self.clean_question(q) for q in questions_raw]
+            return cleaned_questions[:5] if cleaned_questions else ["Failed to generate questions. Please try again."]
 
-
-    def construct_prompt_for_feedback(self, role, company, question, answer):
+    def construct_prompt_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0):
+        # Prepare filler word analysis for the prompt
+        filler_word_analysis = ""
+        if total_filler_words > 0:
+            filler_word_analysis = "\nFiller Word Analysis:\n"
+            for word, count in filler_words.items():
+                if count > 0:
+                    filler_word_analysis += f"- '{word}': {count} times\n"
+            filler_word_analysis += f"Total filler words: {total_filler_words}\n"
+        
+        # Prepare WPM analysis
+        wpm_analysis = ""
+        if wpm > 0:
+            wpm_status = "too slow" if wpm < 120 else "too fast" if wpm > 160 else "optimal"
+            wpm_analysis = f"\nSpeaking Pace Analysis:\n- Words Per Minute (WPM): {wpm} ({wpm_status})\n"
+        
         return [
             {
                 "role": "system",
@@ -97,22 +177,25 @@ class Model:
                 Question: {question}
                 
                 Candidate's Answer: {answer}
-                
+                {wpm_analysis}{filler_word_analysis}
                 Please evaluate this answer and provide:
-                1. Overall assessment (score out of 10)
-                2. Strengths of the answer
-                3. Areas for improvement
-                4. Suggestions for a better response
+                1. Overall assessment (score out of 10 and in the format "Score: 8/10")
+                2. Content strengths of the answer
+                3. Areas for improvement in content and delivery
+                4. Language quality (comment on filler word usage and suggestions to reduce them)
+                5. Speaking pace evaluation (comment on the WPM and whether it's appropriate)
+                6. Suggestions for a better response
+                
+                Format your response with clear section headers for each of the above points.
                 """
             }
         ]
-         
-    
-    def query_model_for_feedback(self, role, company, question, answer):
+
+    def query_model_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0):
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self.construct_prompt_for_feedback(role, company, question, answer), 
+                messages=self.construct_prompt_for_feedback(role, company, question, answer, wpm, filler_words, total_filler_words), 
                 max_tokens=2000,  
                 temperature=0.7,   
                 stream=False

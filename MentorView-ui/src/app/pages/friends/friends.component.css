@@ -1,0 +1,263 @@
+/* Friends Container */
+.friends-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+  color: #ffffff;
+  padding-bottom: 40px;
+}
+
+/* Header */
+.friends-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.page-title {
+  font-size: 24px;
+  margin: 0;
+}
+
+/* Tabs */
+.tabs-container {
+  padding: 24px 40px 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  font-size: 16px;
+  padding: 12px 16px;
+  position: relative;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.tab-button:hover {
+  color: #ffffff;
+}
+
+.tab-button.active {
+  color: rgb(41, 121, 255);
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: rgb(41, 121, 255);
+  border-radius: 2px 2px 0 0;
+}
+
+/* Content */
+.friends-content {
+  padding: 32px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 20px;
+  margin-bottom: 24px;
+  color: #ffffff;
+}
+
+/* User Grid */
+.users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.user-card {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.user-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: rgb(41, 121, 255);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-name {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #ffffff;
+}
+
+.user-email, .user-status {
+  margin: 0;
+  font-size: 14px;
+  color: #b3b3b3;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.add-button, .accept-button {
+  background-color: rgb(41, 121, 255);
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex: 1;
+}
+
+.add-button:hover, .accept-button:hover {
+  background-color: rgb(20, 100, 245);
+}
+
+.remove-button, .reject-button {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex: 1;
+}
+
+.remove-button:hover, .reject-button:hover {
+  background-color: rgba(255, 60, 60, 0.8);
+}
+
+.pending-button, .friend-button {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #b3b3b3;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: default;
+  flex: 1;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 48px 0;
+  color: #b3b3b3;
+}
+
+/* Request Sections */
+.requests-section {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.requests-section h3 {
+  font-size: 18px;
+  color: #ffffff;
+  margin: 0 0 16px;
+}
+
+/* Loading Spinner */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: rgb(41, 121, 255);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Fade Slide In Animation */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-content {
+  animation: fadeSlideIn 0.3s ease-out;
+}

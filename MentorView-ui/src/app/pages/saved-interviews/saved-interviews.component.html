@@ -1,0 +1,148 @@
+<div class="saved-interviews-container">
+  <div class="page-header">
+    <h1>Saved Interviews</h1>
+    <div class="action-buttons">
+      <ng-container *ngIf="!selectionMode">
+        <button class="btn btn-primary" (click)="goToInterviewPage()">
+          <i class="material-icons">add</i> New Interview
+        </button>
+        <button class="btn btn-secondary" (click)="toggleSelectionMode()" *ngIf="savedInterviews.length > 0">
+          <i class="material-icons">check_circle_outline</i> Select
+        </button>
+      </ng-container>
+      
+      <ng-container *ngIf="selectionMode">
+        <button class="btn btn-danger" [disabled]="getSelectedCount() === 0" (click)="deleteSelectedInterviews()">
+          <i class="material-icons">delete</i> Delete ({{getSelectedCount()}})
+        </button>
+        <button class="btn btn-secondary" (click)="toggleSelectionMode()">
+          <i class="material-icons">cancel</i> Cancel
+        </button>
+      </ng-container>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading your saved interviews...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="error-container">
+    <i class="material-icons">error</i>
+    <p>{{ error }}</p>
+    <button class="btn btn-secondary" (click)="loadSavedInterviews()">
+      <i class="material-icons">refresh</i> Try Again
+    </button>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && !error && savedInterviews.length === 0" class="empty-container">
+    <i class="material-icons">video_library</i>
+    <h2>No Saved Interviews</h2>
+    <p>Complete an interview and save it to see it here.</p>
+    <button class="btn btn-primary" (click)="goToInterviewPage()">
+      <i class="material-icons">play_arrow</i> Start an Interview
+    </button>
+  </div>
+
+  <!-- Interviews List -->
+  <div *ngIf="!loading && !error && savedInterviews.length > 0" class="interviews-list">
+    <div class="interview-card" *ngFor="let interview of savedInterviews" (click)="viewInterview(interview, $event)">
+      <!-- Selection circle button -->
+      <div class="select-circle" *ngIf="selectionMode" (click)="toggleInterviewSelection(interview.id)" 
+           [class.selected]="isInterviewSelected(interview.id)">
+        <i class="material-icons" *ngIf="isInterviewSelected(interview.id)">check</i>
+      </div>
+      
+      <div class="interview-header">
+        <h3>{{ interview.role }} at {{ interview.company }}</h3>
+        <span class="interview-date">{{ formatDate(interview.date) }}</span>
+      </div>
+      <div class="interview-score">
+        <span class="label">Score:</span>
+        <span class="score-value">{{ extractScore(interview.feedback) }}</span>
+      </div>
+      <div class="interview-question">
+        <span class="label">Question:</span>
+        <p>{{ interview.question }}</p>
+      </div>
+      <div class="interview-style">
+        <span class="label">Style:</span>
+        <span class="tag">{{ interview.style }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interview Details Modal -->
+  <div *ngIf="selectedInterview" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Interview Details</h2>
+        <button class="close-btn" (click)="closeDetails()">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="interview-info">
+          <h3>{{ selectedInterview.role }} at {{ selectedInterview.company }}</h3>
+          <p class="interview-date">{{ formatDate(selectedInterview.date) }}</p>
+          <span class="tag">{{ selectedInterview.style }}</span>
+        </div>
+        
+        <!-- Video Player Section -->
+        <div class="section video-section">
+          <h4>Interview Recording</h4>
+          <div class="video-container">
+            <video 
+              #videoPlayer 
+              class="interview-video" 
+              controls 
+              [src]="getStreamUrl(selectedInterview.id)" 
+              muted 
+              preload="metadata"
+            ></video>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h4>Question</h4>
+          <p>{{ selectedInterview.question }}</p>
+        </div>
+        
+        <div class="section">
+          <h4>Your Answer</h4>
+          <div class="transcript">
+            <p>{{ selectedInterview.answer }}</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Feedback</h4>
+          <div class="feedback-content">
+            <p>{{ selectedInterview.feedback }}</p>
+          </div>
+        </div>
+        
+        <div class="section download-section">
+          <h4>Download</h4>
+          <a [href]="getDownloadUrl(selectedInterview.id)" class="btn btn-download" download>
+            <i class="material-icons">download</i> Download Interview Video
+          </a>
+          <p class="download-note">The video will be saved to your computer's default download location.</p>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn btn-primary" (click)="reattemptInterview(selectedInterview)">
+          <i class="material-icons">replay</i> Reattempt Interview
+        </button>
+        <button class="btn btn-secondary" (click)="closeDetails()">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

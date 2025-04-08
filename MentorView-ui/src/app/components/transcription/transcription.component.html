@@ -18,22 +18,23 @@
         ></video>
     </div>
     <div class="controls-container">
-        <button class="btn btn-success" (click)="start()" [disabled]="isRecording">
-            <i class="material-icons">videocam</i> Start Recording
+        <button class="control-btn record-btn" (click)="start()" [disabled]="isRecording">
+            <i class="material-icons">videocam</i>
+            <span>Record</span>
         </button>
-        <button class="btn btn-warning" (click)="stop()" [disabled]="!isRecording">
-            <i class="material-icons">stop</i> Stop Recording
+        <button class="control-btn stop-btn" (click)="stop()" [disabled]="!isRecording">
+            <i class="material-icons">stop</i>
+            <span>Stop</span>
         </button>
         <button 
-            class="btn" 
-            [class.btn-primary]="isFacialRecognitionPaused"
-            [class.btn-info]="!isFacialRecognitionPaused"
+            class="control-btn facial-btn" 
+            [class.active]="!isFacialRecognitionPaused"
             (click)="toggleFacialRecognition()" 
             [disabled]="!isRecording"
             [title]="isFacialRecognitionPaused ? 'Start facial recognition' : 'Pause facial recognition'"
         >
             <i class="material-icons">face</i>
-            {{ isFacialRecognitionPaused ? 'Start Facial Recognition' : 'Pause Facial Recognition' }}
+            <span>{{ isFacialRecognitionPaused ? 'Face Analysis' : 'Pause Analysis' }}</span>
         </button>
     </div>
 </div>
@@ -53,17 +54,39 @@
     </div>
     
     <div class="controls-container">
-        <button class="btn btn-info" (click)="getTranscript()">
-            <i class="material-icons">description</i> Get Transcript
-        </button>
-
         <button
-            class="btn btn-secondary"
+            class="control-btn rating-btn"
             (click)="getRating()"
             *ngIf="!loadingTranscript && transcript"
         >
-            <i class="material-icons">star_rate</i> Get Rating
+            <i class="material-icons">star_rate</i>
+            <span>Get Rating</span>
         </button>
+        
+        <button
+            class="control-btn save-btn"
+            (click)="saveInterview()"
+            *ngIf="!loadingSave && !loadingRating && rating"
+            [disabled]="isSaved"
+        >
+            <i class="material-icons">save</i>
+            <span>{{ isSaved ? 'Saved' : 'Save Interview' }}</span>
+        </button>
+        
+        <div *ngIf="loadingSave" class="save-status loading">
+            <div class="spinner"></div>
+            <p>Saving your interview...</p>
+        </div>
+        
+        <div *ngIf="saveSuccess" class="save-status success">
+            <i class="material-icons">check_circle</i>
+            <p>Interview saved successfully!</p>
+        </div>
+        
+        <div *ngIf="saveError" class="save-status error">
+            <i class="material-icons">error</i>
+            <p>{{ saveError }}</p>
+        </div>
     </div>
 
     <!-- Transcript Display Section -->
@@ -75,6 +98,6 @@
     <!-- Rating Display Section -->
     <div *ngIf="loadingRating || rating" class="result-section">
         <h3 class="result-title">Rating:</h3>
-        <pre class="transcript-text">{{ loadingRating ? "Loading rating..." : rating || "No rating available" }}</pre>
+        <pre class="rating-text">{{ loadingRating ? "Loading rating..." : rating || "No rating available" }}</pre>
     </div>
 </div>

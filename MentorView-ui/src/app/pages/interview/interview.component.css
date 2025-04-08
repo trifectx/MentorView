@@ -327,26 +327,46 @@ select.question-select option {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 0;
+  justify-content: center;
+  padding: 30px 0;
+  background-color: rgba(26, 26, 26, 0.5);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin: 20px 0;
+  min-height: 180px;
 }
 
 .spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid rgba(41, 121, 255, 0.3);
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(41, 121, 255, 0.3);
   border-top-color: rgb(41, 121, 255);
   border-radius: 50%;
-  animation: spinner 0.8s linear infinite;
-  margin-bottom: 12px;
+  animation: spinner 1s linear infinite;
+  margin-bottom: 16px;
+  box-shadow: 0 0 10px rgba(41, 121, 255, 0.5);
 }
 
 .loading-questions p {
-  font-size: 14px;
-  color: #b3b3b3;
+  font-size: 16px;
+  color: #ffffff;
+  text-align: center;
+  font-weight: 500;
 }
 
 @keyframes spinner {
   to { transform: rotate(360deg); }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Right content area */
@@ -357,6 +377,87 @@ select.question-select option {
   flex-direction: column;
   overflow-y: auto;
   background-color: rgba(26, 26, 26, 0.8);
+}
+
+/* Interview header with level indicator */
+.interview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background-color: #1e293b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.navigation-buttons {
+  display: flex;
+  align-items: center;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.back-button i {
+  margin-right: 6px;
+  font-size: 18px;
+}
+
+/* Small back button in the top-left corner */
+.back-button-small {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(26, 31, 46, 0.9);
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  transition: all 0.2s ease;
+}
+
+.back-button-small:hover {
+  background-color: rgba(74, 0, 224, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.back-button-small i {
+  font-size: 20px;
+}
+
+/* Media query for responsiveness */
+@media (max-width: 768px) {
+  .back-button-small {
+    top: 10px;
+    left: 10px;
+    width: 32px;
+    height: 32px;
+  }
+  
+  .back-button-small i {
+    font-size: 18px;
+  }
 }
 
 /* Responsive adjustments */

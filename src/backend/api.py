@@ -1,10 +1,16 @@
 import os
+import json
+import uuid
+import time
+import random
+import string
+import tempfile
+from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from moviepy import VideoFileClip
 import torch
 from openai import OpenAI
-from dotenv import load_dotenv
 from deepgram import DeepgramClient, PrerecordedOptions
 from model.model import Model
 
@@ -26,6 +32,11 @@ print("CUDA is available?", torch.cuda.is_available())
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 video_path = os.path.join(BASE_DIR, "video.mp4")
 audio_path = os.path.join(BASE_DIR, "audio.mp3")
+
+# Create a directory for saved interviews if it doesn't exist
+saved_interviews_dir = os.path.join(BASE_DIR, "saved_interviews")
+if not os.path.exists(saved_interviews_dir):
+    os.makedirs(saved_interviews_dir)
 
 app = Flask(__name__)
 transcript = ""
@@ -133,6 +144,9 @@ def query():
     role = data.get('role', '')
     company = data.get('company', '')
     question = data.get('question', '')
+    wpm = data.get('wpm', 0)
+    filler_words = data.get('fillerWords', {})
+    total_filler_words = data.get('totalFillerWords', 0)
     
     # Check if required fields are present
     if not all([role, company, question, transcript]):
@@ -140,11 +154,243 @@ def query():
 
     # Send the input data to the model
     try:
-        feedback = model.query_model_for_feedback(role=role, company=company, question=question, answer=transcript)
+        feedback = model.query_model_for_feedback(
+            role=role, 
+            company=company, 
+            question=question, 
+            answer=transcript, 
+            wpm=wpm, 
+            filler_words=filler_words, 
+            total_filler_words=total_filler_words
+        )
         return jsonify({"feedback": feedback}), 200
     except Exception as e:
         return jsonify({"error": f"Error during query: {str(e)}"}), 500
     
+
+# Save interview
+@app.route('/save_interview', methods=['POST'])
+def save_interview():
+    data = request.get_json()
+    role = data.get('role', '')
+    company = data.get('company', '')
+    question = data.get('question', '')
+    answer = data.get('transcript', '')
+    feedback = data.get('feedback', '')
+    interview_style = data.get('style', '')
+    wpm = data.get('wpm', 0)
+    filler_words = data.get('fillerWords', '{}')
+    total_filler_words = data.get('totalFillerWords', 0)
+    filler_words_percentage = data.get('fillerWordsPercentage', 0)
+    
+    # Validate required fields
+    if not all([role, company, question, answer]):
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    try:
+        # Create a unique ID based on timestamp
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        interview_id = f"{timestamp}"
+        
+        # Create the interview data structure
+        interview_data = {
+            "id": interview_id,
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "role": role,
+            "company": company,
+            "style": interview_style,
+            "question": question,
+            "answer": answer,
+            "feedback": feedback,
+            "wpm": wpm,
+            "fillerWords": filler_words,
+            "totalFillerWords": total_filler_words,
+            "fillerWordsPercentage": filler_words_percentage
+        }
+        
+        # Save to a JSON file
+        interview_file = os.path.join(saved_interviews_dir, f"{interview_id}.json")
+        with open(interview_file, 'w') as f:
+            json.dump(interview_data, f, indent=2)
+            
+        # Copy the video file if it exists
+        if os.path.exists(video_path):
+            import shutil
+            video_save_path = os.path.join(saved_interviews_dir, f"{interview_id}.mp4")
+            shutil.copy2(video_path, video_save_path)
+            
+        return jsonify({"message": "Interview saved successfully", "id": interview_id}), 200
+    except Exception as e:
+        return jsonify({"error": f"Error saving interview: {str(e)}"}), 500
+
+
+# Get all saved interviews
+@app.route('/saved_interviews', methods=['GET'])
+def get_saved_interviews():
+    try:
+        interviews = []
+        # List all JSON files in the saved_interviews directory
+        for filename in os.listdir(saved_interviews_dir):
+            if filename.endswith('.json'):
+                with open(os.path.join(saved_interviews_dir, filename), 'r') as f:
+                    interview_data = json.load(f)
+                    interviews.append(interview_data)
+                    
+        # Sort interviews by date, newest first
+        interviews.sort(key=lambda x: x.get('date', ''), reverse=True)
+                    
+        return jsonify({"interviews": interviews}), 200
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving saved interviews: {str(e)}"}), 500
+
+
+# Get a specific saved interview by ID
+@app.route('/saved_interviews/<interview_id>', methods=['GET'])
+def get_saved_interview(interview_id):
+    try:
+        interview_file = os.path.join(saved_interviews_dir, f"{interview_id}.json")
+        if not os.path.exists(interview_file):
+            return jsonify({"error": "Interview not found"}), 404
+            
+        with open(interview_file, 'r') as f:
+            interview_data = json.load(f)
+            
+        return jsonify(interview_data), 200
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving interview: {str(e)}"}), 500
+
+
+# Download interview video
+@app.route('/download_interview/<interview_id>', methods=['GET'])
+def download_interview(interview_id):
+    try:
+        video_file = os.path.join(saved_interviews_dir, f"{interview_id}.mp4")
+        
+        if not os.path.exists(video_file):
+            return jsonify({"error": "Interview video not found"}), 404
+            
+        # Get interview data for file naming
+        interview_file = os.path.join(saved_interviews_dir, f"{interview_id}.json")
+        with open(interview_file, 'r') as f:
+            interview_data = json.load(f)
+            
+        # Generate a user-friendly filename
+        role = interview_data.get('role', '').replace(' ', '_')
+        company = interview_data.get('company', '').replace(' ', '_')
+        date_str = interview_data.get('date', '').split(' ')[0]
+        
+        filename = f"Interview_{role}_at_{company}_{date_str}.mp4"
+        
+        # Send the file with the custom filename
+        return send_file(
+            video_file,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='video/mp4'
+        )
+        
+    except Exception as e:
+        return jsonify({"error": f"Error downloading interview video: {str(e)}"}), 500
+
+
+# Get interview video for streaming
+@app.route('/stream_interview/<interview_id>', methods=['GET'])
+def stream_interview(interview_id):
+    try:
+        video_file = os.path.join(saved_interviews_dir, f"{interview_id}.mp4")
+        
+        if not os.path.exists(video_file):
+            return jsonify({"error": "Interview video not found"}), 404
+            
+        # Stream the file without forcing download
+        return send_file(
+            video_file,
+            mimetype='video/mp4'
+        )
+        
+    except Exception as e:
+        return jsonify({"error": f"Error streaming interview video: {str(e)}"}), 500
+
+
+# Update interview details (rename)
+@app.route('/update_interview/<interview_id>', methods=['PUT'])
+def update_interview(interview_id):
+    try:
+        # Check if the interview exists
+        interview_file = os.path.join(saved_interviews_dir, f"{interview_id}.json")
+        video_file = os.path.join(saved_interviews_dir, f"{interview_id}.mp4")
+        
+        if not os.path.exists(interview_file) or not os.path.exists(video_file):
+            return jsonify({"error": "Interview not found"}), 404
+        
+        # Get request data
+        data = request.get_json()
+        
+        # Read existing interview data
+        with open(interview_file, 'r') as f:
+            interview_data = json.load(f)
+        
+        # Update fields provided in the request
+        if 'role' in data:
+            interview_data['role'] = data['role']
+        if 'company' in data:
+            interview_data['company'] = data['company']
+        
+        # Save updated interview data
+        with open(interview_file, 'w') as f:
+            json.dump(interview_data, f)
+        
+        return jsonify({"message": "Interview updated successfully", "id": interview_id}), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Error updating interview: {str(e)}"}), 500
+
+
+# Delete an interview
+@app.route('/delete_interview/<interview_id>', methods=['DELETE'])
+def delete_interview(interview_id):
+    try:
+        # Check if the interview exists
+        interview_file = os.path.join(saved_interviews_dir, f"{interview_id}.json")
+        video_file = os.path.join(saved_interviews_dir, f"{interview_id}.mp4")
+        
+        # Files to delete
+        files_to_delete = [interview_file, video_file]
+        deleted_count = 0
+        
+        # Delete each file if it exists
+        for file_path in files_to_delete:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                deleted_count += 1
+        
+        if deleted_count == 0:
+            return jsonify({"error": "Interview not found"}), 404
+        
+        return jsonify({"message": "Interview deleted successfully"}), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Error deleting interview: {str(e)}"}), 500
+
+
+# API Status endpoint
+@app.route('/status', methods=['GET'])
+def status():
+    try:
+        return jsonify({
+            "status": "ok",
+            "message": "API is running",
+            "timestamp": datetime.now().isoformat(),
+            "transcription_service": "deepgram",
+            "deepgram_api_key_configured": bool(DEEPGRAM_API_KEY)
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 500
+
 
 # Run the app
 if __name__ == '__main__':

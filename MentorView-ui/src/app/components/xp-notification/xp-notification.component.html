@@ -1,0 +1,11 @@
+<div class="xp-notification" *ngIf="isVisible" [@fadeInOut]>
+  <div class="xp-icon">✨</div>
+  <div class="xp-content">
+    <h3 class="xp-title">
+      <span class="xp-amount">+{{ xpAmount }} XP</span>
+    </h3>
+    <p class="xp-details">
+      Rating: {{ rating | number:'1.1-1' }}/10 · Difficulty: {{ difficulty | number:'1.1-1' }}x
+    </p>
+  </div>
+</div>
