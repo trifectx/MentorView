@@ -13,6 +13,7 @@ export interface Stack {
   tags: string;
   company: string;
   interviewStyle: string;
+  description: string;
   createdAt: number;
   questions: Question[];
 }

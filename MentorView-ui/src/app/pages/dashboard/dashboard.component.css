@@ -457,7 +457,7 @@
   color: #b3b3b3;
 }
 
-.form-group input {
+.form-group input, .form-group textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -469,8 +469,13 @@
   transition: border-color 0.2s ease;
 }
 
-.form-group input:focus {
+.form-group input:focus, .form-group textarea:focus {
   border-color: rgb(41, 121, 255);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
 }
 
 .color-selector {
@@ -1132,4 +1137,18 @@
 
 .delete-btn:hover {
   background-color: rgba(244, 67, 54, 0.2);
+}
+
+.stack-description {
+  margin-top: 15px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  line-height: 1.5;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 12px 15px;
+}
+
+.stack-description p {
+  margin: 0;
 }

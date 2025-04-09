@@ -27,7 +27,8 @@ export class DashboardComponent implements OnInit {
     color: 'purple', // Default color
     tags: '',
     company: '',
-    interviewStyle: ''
+    interviewStyle: '',
+    description: ''
   };
 
   // New question properties
@@ -84,7 +85,8 @@ export class DashboardComponent implements OnInit {
       color: 'purple',
       tags: '',
       company: '',
-      interviewStyle: ''
+      interviewStyle: '',
+      description: ''
     };
     this.resetNewQuestion();
     this.newStackQuestions = [];
@@ -140,7 +142,8 @@ export class DashboardComponent implements OnInit {
         color: stack.color,
         tags: stack.tags,
         company: stack.company,
-        interviewStyle: stack.interviewStyle
+        interviewStyle: stack.interviewStyle,
+        description: stack.description
       };
       
       // Add existing questions
