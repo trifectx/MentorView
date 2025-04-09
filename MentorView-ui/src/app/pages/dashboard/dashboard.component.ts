@@ -109,8 +109,21 @@ export class DashboardComponent implements OnInit {
   practiceStack(stackId?: string): void {
     if (!stackId) return;
     
-    // Navigate to practice component with stack ID
-    this.router.navigate(['/practice', stackId]);
+    const stack = this.stacksService.getStack(stackId);
+    if (stack && stack.questions && stack.questions.length > 0) {
+      // Navigate to interview component with stack data
+      // We'll pass the stack ID and encode the questions in the route
+      this.router.navigate(['/interview'], { 
+        queryParams: { 
+          stackId: stackId,
+          mode: 'practice',
+          company: stack.company || 'Practice',
+          style: stack.interviewStyle || 'Technical'
+        }
+      });
+    } else {
+      alert('This stack has no questions to practice. Please add questions first.');
+    }
   }
 
   editStack(stackId?: string): void {

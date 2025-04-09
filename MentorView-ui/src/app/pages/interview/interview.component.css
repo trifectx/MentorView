@@ -486,3 +486,53 @@ select.question-select option {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* Stack Practice Controls */
+.stack-practice-controls {
+  margin: 20px 0;
+  background-color: rgba(98, 0, 234, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.stack-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stack-progress {
+  background-color: rgba(98, 0, 234, 0.1);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.stack-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(98, 0, 234, 0.8);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.stack-nav-btn:hover {
+  background-color: rgba(98, 0, 234, 1);
+  transform: translateY(-2px);
+}
+
+.stack-nav-btn:active {
+  transform: translateY(0);
+}
+
+.stack-nav-btn i {
+  font-size: 18px;
+}

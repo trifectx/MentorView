@@ -11,7 +11,8 @@ import { INTERVIEW_STYLES, ROLES, COMPANIES, InterviewStyle } from '../../compon
 import { ApiService } from '../../services/api.service';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
+import { StacksService } from '../../services/stacks.service';
 
 @Component({
   selector: 'app-interview',
@@ -47,6 +48,11 @@ export class InterviewComponent implements OnInit {
   // Flag to track if this is a reattempt
   isReattempt = false;
   
+  // Flag to track if this is from a stack
+  isFromStack = false;
+  stackId: string | null = null;
+  stackQuestionIndex = 0;
+  
   // Track previous values to detect changes
   private previousCompany: string = '';
   private previousRole: string = '';
@@ -56,7 +62,12 @@ export class InterviewComponent implements OnInit {
   private roleInputSubject = new Subject<string>();
   private companyInputSubject = new Subject<string>();
 
-  constructor(private apiService: ApiService, private router: Router) {
+  constructor(
+    private apiService: ApiService, 
+    private router: Router,
+    private route: ActivatedRoute,
+    private stacksService: StacksService
+  ) {
     // Set up debounce for role input - wait 800ms after user stops typing
     this.roleInputSubject.pipe(
       debounceTime(800),
@@ -98,6 +109,51 @@ export class InterviewComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Check for stack parameters in the route
+    this.route.queryParams.subscribe(params => {
+      if (params['stackId'] && params['mode'] === 'practice') {
+        this.handleStackPracticeMode(params);
+      } else {
+        this.initializeRegularMode();
+      }
+    });
+  }
+
+  /**
+   * Initializes the component in stack practice mode
+   */
+  private handleStackPracticeMode(params: any): void {
+    this.isFromStack = true;
+    this.stackId = params['stackId'];
+    
+    // Load the stack and its questions
+    const stack = this.stacksService.getStack(this.stackId!);
+    if (stack && stack.questions && stack.questions.length > 0) {
+      // Set interview details from stack
+      this.interviewDetails.company = params['company'] || stack.company || 'Practice';
+      this.interviewDetails.style = params['style'] || stack.interviewStyle || 'technical';
+      this.interviewDetails.role = 'Interview Practice'; // Default role for practice
+      
+      // Load the questions from the stack
+      this.selectedQuestions = stack.questions.map(q => q.title);
+      
+      // Set the first question
+      if (this.selectedQuestions.length > 0) {
+        this.interviewDetails.question = this.selectedQuestions[0];
+      }
+      
+      console.log('Loaded practice session with stack:', stack.name);
+      console.log('Questions:', this.selectedQuestions);
+    } else {
+      console.error('Stack not found or has no questions');
+      this.router.navigate(['/dashboard']);
+    }
+  }
+
+  /**
+   * Initializes the component in regular mode
+   */
+  private initializeRegularMode(): void {
     // Initialize tracking variables with current values to prevent unnecessary reloading
     this.previousCompany = this.interviewDetails.company;
     this.previousRole = this.interviewDetails.role;
@@ -161,6 +217,26 @@ export class InterviewComponent implements OnInit {
   }
 
   /**
+   * Moves to the next question in the stack
+   */
+  nextStackQuestion(): void {
+    if (!this.isFromStack || this.selectedQuestions.length <= 1) return;
+    
+    this.stackQuestionIndex = (this.stackQuestionIndex + 1) % this.selectedQuestions.length;
+    this.interviewDetails.question = this.selectedQuestions[this.stackQuestionIndex];
+  }
+
+  /**
+   * Moves to the previous question in the stack
+   */
+  previousStackQuestion(): void {
+    if (!this.isFromStack || this.selectedQuestions.length <= 1) return;
+    
+    this.stackQuestionIndex = (this.stackQuestionIndex - 1 + this.selectedQuestions.length) % this.selectedQuestions.length;
+    this.interviewDetails.question = this.selectedQuestions[this.stackQuestionIndex];
+  }
+
+  /**
    * Switches to custom question mode
    */
   addCustomQuestion(): void {
@@ -170,6 +246,9 @@ export class InterviewComponent implements OnInit {
   }
 
   private checkAndLoadQuestions(): void {
+    // If we're in stack mode, don't load questions from API
+    if (this.isFromStack) return;
+    
     // Check if we have all required data and if so, load questions
     if (this.interviewDetails.role && 
         this.interviewDetails.company && 
