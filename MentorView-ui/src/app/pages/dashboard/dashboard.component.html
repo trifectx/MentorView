@@ -41,6 +41,7 @@
       <div class="action-buttons">
         <button class="favorite-btn">⭐</button>
         <button class="info-btn">ⓘ</button>
+        <button class="add-stack-btn" (click)="openAddStackDialog()">+ Add Stack</button>
       </div>
     </section>
 
@@ -142,6 +143,27 @@
       </div>
     </section>
 
+    <!-- My Stacks Section (shows only if there are user stacks) -->
+    <section class="interview-section" *ngIf="userStacks.length > 0">
+      <div class="section-header">
+        <h2>My Stacks</h2>
+        <a href="#" class="view-more">More</a>
+      </div>
+      
+      <div class="card-grid">
+        <div class="course-card {{stack.color}}" *ngFor="let stack of userStacks">
+          <div class="card-content">
+            <h3>{{stack.name}}</h3>
+            <p *ngIf="stack.tags">{{stack.tags}}</p>
+          </div>
+          <div class="card-play-button">
+            <span>▶</span>
+          </div>
+          <button class="delete-stack-btn" (click)="deleteStack(stack.id); $event.stopPropagation();">×</button>
+        </div>
+      </div>
+    </section>
+
     <section class="interview-section">
       <div class="section-header">
         <h2>Interview</h2>
@@ -186,4 +208,53 @@
       </div>
     </section>
   </main>
+
+  <!-- Add Stack Dialog -->
+  <div class="add-stack-dialog" *ngIf="showAddStackDialog">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h2>Create New Stack</h2>
+        <button class="close-btn" (click)="closeAddStackDialog()">×</button>
+      </div>
+      <div class="dialog-body">
+        <div class="form-group">
+          <label for="stackName">Stack Name</label>
+          <input type="text" id="stackName" [(ngModel)]="newStack.name" placeholder="Enter stack name">
+        </div>
+        
+        <div class="form-group">
+          <label>Stack Color</label>
+          <div class="color-selector">
+            <div class="color-option purple" [class.selected]="newStack.color === 'purple'" (click)="selectColor('purple')"></div>
+            <div class="color-option green" [class.selected]="newStack.color === 'green'" (click)="selectColor('green')"></div>
+            <div class="color-option orange" [class.selected]="newStack.color === 'orange'" (click)="selectColor('orange')"></div>
+            <div class="color-option teal" [class.selected]="newStack.color === 'teal'" (click)="selectColor('teal')"></div>
+            <div class="color-option blue" [class.selected]="newStack.color === 'blue'" (click)="selectColor('blue')"></div>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="stackTags">Tags (comma separated)</label>
+          <input type="text" id="stackTags" [(ngModel)]="newStack.tags" placeholder="e.g. interview, algorithms, beginner">
+        </div>
+        
+        <div class="stack-preview">
+          <h3>Preview</h3>
+          <div class="course-card {{newStack.color}}">
+            <div class="card-content">
+              <h3>{{newStack.name || 'Your Stack Name'}}</h3>
+            </div>
+            <div class="card-play-button">
+              <span>▶</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <button class="cancel-btn" (click)="closeAddStackDialog()">Cancel</button>
+        <button class="create-btn" (click)="createStack()">Create Stack</button>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-overlay" *ngIf="showAddStackDialog" (click)="closeAddStackDialog()"></div>
 </div>

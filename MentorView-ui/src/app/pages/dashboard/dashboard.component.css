@@ -134,6 +134,25 @@
   color: #ffffff;
 }
 
+/* Add Stack Button */
+.add-stack-btn {
+  background-color: rgb(41, 121, 255);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.add-stack-btn:hover {
+  background-color: rgb(31, 111, 245);
+}
+
 /* Section Headers */
 .section-header {
   display: flex;
@@ -260,6 +279,35 @@
   font-weight: 600;
 }
 
+/* Delete button for stacks */
+.delete-stack-btn {
+  position: absolute;
+  top: 16px;
+  right: 56px; /* Position it to the left of the play button */
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: rgba(255, 0, 0, 0.2);
+  border: none;
+  color: white;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0; /* Hidden by default */
+}
+
+.course-card:hover .delete-stack-btn {
+  opacity: 1; /* Show on hover */
+}
+
+.delete-stack-btn:hover {
+  background-color: rgba(255, 0, 0, 0.5);
+  transform: scale(1.1);
+}
+
 /* Card Color Variations */
 .course-card.purple {
   background: linear-gradient(135deg, rgba(125, 95, 255, 0.2), rgba(125, 95, 255, 0.05));
@@ -279,6 +327,208 @@
 
 .course-card.blue {
   background: linear-gradient(135deg, rgba(66, 133, 244, 0.2), rgba(66, 133, 244, 0.05));
+}
+
+.color-option.purple {
+  background: linear-gradient(135deg, rgba(125, 95, 255, 0.8), rgba(125, 95, 255, 0.4));
+}
+
+.color-option.green {
+  background: linear-gradient(135deg, rgba(52, 168, 83, 0.8), rgba(52, 168, 83, 0.4));
+}
+
+.color-option.orange {
+  background: linear-gradient(135deg, rgba(251, 140, 0, 0.8), rgba(251, 140, 0, 0.4));
+}
+
+.color-option.teal {
+  background: linear-gradient(135deg, rgba(26, 188, 156, 0.8), rgba(26, 188, 156, 0.4));
+}
+
+.color-option.blue {
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.8), rgba(66, 133, 244, 0.4));
+}
+
+/* Add Stack Dialog */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.add-stack-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 460px;
+  max-width: 90%;
+  z-index: 1001;
+  animation: fadeSlideUp 0.3s ease;
+}
+
+.dialog-content {
+  background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dialog-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  font-size: 20px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+  color: #ffffff;
+}
+
+.dialog-body {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #b3b3b3;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus {
+  border-color: rgb(41, 121, 255);
+}
+
+.color-selector {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.color-option {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+}
+
+.color-option.selected {
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.color-option.purple {
+  background: linear-gradient(135deg, rgba(125, 95, 255, 0.8), rgba(125, 95, 255, 0.4));
+}
+
+.color-option.green {
+  background: linear-gradient(135deg, rgba(52, 168, 83, 0.8), rgba(52, 168, 83, 0.4));
+}
+
+.color-option.orange {
+  background: linear-gradient(135deg, rgba(251, 140, 0, 0.8), rgba(251, 140, 0, 0.4));
+}
+
+.color-option.teal {
+  background: linear-gradient(135deg, rgba(26, 188, 156, 0.8), rgba(26, 188, 156, 0.4));
+}
+
+.color-option.blue {
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.8), rgba(66, 133, 244, 0.4));
+}
+
+.stack-preview {
+  margin-top: 24px;
+}
+
+.stack-preview h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #b3b3b3;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 12px;
+}
+
+.cancel-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 8px 16px;
+  color: #b3b3b3;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.create-btn {
+  background-color: rgb(41, 121, 255);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.create-btn:hover {
+  background-color: rgb(31, 111, 245);
 }
 
 /* Dropdown styles */
@@ -420,7 +670,7 @@
   }
 }
 
-/* Animation */
+/* Animations */
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
@@ -429,5 +679,21 @@
   to {
     opacity: 1;
     transform: translateY(0) translateX(-50%);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeSlideUp {
+  from { 
+    opacity: 0;
+    transform: translate(-50%, -40%);
+  }
+  to { 
+    opacity: 1;
+    transform: translate(-50%, -50%);
   }
 }
