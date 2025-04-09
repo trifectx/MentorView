@@ -179,8 +179,8 @@
   text-decoration: underline;
 }
 
-/* Card Grid */
-.card-grid {
+/* Stack Card Grid */
+.section-header + .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 24px;
@@ -189,10 +189,9 @@
 
 /* Course Cards */
 .course-card {
-  background: rgba(255, 255, 255, 0.02);
+  position: relative;
   border-radius: 8px;
   overflow: hidden;
-  position: relative;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   animation: fadeSlideIn 0.5s ease-out;
@@ -211,6 +210,8 @@
 .card-content {
   padding: 24px;
   flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .card-content h3 {
@@ -220,29 +221,32 @@
   color: #ffffff;
 }
 
-.card-content p {
-  font-size: 14px;
-  color: #b3b3b3;
-  margin: 0;
-}
-
-.card-play-button {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.2);
+.card-content .company-style,
+.card-content .tag-list {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  transition: background-color 0.2s ease;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
 }
 
-.course-card:hover .card-play-button {
-  background-color: rgba(255, 255, 255, 0.3);
+.card-content .question-count {
+  margin-top: auto;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  padding-top: 10px;
+}
+
+.card-content .company,
+.card-content .interview-style,
+.card-content .tag {
+  background-color: rgba(255, 255, 255, 0.15);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-stats {
@@ -279,7 +283,25 @@
   font-weight: 600;
 }
 
-/* Delete button for stacks */
+.card-play-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: background-color 0.2s ease;
+}
+
+.course-card:hover .card-play-button {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
 .delete-stack-btn {
   position: absolute;
   top: 16px;
@@ -358,7 +380,6 @@
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.7);
   z-index: 1000;
-  animation: fadeIn 0.2s ease;
 }
 
 .add-stack-dialog {
@@ -366,17 +387,24 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 460px;
-  max-width: 90%;
+  width: 90%;
+  max-width: 500px;
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
   z-index: 1001;
-  animation: fadeSlideUp 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
 }
 
 .dialog-content {
-  background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
-  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
 }
 
 .dialog-header {
@@ -385,6 +413,10 @@
   align-items: center;
   padding: 16px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: sticky;
+  top: 0;
+  background-color: #1e1e1e;
+  z-index: 2;
 }
 
 .dialog-header h2 {
@@ -407,7 +439,10 @@
 }
 
 .dialog-body {
-  padding: 24px;
+  padding: 16px 24px;
+  overflow-y: auto;
+  flex: 1;
+  max-height: calc(90vh - 130px); /* Account for header and footer height */
 }
 
 .form-group {
@@ -492,12 +527,37 @@
   color: #b3b3b3;
 }
 
+/* Company and Interview Style styling in preview */
+.company-style {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.company, .interview-style {
+  background-color: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   padding: 16px 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   gap: 12px;
+  background-color: #1e1e1e;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
 }
 
 .cancel-btn {
@@ -508,27 +568,36 @@
   color: #b3b3b3;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s;
+  min-width: 100px;
 }
 
 .cancel-btn:hover {
   background-color: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
 }
 
 .create-btn {
-  background-color: rgb(41, 121, 255);
-  color: white;
+  background-color: #6200ea;
   border: none;
   border-radius: 4px;
-  padding: 8px 16px;
+  padding: 8px 20px;
+  color: white;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  min-width: 120px;
 }
 
-.create-btn:hover {
-  background-color: rgb(31, 111, 245);
+.create-btn:hover:not([disabled]) {
+  background-color: #7c4dff;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.create-btn:disabled {
+  background-color: rgba(98, 0, 234, 0.5);
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Dropdown styles */
@@ -696,4 +765,371 @@
     opacity: 1;
     transform: translate(-50%, -50%);
   }
+}
+
+/* Questions Section Styling */
+.questions-section {
+  margin-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 15px;
+}
+
+.questions-section h3 {
+  font-size: 16px;
+  margin-bottom: 15px;
+  color: #fff;
+}
+
+.questions-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  padding-right: 5px;
+}
+
+.question-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 10px 15px;
+  margin-bottom: 8px;
+}
+
+.question-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.question-title {
+  font-weight: 500;
+  color: #fff;
+  font-size: 14px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.question-metadata {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.question-company, .question-style {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.remove-question-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.remove-question-btn:hover {
+  color: #ff5252;
+}
+
+.add-question-form {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.half-width {
+  flex: 1;
+}
+
+.add-question-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 15px;
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.2s;
+}
+
+.add-question-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Preview Tag Styling */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.tag {
+  background-color: rgba(255, 255, 255, 0.15);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.question-count {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Scrollbar styling */
+.questions-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.questions-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.questions-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.questions-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Validation error styling */
+.validation-error {
+  color: #ff5252;
+  font-size: 12px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+/* Fixed action button */
+.fixed-action-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2000;
+}
+
+.create-fixed-btn {
+  background-color: #6200ea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-fixed-btn:hover:not([disabled]) {
+  background-color: #7c4dff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+
+.create-fixed-btn:disabled {
+  background-color: rgba(98, 0, 234, 0.5);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Stack Details Dialog */
+.stack-details-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 600px;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.stack-details-dialog .dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  color: white;
+  border-radius: 8px 8px 0 0;
+}
+
+.stack-details-dialog .dialog-header.purple {
+  background: linear-gradient(135deg, #9c27b0, #673ab7);
+}
+
+.stack-details-dialog .dialog-header.green {
+  background: linear-gradient(135deg, #4caf50, #2e7d32);
+}
+
+.stack-details-dialog .dialog-header.orange {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+}
+
+.stack-details-dialog .dialog-header.teal {
+  background: linear-gradient(135deg, #009688, #00796b);
+}
+
+.stack-details-dialog .dialog-header.blue {
+  background: linear-gradient(135deg, #2196f3, #1976d2);
+}
+
+.stack-details-dialog .dialog-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.stack-details-dialog .dialog-content {
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.stack-details-dialog .dialog-body {
+  padding: 20px 24px;
+  flex: 1;
+  overflow-y: auto;
+  max-height: calc(90vh - 130px);
+}
+
+.stack-metadata {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.questions-section h3 {
+  font-size: 18px;
+  margin-bottom: 15px;
+  color: #fff;
+}
+
+.no-questions {
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.stack-questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.stack-questions-list .question-item {
+  display: flex;
+  align-items: flex-start;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 12px 15px;
+  transition: background-color 0.2s;
+}
+
+.stack-questions-list .question-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.question-number {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 12px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.stack-questions-list .question-content {
+  flex: 1;
+}
+
+.stack-questions-list .question-title {
+  font-size: 15px;
+  color: white;
+  line-height: 1.4;
+}
+
+.stack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.practice-btn, .edit-btn, .delete-btn {
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  flex: 1;
+  min-width: 120px;
+  transition: all 0.2s;
+}
+
+.practice-btn {
+  background-color: #6200ea;
+  color: white;
+}
+
+.practice-btn:hover {
+  background-color: #7c4dff;
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.edit-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.edit-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.delete-btn {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #ff5252;
+}
+
+.delete-btn:hover {
+  background-color: rgba(244, 67, 54, 0.2);
 }

@@ -151,15 +151,23 @@
       </div>
       
       <div class="card-grid">
-        <div class="course-card {{stack.color}}" *ngFor="let stack of userStacks">
+        <div class="course-card {{stack.color}}" *ngFor="let stack of userStacks" (click)="openStackDetailsDialog(stack)">
           <div class="card-content">
             <h3>{{stack.name}}</h3>
-            <p *ngIf="stack.tags">{{stack.tags}}</p>
+            <div class="company-style" *ngIf="stack.company || stack.interviewStyle">
+              <span class="company" *ngIf="stack.company">{{stack.company}}</span>
+              <span class="interview-style" *ngIf="stack.interviewStyle">{{stack.interviewStyle}}</span>
+            </div>
+            <div *ngIf="stack.tags" class="tag-list">
+              <span class="tag" *ngFor="let tag of stack.tags.split(',')">{{tag.trim()}}</span>
+            </div>
+            <div class="question-count" *ngIf="stack.questions && stack.questions.length > 0">
+              {{stack.questions.length}} question{{stack.questions.length > 1 ? 's' : ''}}
+            </div>
           </div>
           <div class="card-play-button">
             <span>▶</span>
           </div>
-          <button class="delete-stack-btn" (click)="deleteStack(stack.id); $event.stopPropagation();">×</button>
         </div>
       </div>
     </section>
@@ -233,9 +241,51 @@
           </div>
         </div>
         
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="stackCompany">Company</label>
+            <input type="text" id="stackCompany" [(ngModel)]="newStack.company" placeholder="e.g. Google, Amazon">
+          </div>
+          
+          <div class="form-group half-width">
+            <label for="stackStyle">Interview Style</label>
+            <input type="text" id="stackStyle" [(ngModel)]="newStack.interviewStyle" placeholder="e.g. Technical, Behavioral">
+          </div>
+        </div>
+        
         <div class="form-group">
           <label for="stackTags">Tags (comma separated)</label>
           <input type="text" id="stackTags" [(ngModel)]="newStack.tags" placeholder="e.g. interview, algorithms, beginner">
+        </div>
+        
+        <!-- Questions Section -->
+        <div class="questions-section">
+          <h3>Add Interview Questions</h3>
+          
+          <!-- List of added questions -->
+          <div class="questions-list" *ngIf="newStackQuestions.length > 0">
+            <div class="question-item" *ngFor="let question of newStackQuestions; let i = index">
+              <div class="question-content">
+                <div class="question-title">{{question.title}}</div>
+              </div>
+              <button class="remove-question-btn" (click)="removeQuestionFromNewStack(i)">×</button>
+            </div>
+          </div>
+          
+          <!-- Add new question form -->
+          <div class="add-question-form">
+            <form (submit)="$event.preventDefault(); addQuestionToNewStack()">
+              <div class="form-group">
+                <label for="questionTitle">Question</label>
+                <input type="text" id="questionTitle" [(ngModel)]="newQuestion.title" name="questionTitle" placeholder="Enter interview question">
+                <div *ngIf="showQuestionError" class="validation-error">
+                  Please enter a question
+                </div>
+              </div>
+              
+              <button class="add-question-btn" type="submit">Add Question</button>
+            </form>
+          </div>
         </div>
         
         <div class="stack-preview">
@@ -243,6 +293,16 @@
           <div class="course-card {{newStack.color}}">
             <div class="card-content">
               <h3>{{newStack.name || 'Your Stack Name'}}</h3>
+              <div class="company-style" *ngIf="newStack.company || newStack.interviewStyle">
+                <span class="company" *ngIf="newStack.company">{{newStack.company}}</span>
+                <span class="interview-style" *ngIf="newStack.interviewStyle">{{newStack.interviewStyle}}</span>
+              </div>
+              <div class="tag-list" *ngIf="newStack.tags">
+                <span class="tag" *ngFor="let tag of newStack.tags.split(',')">{{tag.trim()}}</span>
+              </div>
+              <div class="question-count" *ngIf="newStackQuestions.length > 0">
+                {{newStackQuestions.length}} question{{newStackQuestions.length > 1 ? 's' : ''}}
+              </div>
             </div>
             <div class="card-play-button">
               <span>▶</span>
@@ -252,9 +312,72 @@
       </div>
       <div class="dialog-footer">
         <button class="cancel-btn" (click)="closeAddStackDialog()">Cancel</button>
-        <button class="create-btn" (click)="createStack()">Create Stack</button>
+        <button class="create-btn" (click)="createStack()" [disabled]="!newStack.name.trim()" id="createStackButton" 
+          style="font-size: 16px; padding: 10px 20px; background-color: #6200ea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; font-weight: bold;">
+          CREATE STACK
+        </button>
+      </div>
+      <!-- Fixed save button -->
+      <div class="fixed-action-button">
+        <button 
+          class="create-fixed-btn" 
+          [disabled]="!newStack.name.trim()" 
+          (click)="createStack()">
+          CREATE STACK
+        </button>
       </div>
     </div>
   </div>
   <div class="dialog-overlay" *ngIf="showAddStackDialog" (click)="closeAddStackDialog()"></div>
+
+  <!-- Stack Details Dialog -->
+  <div class="stack-details-dialog" *ngIf="showStackDetailsDialog">
+    <div class="dialog-content">
+      <div class="dialog-header" [ngClass]="selectedStack?.color || 'purple'">
+        <h2>{{selectedStack?.name}}</h2>
+        <button class="close-btn" (click)="closeStackDetailsDialog()">×</button>
+      </div>
+      <div class="dialog-body">
+        <div class="stack-metadata">
+          <div class="company-style" *ngIf="selectedStack?.company || selectedStack?.interviewStyle">
+            <span class="company" *ngIf="selectedStack?.company">{{selectedStack?.company}}</span>
+            <span class="interview-style" *ngIf="selectedStack?.interviewStyle">{{selectedStack?.interviewStyle}}</span>
+          </div>
+          <div *ngIf="selectedStack?.tags" class="tag-list">
+            <span class="tag" *ngFor="let tag of selectedStack?.tags.split(',')">{{tag.trim()}}</span>
+          </div>
+        </div>
+        
+        <div class="questions-section">
+          <h3>Interview Questions</h3>
+          
+          <div class="no-questions" *ngIf="!selectedStack?.questions || selectedStack.questions.length === 0">
+            No questions in this stack yet.
+          </div>
+          
+          <div class="stack-questions-list" *ngIf="selectedStack?.questions && selectedStack.questions.length > 0">
+            <div class="question-item" *ngFor="let question of selectedStack.questions; let i = index">
+              <div class="question-number">{{i + 1}}</div>
+              <div class="question-content">
+                <div class="question-title">{{question.title}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stack-actions">
+          <button class="practice-btn" (click)="practiceStack(selectedStack?.id)">
+            Practice Stack
+          </button>
+          <button class="edit-btn" (click)="editStack(selectedStack?.id)">
+            Edit Stack
+          </button>
+          <button class="delete-btn" (click)="confirmDeleteStack(selectedStack?.id)">
+            Delete Stack
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-overlay" *ngIf="showStackDetailsDialog" (click)="closeStackDetailsDialog()"></div>
 </div>
