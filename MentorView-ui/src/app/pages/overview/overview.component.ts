@@ -3,7 +3,7 @@ import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ApiService, SavedInterview } from '../../services/api.service';
 import { Subscription } from 'rxjs';
-import { FillerWordsService, FillerWordData } from '../../services/filler-words.service';
+import { FillerWordsService, FillerWordData, UserFillerWordHistory } from '../../services/filler-words.service';
 
 interface InterviewStats {
   totalInterviews: number;
@@ -40,8 +40,18 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
   // Filler word data
   fillerWordData: FillerWordData | null = null;
+  fillerWordHistory: UserFillerWordHistory[] = [];
+  aggregatedFillerWordData: FillerWordData | null = null;
   loadingFillerData = false;
   fillerDataError = '';
+  maxRetries = 3;
+  currentRetry = 0;
+
+  // Historical filler words data for the line graph
+  fillerWordsHistory = {
+    dates: [] as string[],
+    percentages: [] as number[]
+  };
 
   // Charts data
   progressChartData = {
@@ -70,20 +80,23 @@ export class OverviewComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Fetch the saved interviews data
-    this.loadInterviewData();
+    // Wait a moment for Firebase auth to initialize properly
+    setTimeout(() => {
+      // Fetch the saved interviews data
+      this.loadInterviewData();
 
-    // Fetch filler word data
-    this.loadFillerWordData();
+      // Fetch filler word data
+      this.loadFillerWordData();
 
-    // Subscribe to interview updates
-    this.subscription.add(
-      this.apiService.interviewsUpdated$.subscribe(() => {
-        console.log('Interview data updated, refreshing overview...');
-        this.loadInterviewData();
-        this.loadFillerWordData();
-      })
-    );
+      // Subscribe to interview updates
+      this.subscription.add(
+        this.apiService.interviewsUpdated$.subscribe(() => {
+          console.log('Interview data updated, refreshing overview...');
+          this.loadInterviewData();
+          this.loadFillerWordData();
+        })
+      );
+    }, 500);
   }
 
   ngOnDestroy(): void {
@@ -113,20 +126,137 @@ export class OverviewComponent implements OnInit, OnDestroy {
   loadFillerWordData(): void {
     this.loadingFillerData = true;
     this.fillerDataError = '';
+    this.currentRetry = 0;
 
+    console.log('Starting to load filler word data...');
+
+    // Try to load from local storage first (for quick display while Firebase loads)
+    this.tryLoadFromLocalStorage();
+
+    // Then load from Firebase
+    this.loadFromFirebase();
+  }
+
+  /**
+   * Try to load saved filler word data from local storage
+   */
+  tryLoadFromLocalStorage(): void {
+    try {
+      // Check for saved aggregated data in localStorage
+      const savedData = localStorage.getItem('fillerWordAggregatedData');
+      if (savedData) {
+        this.aggregatedFillerWordData = JSON.parse(savedData);
+        console.log('Loaded filler word data from local storage:', this.aggregatedFillerWordData);
+      }
+
+      // Check for saved history data
+      const savedHistory = localStorage.getItem('fillerWordHistory');
+      if (savedHistory) {
+        this.fillerWordsHistory = JSON.parse(savedHistory);
+        console.log('Loaded filler word history from local storage:', this.fillerWordsHistory);
+      }
+    } catch (error) {
+      console.error('Error loading from localStorage:', error);
+    }
+  }
+
+  /**
+   * Load filler word data from Firebase
+   */
+  loadFromFirebase(): void {
+    // First get the current data
     this.subscription.add(
       this.fillerWordsService.getCurrentFillerWordData().subscribe({
         next: (data) => {
           this.fillerWordData = data;
-          this.loadingFillerData = false;
+          console.log('Current filler word data loaded:', data);
+
+          if (data) {
+            // Then get the history data
+            this.subscription.add(
+              this.fillerWordsService.getFillerWordHistory().subscribe({
+                next: (history) => {
+                  this.fillerWordHistory = history;
+                  console.log('Filler word history loaded:', history);
+
+                  if (history && history.length > 0) {
+                    // Aggregate data across all interviews
+                    this.aggregateFillerWordData();
+                    console.log('Aggregated data:', this.aggregatedFillerWordData);
+
+                    // Prepare data for the line graph
+                    this.prepareHistoricalGraphData();
+                    console.log('Graph data prepared:', this.fillerWordsHistory);
+
+                    // Save the aggregated data to localStorage for persistence
+                    this.saveToLocalStorage();
+                  } else if (this.currentRetry < this.maxRetries) {
+                    console.log(`No history data found, retrying (${this.currentRetry + 1}/${this.maxRetries})...`);
+                    this.currentRetry++;
+                    setTimeout(() => this.loadFromFirebase(), 1000);
+                    return;
+                  }
+
+                  this.loadingFillerData = false;
+                },
+                error: (error) => {
+                  console.error('Error loading filler word history:', error);
+                  this.fillerDataError = 'Failed to load filler word history.';
+
+                  if (this.currentRetry < this.maxRetries) {
+                    console.log(`Error loading history, retrying (${this.currentRetry + 1}/${this.maxRetries})...`);
+                    this.currentRetry++;
+                    setTimeout(() => this.loadFromFirebase(), 1000);
+                    return;
+                  }
+
+                  this.loadingFillerData = false;
+                }
+              })
+            );
+          } else if (this.currentRetry < this.maxRetries) {
+            console.log(`No current data found, retrying (${this.currentRetry + 1}/${this.maxRetries})...`);
+            this.currentRetry++;
+            setTimeout(() => this.loadFromFirebase(), 1000);
+            return;
+          } else {
+            this.loadingFillerData = false;
+          }
         },
         error: (error) => {
           console.error('Error loading filler word data:', error);
           this.fillerDataError = 'Failed to load filler word data.';
+
+          if (this.currentRetry < this.maxRetries) {
+            console.log(`Error loading data, retrying (${this.currentRetry + 1}/${this.maxRetries})...`);
+            this.currentRetry++;
+            setTimeout(() => this.loadFromFirebase(), 1000);
+            return;
+          }
+
           this.loadingFillerData = false;
         }
       })
     );
+  }
+
+  /**
+   * Save aggregated data and graph data to localStorage
+   */
+  saveToLocalStorage(): void {
+    try {
+      if (this.aggregatedFillerWordData) {
+        localStorage.setItem('fillerWordAggregatedData', JSON.stringify(this.aggregatedFillerWordData));
+      }
+
+      if (this.fillerWordsHistory.dates.length > 0) {
+        localStorage.setItem('fillerWordHistory', JSON.stringify(this.fillerWordsHistory));
+      }
+
+      console.log('Saved filler word data to localStorage');
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
   }
 
   processInterviewData(interviews: SavedInterview[]): void {
@@ -304,44 +434,121 @@ export class OverviewComponent implements OnInit, OnDestroy {
     return 'N/A';
   }
 
-  getTopFillerWords(): { word: string, count: number }[] {
-    if (!this.fillerWordData || !this.fillerWordData.wordCounts) {
-      return [];
+  aggregateFillerWordData(): void {
+    if (!this.fillerWordHistory || this.fillerWordHistory.length === 0) {
+      this.aggregatedFillerWordData = this.fillerWordData;
+      return;
     }
 
-    return Object.entries(this.fillerWordData.wordCounts)
+    // Initialize aggregated data
+    let totalFillerWords = 0;
+    let totalWords = 0;
+    const aggregatedWordCounts: { [key: string]: number } = {};
+
+    // Combine data from all history entries
+    this.fillerWordHistory.forEach(entry => {
+      totalFillerWords += entry.totalFillerWords;
+      totalWords += entry.totalWords;
+
+      // Aggregate word counts
+      Object.entries(entry.wordCounts).forEach(([word, count]) => {
+        if (aggregatedWordCounts[word]) {
+          aggregatedWordCounts[word] += count;
+        } else {
+          aggregatedWordCounts[word] = count;
+        }
+      });
+    });
+
+    // Calculate the percentage
+    const percentage = totalWords > 0 ? (totalFillerWords / totalWords) * 100 : 0;
+
+    // Create aggregated data object
+    this.aggregatedFillerWordData = {
+      wordCounts: aggregatedWordCounts,
+      totalFillerWords: totalFillerWords,
+      totalWords: totalWords,
+      percentage: parseFloat(percentage.toFixed(2)),
+      lastUpdated: new Date().toISOString()
+    };
+  }
+
+  prepareHistoricalGraphData(): void {
+    if (!this.fillerWordHistory || this.fillerWordHistory.length === 0) {
+      return;
+    }
+
+    // Sort history by date (oldest first)
+    const sortedHistory = [...this.fillerWordHistory].sort((a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Take the last 7 entries (or fewer if we don't have that many)
+    const recentHistory = sortedHistory.slice(-7);
+
+    // Format dates and extract percentages
+    this.fillerWordsHistory = {
+      dates: recentHistory.map(entry => this.formatDate(entry.date)),
+      percentages: recentHistory.map(entry => entry.percentage)
+    };
+  }
+
+  formatDate(isoDate: string): string {
+    const date = new Date(isoDate);
+    const month = date.toLocaleString('default', { month: 'short' });
+    const day = date.getDate();
+    return `${month} ${day}`;
+  }
+
+  getTopFillerWords(): { word: string, count: number }[] {
+    // Use aggregated data if available, otherwise fall back to current data
+    const data = this.aggregatedFillerWordData || this.fillerWordData;
+
+    if (!data || !data.wordCounts) return [];
+
+    return Object.entries(data.wordCounts)
       .map(([word, count]) => ({ word, count }))
-      .filter(item => item.count > 0)
       .sort((a, b) => b.count - a.count)
-      .slice(0, 3); // Top 3 filler words
+      .slice(0, 5); // Return top 5 filler words
   }
 
   getFillerWordClass(): string {
-    if (!this.fillerWordData) return '';
+    // Use aggregated data if available, otherwise fall back to current data
+    const data = this.aggregatedFillerWordData || this.fillerWordData;
+    if (!data) return '';
 
-    const percentage = this.fillerWordData.percentage;
-
-    if (percentage < 3) {
-      return 'status-excellent';
-    } else if (percentage < 6) {
-      return 'status-good';
-    } else {
-      return 'status-needs-improvement';
-    }
+    const percentage = data.percentage;
+    if (percentage <= 3) return 'status-excellent';
+    if (percentage <= 6) return 'status-good';
+    if (percentage <= 9) return 'status-average';
+    return 'status-needs-improvement';
   }
 
   getFillerWordStatus(): string {
-    if (!this.fillerWordData) return '';
+    // Use aggregated data if available, otherwise fall back to current data
+    const data = this.aggregatedFillerWordData || this.fillerWordData;
+    if (!data) return '';
 
-    const percentage = this.fillerWordData.percentage;
+    const percentage = data.percentage;
+    if (percentage <= 3) return 'Excellent';
+    if (percentage <= 6) return 'Good';
+    if (percentage <= 9) return 'Average';
+    return 'Needs Improvement';
+  }
 
-    if (percentage < 3) {
-      return 'Excellent';
-    } else if (percentage < 6) {
-      return 'Good';
-    } else {
-      return 'Needs Improvement';
-    }
+  createLineGraphPoints(percentages: number[]): string {
+    if (!percentages || percentages.length === 0) return '';
+
+    // Each data point will be spaced 100px apart
+    const points = percentages.map((percentage, index) => {
+      const x = index * 100;
+      // Invert the y-coordinate since SVG's (0,0) is at the top-left
+      // Scale the percentage by 10 to make it more visible on the graph
+      const y = 200 - (percentage * 10);
+      return `${x},${y}`;
+    });
+
+    return points.join(' ');
   }
 
   getPaceClass(): string {
@@ -363,13 +570,5 @@ export class OverviewComponent implements OnInit, OnDestroy {
     } else {
       return 'needs-improvement';
     }
-  }
-
-  formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
   }
 }

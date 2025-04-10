@@ -31,7 +31,15 @@ export class FillerWordsService {
     // Track the current user ID
     onAuthStateChanged(this.firebaseAuth, (user) => {
       this.currentUserId = user ? user.uid : null;
+      console.log('FillerWordsService: User ID updated:', this.currentUserId);
     });
+    
+    // Also get the current user ID immediately if already logged in
+    const currentUser = this.firebaseAuth.currentUser;
+    if (currentUser) {
+      this.currentUserId = currentUser.uid;
+      console.log('FillerWordsService: Initial user ID set:', this.currentUserId);
+    }
   }
 
   /**
@@ -101,16 +109,27 @@ export class FillerWordsService {
   getCurrentFillerWordData(): Observable<FillerWordData | null> {
     if (!this.currentUserId) {
       console.error('Cannot get filler word data - user not logged in');
-      return of(null);
+      
+      // Try to get current user once more before giving up
+      const currentUser = this.firebaseAuth.currentUser;
+      if (currentUser) {
+        this.currentUserId = currentUser.uid;
+        console.log('FillerWordsService: Recovered user ID:', this.currentUserId);
+      } else {
+        return of(null);
+      }
     }
 
     const userFillerWordsRef = doc(this.firestore, 'userFillerWords', this.currentUserId);
+    console.log('FillerWordsService: Fetching data for user:', this.currentUserId);
     
     return from(
       getDoc(userFillerWordsRef).then(docSnap => {
         if (docSnap.exists() && docSnap.data()['current']) {
+          console.log('FillerWordsService: Found current data for user');
           return docSnap.data()['current'] as FillerWordData;
         }
+        console.log('FillerWordsService: No current data found for user');
         return null;
       })
     );
@@ -123,16 +142,28 @@ export class FillerWordsService {
   getFillerWordHistory(): Observable<UserFillerWordHistory[]> {
     if (!this.currentUserId) {
       console.error('Cannot get filler word history - user not logged in');
-      return of([]);
+      
+      // Try to get current user once more before giving up
+      const currentUser = this.firebaseAuth.currentUser;
+      if (currentUser) {
+        this.currentUserId = currentUser.uid;
+        console.log('FillerWordsService: Recovered user ID for history:', this.currentUserId);
+      } else {
+        return of([]);
+      }
     }
 
     const userFillerWordsRef = doc(this.firestore, 'userFillerWords', this.currentUserId);
+    console.log('FillerWordsService: Fetching history for user:', this.currentUserId);
     
     return from(
       getDoc(userFillerWordsRef).then(docSnap => {
         if (docSnap.exists() && docSnap.data()['history']) {
-          return docSnap.data()['history'] as UserFillerWordHistory[];
+          const history = docSnap.data()['history'] as UserFillerWordHistory[];
+          console.log(`FillerWordsService: Found ${history.length} history entries for user`);
+          return history;
         }
+        console.log('FillerWordsService: No history found for user');
         return [];
       })
     );
