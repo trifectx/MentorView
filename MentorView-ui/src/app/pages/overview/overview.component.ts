@@ -42,10 +42,14 @@ export class OverviewComponent implements OnInit, OnDestroy {
   fillerWordData: FillerWordData | null = null;
   fillerWordHistory: UserFillerWordHistory[] = [];
   aggregatedFillerWordData: FillerWordData | null = null;
-  loadingFillerData = false;
+  loadingFillerData = true; // Start with loading state to prevent "no data" flash
   fillerDataError = '';
   maxRetries = 3;
   currentRetry = 0;
+  
+  // New properties to prevent "no data" flash
+  initialLoadComplete = false;
+  confirmedNoData = false;
 
   // Historical filler words data for the line graph
   fillerWordsHistory = {
@@ -164,6 +168,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
    * Load filler word data from Firebase
    */
   loadFromFirebase(): void {
+    // Initialize a flag to track if we've found data
+    let foundData = false;
+
     // First get the current data
     this.subscription.add(
       this.fillerWordsService.getCurrentFillerWordData().subscribe({
@@ -171,7 +178,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
           this.fillerWordData = data;
           console.log('Current filler word data loaded:', data);
 
+          // Set foundData flag if we have data
           if (data) {
+            foundData = true;
+            
             // Then get the history data
             this.subscription.add(
               this.fillerWordsService.getFillerWordHistory().subscribe({
@@ -197,7 +207,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
                     return;
                   }
 
+                  // Only set loading to false after everything is complete
                   this.loadingFillerData = false;
+                  this.initialLoadComplete = true;
                 },
                 error: (error) => {
                   console.error('Error loading filler word history:', error);
@@ -211,6 +223,8 @@ export class OverviewComponent implements OnInit, OnDestroy {
                   }
 
                   this.loadingFillerData = false;
+                  this.initialLoadComplete = true;
+                  this.confirmedNoData = true;
                 }
               })
             );
@@ -221,6 +235,8 @@ export class OverviewComponent implements OnInit, OnDestroy {
             return;
           } else {
             this.loadingFillerData = false;
+            this.initialLoadComplete = true;
+            this.confirmedNoData = true;
           }
         },
         error: (error) => {
@@ -235,6 +251,8 @@ export class OverviewComponent implements OnInit, OnDestroy {
           }
 
           this.loadingFillerData = false;
+          this.initialLoadComplete = true;
+          this.confirmedNoData = true;
         }
       })
     );
