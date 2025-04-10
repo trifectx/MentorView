@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { ApiService, SavedInterview } from '../../services/api.service';
 import { Subscription } from 'rxjs';
 import { FillerWordsService, FillerWordData, UserFillerWordHistory } from '../../services/filler-words.service';
+import { SpeakingPaceService, SpeakingPaceData, UserPaceHistory } from '../../services/speaking-pace.service';
 
 interface InterviewStats {
   totalInterviews: number;
@@ -38,6 +39,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
     recentInterviews: [] // Will be populated from actual data
   };
 
+  // Active tab for the focus analytics section
+  activeTab = 'fillerWords';
+
   // Filler word data
   fillerWordData: FillerWordData | null = null;
   fillerWordHistory: UserFillerWordHistory[] = [];
@@ -55,6 +59,22 @@ export class OverviewComponent implements OnInit, OnDestroy {
   fillerWordsHistory = {
     dates: [] as string[],
     percentages: [] as number[]
+  };
+
+  // Speaking pace data
+  speakingPaceData: SpeakingPaceData | null = null;
+  speakingPaceHistory: UserPaceHistory[] = [];
+  aggregatedSpeakingPaceData: SpeakingPaceData | null = null;
+  loadingSpeakingPaceData = true;
+  speakingPaceDataError = '';
+  speakingPaceInitialLoadComplete = false;
+  speakingPaceConfirmedNoData = false;
+  speakingPaceCurrentRetry = 0;
+
+  // Historical speaking pace data for visualization
+  speakingPaceHistoryData = {
+    dates: [] as string[],
+    wpmValues: [] as number[]
   };
 
   // Charts data
@@ -80,7 +100,8 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
   constructor(
     private apiService: ApiService,
-    private fillerWordsService: FillerWordsService
+    private fillerWordsService: FillerWordsService,
+    private speakingPaceService: SpeakingPaceService
   ) {}
 
   ngOnInit(): void {
@@ -91,6 +112,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
       // Fetch filler word data
       this.loadFillerWordData();
+      
+      // Fetch speaking pace data
+      this.loadSpeakingPaceData();
 
       // Subscribe to interview updates
       this.subscription.add(
@@ -98,6 +122,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
           console.log('Interview data updated, refreshing overview...');
           this.loadInterviewData();
           this.loadFillerWordData();
+          this.loadSpeakingPaceData();
         })
       );
     }, 500);
@@ -587,6 +612,308 @@ export class OverviewComponent implements OnInit, OnDestroy {
       return 'average';
     } else {
       return 'needs-improvement';
+    }
+  }
+
+  /**
+   * Load speaking pace (WPM) data from Firebase
+   */
+  loadSpeakingPaceData(): void {
+    this.loadingSpeakingPaceData = true;
+    this.speakingPaceDataError = '';
+    this.speakingPaceCurrentRetry = 0;
+
+    console.log('Starting to load speaking pace data...');
+
+    // Try to load from local storage first (for quick display while Firebase loads)
+    this.tryLoadSpeakingPaceFromLocalStorage();
+
+    // Then load from Firebase
+    this.loadSpeakingPaceFromFirebase();
+  }
+
+  /**
+   * Try to load saved speaking pace data from local storage
+   */
+  tryLoadSpeakingPaceFromLocalStorage(): void {
+    try {
+      // Check for saved aggregated data in localStorage
+      const savedAggregatedData = localStorage.getItem('speakingPaceAggregatedData');
+      if (savedAggregatedData) {
+        this.aggregatedSpeakingPaceData = JSON.parse(savedAggregatedData);
+        console.log('Loaded aggregated speaking pace data from local storage:', this.aggregatedSpeakingPaceData);
+        
+        // Update performance data
+        if (this.aggregatedSpeakingPaceData) {
+          this.performanceData.averageWpm = this.aggregatedSpeakingPaceData.averageWpm;
+          this.performanceData.speakingPaceStatus = this.aggregatedSpeakingPaceData.paceStatus;
+        }
+      }
+
+      // Check for saved speaking pace data in localStorage
+      const savedData = localStorage.getItem('speakingPaceData');
+      if (savedData) {
+        this.speakingPaceData = JSON.parse(savedData);
+        console.log('Loaded speaking pace data from local storage:', this.speakingPaceData);
+      }
+
+      // Check for saved history data
+      const savedHistory = localStorage.getItem('speakingPaceHistory');
+      if (savedHistory) {
+        this.speakingPaceHistoryData = JSON.parse(savedHistory);
+        console.log('Loaded speaking pace history from local storage:', this.speakingPaceHistoryData);
+      }
+    } catch (error) {
+      console.error('Error loading speaking pace data from localStorage:', error);
+    }
+  }
+
+  /**
+   * Load speaking pace data from Firebase
+   */
+  loadSpeakingPaceFromFirebase(): void {
+    // Initialize a flag to track if we've found data
+    let foundData = false;
+
+    // First get the current data
+    this.subscription.add(
+      this.speakingPaceService.getCurrentSpeakingPaceData().subscribe({
+        next: (data) => {
+          this.speakingPaceData = data;
+          console.log('Current speaking pace data loaded:', data);
+
+          // Update performance data with the WPM
+          if (data) {
+            this.performanceData.averageWpm = data.averageWpm;
+            this.performanceData.speakingPaceStatus = data.paceStatus;
+            foundData = true;
+
+            // Then get the history data
+            this.subscription.add(
+              this.speakingPaceService.getSpeakingPaceHistory().subscribe({
+                next: (history) => {
+                  this.speakingPaceHistory = history;
+                  console.log('Speaking pace history loaded:', history);
+
+                  if (history && history.length > 0) {
+                    // Aggregate the speaking pace data across all interviews
+                    this.aggregateSpeakingPaceData();
+                    console.log('Aggregated speaking pace data:', this.aggregatedSpeakingPaceData);
+                    
+                    // Prepare data for visualization
+                    this.prepareSpeakingPaceHistoryData();
+                    console.log('Speaking pace graph data prepared:', this.speakingPaceHistoryData);
+
+                    // Save the data to localStorage for persistence
+                    this.saveSpeakingPaceToLocalStorage();
+                  } else if (this.speakingPaceCurrentRetry < this.maxRetries) {
+                    console.log(`No speaking pace history found, retrying (${this.speakingPaceCurrentRetry + 1}/${this.maxRetries})...`);
+                    this.speakingPaceCurrentRetry++;
+                    setTimeout(() => this.loadSpeakingPaceFromFirebase(), 1000);
+                    return;
+                  }
+
+                  // Only set loading to false after everything is complete
+                  this.loadingSpeakingPaceData = false;
+                  this.speakingPaceInitialLoadComplete = true;
+                },
+                error: (error) => {
+                  console.error('Error loading speaking pace history:', error);
+                  this.speakingPaceDataError = 'Failed to load speaking pace history.';
+
+                  if (this.speakingPaceCurrentRetry < this.maxRetries) {
+                    console.log(`Error loading speaking pace history, retrying (${this.speakingPaceCurrentRetry + 1}/${this.maxRetries})...`);
+                    this.speakingPaceCurrentRetry++;
+                    setTimeout(() => this.loadSpeakingPaceFromFirebase(), 1000);
+                    return;
+                  }
+
+                  this.loadingSpeakingPaceData = false;
+                  this.speakingPaceInitialLoadComplete = true;
+                  this.speakingPaceConfirmedNoData = true;
+                }
+              })
+            );
+          } else if (this.speakingPaceCurrentRetry < this.maxRetries) {
+            console.log(`No current speaking pace data found, retrying (${this.speakingPaceCurrentRetry + 1}/${this.maxRetries})...`);
+            this.speakingPaceCurrentRetry++;
+            setTimeout(() => this.loadSpeakingPaceFromFirebase(), 1000);
+            return;
+          } else {
+            this.loadingSpeakingPaceData = false;
+            this.speakingPaceInitialLoadComplete = true;
+            this.speakingPaceConfirmedNoData = true;
+          }
+        },
+        error: (error) => {
+          console.error('Error loading speaking pace data:', error);
+          this.speakingPaceDataError = 'Failed to load speaking pace data.';
+
+          if (this.speakingPaceCurrentRetry < this.maxRetries) {
+            console.log(`Error loading speaking pace data, retrying (${this.speakingPaceCurrentRetry + 1}/${this.maxRetries})...`);
+            this.speakingPaceCurrentRetry++;
+            setTimeout(() => this.loadSpeakingPaceFromFirebase(), 1000);
+            return;
+          }
+
+          this.loadingSpeakingPaceData = false;
+          this.speakingPaceInitialLoadComplete = true;
+          this.speakingPaceConfirmedNoData = true;
+        }
+      })
+    );
+  }
+
+  /**
+   * Aggregate speaking pace data across all interviews
+   */
+  aggregateSpeakingPaceData(): void {
+    if (!this.speakingPaceHistory || this.speakingPaceHistory.length === 0) {
+      return;
+    }
+
+    // Calculate total words and total duration across all interviews
+    let totalWords = 0;
+    let totalDurationSeconds = 0;
+    let totalWpm = 0;
+
+    this.speakingPaceHistory.forEach(entry => {
+      totalWords += entry.totalWords;
+      totalDurationSeconds += entry.durationSeconds;
+      totalWpm += entry.wpm;
+    });
+
+    // Calculate the average WPM across all interviews
+    const averageWpm = Math.round(totalWpm / this.speakingPaceHistory.length);
+    
+    // Determine the speaking pace status based on the average WPM
+    let paceStatus: 'Too Slow' | 'Optimal' | 'Too Fast';
+    if (averageWpm < MIN_OPTIMAL_WPM) {
+      paceStatus = 'Too Slow';
+    } else if (averageWpm > MAX_OPTIMAL_WPM) {
+      paceStatus = 'Too Fast';
+    } else {
+      paceStatus = 'Optimal';
+    }
+
+    // Create the aggregated data object
+    this.aggregatedSpeakingPaceData = {
+      averageWpm: averageWpm,
+      totalWords: totalWords,
+      totalDurationSeconds: totalDurationSeconds,
+      paceStatus: paceStatus,
+      lastUpdated: new Date().toISOString()
+    };
+
+    // Update the performance data as well
+    this.performanceData.averageWpm = averageWpm;
+    this.performanceData.speakingPaceStatus = paceStatus;
+  }
+
+  /**
+   * Prepare speaking pace history data for visualizations
+   */
+  prepareSpeakingPaceHistoryData(): void {
+    // Sort the history by date (oldest first)
+    const sortedHistory = [...this.speakingPaceHistory].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Extract dates and WPM values
+    this.speakingPaceHistoryData.dates = sortedHistory.map(entry => {
+      const date = new Date(entry.date);
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    });
+
+    this.speakingPaceHistoryData.wpmValues = sortedHistory.map(entry => entry.wpm);
+
+    // Save to localStorage
+    this.saveSpeakingPaceToLocalStorage();
+  }
+
+  /**
+   * Save speaking pace data to localStorage
+   */
+  saveSpeakingPaceToLocalStorage(): void {
+    try {
+      // Save current aggregated data
+      if (this.aggregatedSpeakingPaceData) {
+        localStorage.setItem('speakingPaceAggregatedData', JSON.stringify(this.aggregatedSpeakingPaceData));
+      }
+
+      // Save history data
+      localStorage.setItem('speakingPaceHistory', JSON.stringify(this.speakingPaceHistoryData));
+    } catch (error) {
+      console.error('Error saving speaking pace data to localStorage:', error);
+    }
+  }
+
+  /**
+   * Get the color for the WPM status indicator
+   */
+  getSpeakingPaceStatusColor(): string {
+    const paceData = this.aggregatedSpeakingPaceData || this.speakingPaceData;
+    if (!paceData) return 'gray';
+    
+    switch (paceData.paceStatus) {
+      case 'Optimal':
+        return 'green';
+      case 'Too Fast':
+      case 'Too Slow':
+        return 'orange';
+      default:
+        return 'gray';
+    }
+  }
+
+  /**
+   * Get the speaking pace status text
+   */
+  getSpeakingPaceStatusText(): string {
+    const paceData = this.aggregatedSpeakingPaceData || this.speakingPaceData;
+    if (!paceData) return 'No data';
+    
+    const wpm = paceData.averageWpm;
+    if (wpm < MIN_OPTIMAL_WPM) {
+      return `Too slow (${wpm} WPM)`;
+    } else if (wpm > MAX_OPTIMAL_WPM) {
+      return `Too fast (${wpm} WPM)`;
+    } else {
+      return `Optimal (${wpm} WPM)`;
+    }
+  }
+
+  /**
+   * Get a simplified speaking pace status text
+   */
+  getSpeakingPaceSimpleStatus(): string {
+    const paceData = this.aggregatedSpeakingPaceData || this.speakingPaceData;
+    if (!paceData) return 'No data';
+    
+    const wpm = paceData.averageWpm;
+    if (wpm < MIN_OPTIMAL_WPM) {
+      return 'Too Slow';
+    } else if (wpm > MAX_OPTIMAL_WPM) {
+      return 'Too Fast';
+    } else {
+      return 'Optimal';
+    }
+  }
+
+  /**
+   * Get improvement tips for speaking pace
+   */
+  getSpeakingPaceTip(): string {
+    const paceData = this.aggregatedSpeakingPaceData || this.speakingPaceData;
+    if (!paceData) return '';
+    
+    const wpm = paceData.averageWpm;
+    if (wpm < MIN_OPTIMAL_WPM) {
+      return 'Try to speak with more energy and practice increasing your pace. Regular reading aloud exercises can help you develop a faster, more engaging speaking rhythm.';
+    } else if (wpm > MAX_OPTIMAL_WPM) {
+      return 'Focus on slowing down and enunciating your words more clearly. Take deliberate pauses between key points to give your listeners time to process information.';
+    } else {
+      return 'Your speaking pace is in the optimal range. Continue practicing to maintain this effective pace while ensuring your speech remains clear and engaging.';
     }
   }
 }

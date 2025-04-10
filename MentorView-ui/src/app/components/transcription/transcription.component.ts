@@ -7,6 +7,7 @@ import { XpService } from '../../services/xp.service';
 import { XpNotificationComponent } from '../xp-notification/xp-notification.component';
 import { createComponent } from '@angular/core';
 import { FillerWordsService } from '../../services/filler-words.service';
+import { SpeakingPaceService } from '../../services/speaking-pace.service';
 
 declare const faceapi: any;
 
@@ -106,7 +107,8 @@ export class TranscriptionComponent implements OnInit {
         private injector: Injector, 
         private appRef: ApplicationRef, 
         private viewContainerRef: ViewContainerRef,
-        private fillerWordsService: FillerWordsService
+        private fillerWordsService: FillerWordsService,
+        private speakingPaceService: SpeakingPaceService
     ) { }
 
     ngOnInit() {
@@ -454,6 +456,20 @@ export class TranscriptionComponent implements OnInit {
                     this.isSaved = true;
                     this.savedInterviewId = response.id;
                     
+                    // Save WPM data to Firebase when interview is saved
+                    if (this.averageWpm > 0) {
+                        const recordingDurationSeconds = (Date.now() - this.recordingStartTime) / 1000;
+                        this.speakingPaceService.saveSpeakingPaceData(
+                            this.averageWpm,
+                            this.totalWordCount,
+                            recordingDurationSeconds,
+                            this.savedInterviewId
+                        ).subscribe({
+                            next: () => console.log('Speaking pace (WPM) data saved to Firebase after interview save'),
+                            error: (err) => console.error('Error saving speaking pace data:', err)
+                        });
+                    }
+                    
                     // Show success message for 3 seconds then navigate to saved interviews
                     setTimeout(() => {
                         this.saveSuccess = false; // Hide success message
@@ -507,6 +523,20 @@ export class TranscriptionComponent implements OnInit {
                 next: () => console.log('Filler word data saved to Firebase'),
                 error: (err) => console.error('Error saving filler word data:', err)
             });
+        
+        // Save speaking pace (WPM) data to Firebase
+        const recordingDurationSeconds = (Date.now() - this.recordingStartTime) / 1000;
+        if (this.averageWpm > 0 && this.savedInterviewId) {
+            this.speakingPaceService.saveSpeakingPaceData(
+                this.averageWpm,
+                this.totalWordCount,
+                recordingDurationSeconds,
+                this.savedInterviewId
+            ).subscribe({
+                next: () => console.log('Speaking pace (WPM) data saved to Firebase'),
+                error: (err) => console.error('Error saving speaking pace data:', err)
+            });
+        }
         
         console.log('Filler word analysis:', this.fillerWords);
         console.log('Total filler words:', this.totalFillerWords);
