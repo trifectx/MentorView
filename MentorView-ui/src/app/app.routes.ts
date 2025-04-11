@@ -10,6 +10,9 @@ import { OverviewComponent } from './pages/overview/overview.component';
 import { FriendsComponent } from './pages/friends/friends.component';
 import { AssessmentCentreComponent } from './pages/assessment-centre/assessment-centre.component';
 
+import { authGuard } from './guards/auth.guard';
+import { guestGuard } from './guards/guest.guard';
+
 export const routes: Routes = [
     {
         path: '',
