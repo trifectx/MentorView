@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
-import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged } from '@angular/fire/auth';
-import { Firestore, doc, setDoc, getDoc } from '@angular/fire/firestore';
-import { Observable, from, switchMap, of } from 'rxjs';
+import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, User } from '@angular/fire/auth';
+import { Firestore, doc, setDoc } from '@angular/fire/firestore';
+import { Observable, from} from 'rxjs';
 
 @Injectable({
     providedIn: 'root',
@@ -24,13 +24,7 @@ export class AuthService {
         ).then(response => {
             return updateProfile(response.user, { displayName: username })
                 .then(() => {
-                    // Create user document in Firestore
-                    return setDoc(doc(this.firestore, 'users', response.user.uid), {
-                        uid: response.user.uid,
-                        email: response.user.email,
-                        displayName: username,
-                        friends: []
-                    });
+                    return this.createUserDocument(response.user);
                 });
         });
 
@@ -44,5 +38,20 @@ export class AuthService {
             password
         ).then(() => {});
         return from(promise);
+    }
+
+    /**
+     * Create the user document in Firestore after successful registration
+     * @param user - The user object returned from Firebase Auth
+     * @returns a Promise that resolves when the document is created
+     */
+    private createUserDocument(user: User): Promise<void> {
+        const userRef = doc(this.firestore, 'users', user.uid);
+        return setDoc(userRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName ?? 'User',
+            friends: []
+        });
     }
 }
