@@ -1,7 +1,9 @@
-import { inject, Injectable } from '@angular/core';
-import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, User } from '@angular/fire/auth';
+import { inject, Injectable, signal, computed, effect } from '@angular/core';
+import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, user as firebaseUser, User as FirebaseUser } from '@angular/fire/auth';
 import { Firestore, doc, setDoc } from '@angular/fire/firestore';
 import { Observable, from} from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { UserInterface } from '../shared/user.interface';
 
 @Injectable({
     providedIn: 'root',
@@ -10,7 +12,29 @@ export class AuthService {
     firebaseAuth = inject(Auth);
     firestore = inject(Firestore);
 
-    constructor() {}
+    // Signal version of the Firebase user observable
+    private fbUser = toSignal(firebaseUser(this.firebaseAuth), { initialValue: null });
+
+     // Lightweight user info object
+    currentUser = signal<UserInterface | null | undefined>(undefined);
+
+    // True if logged in
+    isAuthenticated = computed(() => !!this.currentUser());
+
+    constructor() {
+        effect(() => {
+            const user = this.fbUser();
+            if (user) {
+                this.currentUser.set({
+                    displayName: user.displayName!,
+                    email: user.email!,
+                });
+            }
+            else {
+                this.currentUser.set(null);
+            }
+        })
+    }
 
     register(
         email: string,
@@ -50,7 +74,7 @@ export class AuthService {
      * @param user - The user object returned from Firebase Auth
      * @returns a Promise that resolves when the document is created
      */
-    private createUserDocument(user: User): Promise<void> {
+    private createUserDocument(user: FirebaseUser): Promise<void> {
         const userRef = doc(this.firestore, 'users', user.uid);
         return setDoc(userRef, {
             uid: user.uid,

@@ -1,6 +1,5 @@
-export interface UserRecord {
-    uid: string;
-    email: string;
+export interface UserInterface {
     displayName: string;
-    friends: string[]; // Array of user UIDs (or can be expanded to objects if needed)
+    email: string;
+    photoURL?: string; // if we wanna add a profile picture in the future
 }
