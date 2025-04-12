@@ -33,7 +33,7 @@ export class AuthService {
             else {
                 this.currentUser.set(null);
             }
-        })
+        }, {allowSignalWrites: true});
     }
 
     register(

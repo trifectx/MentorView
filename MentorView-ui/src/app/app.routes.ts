@@ -10,63 +10,23 @@ import { OverviewComponent } from './pages/overview/overview.component';
 import { FriendsComponent } from './pages/friends/friends.component';
 import { AssessmentCentreComponent } from './pages/assessment-centre/assessment-centre.component';
 
-import { authGuard } from './guards/auth.guard';
-import { guestGuard } from './guards/guest.guard';
+import { requireAuth, redirectIfAuthenticated } from './guards/route.guard';
 
 export const routes: Routes = [
-    {
-        path: '',
-        redirectTo: 'home', 
-        pathMatch: 'full',
-    },
-    {
-        path: 'home',
-        component: HomeComponent,
-        title: 'Home',
-    },
-    {
-        path: 'login',
-        component: LoginComponent,
-        title: 'Login',
-    },
-    {
-        path: 'sign-up',
-        component: SignupComponent,
-        title: 'Sign Up',
-    },
-    {
-        path: 'dashboard',
-        component: DashboardComponent,
-        title: 'Dashboard',
-    },
-    {
-        path: 'interview',
-        component: InterviewComponent,
-        title: 'Your Interview',
-    },
-    {
-        path: 'saved-interviews',
-        component: SavedInterviewsComponent,
-        title: 'Saved Interviews',
-    },
-    {
-        path: 'overview',
-        component: OverviewComponent,
-        title: 'Performance Overview',
-    },
-    {
-        path: 'friends',
-        component: FriendsComponent,
-        title: 'Friends',
-    },
-    {
-        path: 'assessment-centre',
-        component: AssessmentCentreComponent,
-        title: 'Assessment Centre',
-    },
-    {
-        path: '**',
-        component: ErrorComponent,
-        title: 'Error',
-    },
+
+    // 🟢 Public routes
+    { path: '', component: HomeComponent, canActivate: [redirectIfAuthenticated] },
+    { path: 'login', component: LoginComponent, canActivate: [redirectIfAuthenticated] }, 
+    { path: 'sign-up', component: SignupComponent, canActivate: [redirectIfAuthenticated] }, 
+
+    // 🔒 Protected routes
+    { path: 'dashboard', component: DashboardComponent, canActivate: [requireAuth] },
+    { path: 'interview', component: InterviewComponent, canActivate: [requireAuth] },
+    { path: 'saved-interviews', component: SavedInterviewsComponent, canActivate: [requireAuth] },
+    { path: 'overview', component: OverviewComponent, canActivate: [requireAuth] },
+    { path: 'friends', component: FriendsComponent, canActivate: [requireAuth] },
+    { path: 'assessment-centre', component: AssessmentCentreComponent, canActivate: [requireAuth] },
+
+    // 🔴 Non-existant routes
+    { path: '**', component: ErrorComponent },
 ];
