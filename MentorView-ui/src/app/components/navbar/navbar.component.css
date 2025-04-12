@@ -234,7 +234,7 @@
 /* XP Level Indicator Positioning */
 .xp-corner-indicator {
   position: fixed;
-  top: 70px; /* Moved down to avoid overlapping with navbar icons */
-  right: 15px;
+  bottom: 15px; /* Positioned at the bottom */
+  left: 15px; /* Positioned at the left */
   z-index: 1000;
 }
