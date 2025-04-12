@@ -64,6 +64,8 @@
   font-size: 18px;
   cursor: pointer;
   transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
 }
 
 .notification-btn:hover, .user-btn:hover {
@@ -115,7 +117,8 @@
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
-.dropdown:hover .dropdown-icon {
+.dropdown:hover .dropdown-icon,
+.dropdown.active .dropdown-icon {
   opacity: 1;
   transform: rotate(180deg);
 }
@@ -133,16 +136,40 @@
   border-radius: 8px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.24);
   overflow: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  opacity: 0;
+  visibility: hidden;
 }
 
-/* Important fix: Display the dropdown on hover of EITHER the main dropdown or the dropdown content */
+/* Important fix: Display the dropdown on hover or click */
 .dropdown:hover .dropdown-content,
-.dropdown-content:hover {
-  display: block;
+.dropdown-content:hover,
+.dropdown-content:focus-within,
+.dropdown-content.show {
+  display: block !important;
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Active state for dropdown */
+.dropdown.active .dropdown-button {
+  color: #ffffff;
+}
+
+.dropdown.active .dropdown-icon {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+
+/* Allow the user button to be part of nav-item dropdown */
+.user-controls .dropdown {
+  display: flex;
+  align-items: center;
 }
 
 /* Add a pseudo-element to bridge the gap between dropdown button and content */
-.dropdown:hover::after {
+.dropdown:hover::after,
+.dropdown.active::after {
   content: '';
   position: absolute;
   height: 20px; /* Height of the gap between button and dropdown */
@@ -150,6 +177,7 @@
   top: 100%;
   left: 0;
   /* No background so it's invisible but still detects hover */
+  pointer-events: auto;
 }
 
 .dropdown-content::before {
@@ -219,6 +247,30 @@
   }
 }
 
+/* User dropdown specific styles */
+.user-dropdown {
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+  transform: none;
+  min-width: 180px;
+}
+
+.user-dropdown:hover, 
+.user-dropdown:focus-within,
+.dropdown:hover .user-dropdown,
+.user-dropdown.show {
+  display: block !important;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.user-dropdown .dropdown-item i {
+  width: 20px;
+  margin-right: 8px;
+}
+
 /* Animation */
 @keyframes fadeIn {
   from {
@@ -228,6 +280,17 @@
   to {
     opacity: 1;
     transform: translateY(0) translateX(-50%);
+  }
+}
+
+@keyframes fadeInUser {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

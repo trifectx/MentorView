@@ -25,7 +25,23 @@
   <div class="header-right">
     <div class="user-controls">
       <button class="notification-btn">🔔</button>
-      <button class="user-btn">👤</button>
+      <div class="nav-item dropdown" [class.active]="isUserDropdownOpen">
+        <button class="user-btn dropdown-button" (click)="toggleUserDropdown($event)">👤 <span class="dropdown-icon">▾</span></button>
+        <div class="dropdown-content user-dropdown" [class.show]="isUserDropdownOpen">
+          <a routerLink="/profile" class="dropdown-item" (click)="$event.stopPropagation()">
+            <i class="fas fa-user"></i>
+            Profile
+          </a>
+          <a routerLink="/settings" class="dropdown-item" (click)="$event.stopPropagation()">
+            <i class="fas fa-cog"></i>
+            Settings
+          </a>
+          <a routerLink="/login" class="dropdown-item" (click)="$event.stopPropagation()">
+            <i class="fas fa-sign-out-alt"></i>
+            Logout
+          </a>
+        </div>
+      </div>
       <button class="premium-btn">Premium</button>
     </div>
   </div>

@@ -10,5 +10,15 @@ import { LevelIndicatorComponent } from '../level-indicator/level-indicator.comp
   imports: [RouterModule, LevelIndicatorComponent]
 })
 export class NavbarComponent {
-  // Add any navigation-related properties or methods here
+  isUserDropdownOpen = false;
+
+  toggleUserDropdown(event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isUserDropdownOpen = !this.isUserDropdownOpen;
+  }
+
+  closeUserDropdown() {
+    this.isUserDropdownOpen = false;
+  }
 }
