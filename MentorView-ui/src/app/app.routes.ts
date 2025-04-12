@@ -9,10 +9,10 @@ import { SavedInterviewsComponent } from './pages/saved-interviews/saved-intervi
 import { OverviewComponent } from './pages/overview/overview.component';
 import { FriendsComponent } from './pages/friends/friends.component';
 import { AssessmentCentreComponent } from './pages/assessment-centre/assessment-centre.component';
-import { ForumComponent } from './pages/forum/forum.component';
 import { PostDetailComponent } from './pages/forum/post-detail/post-detail.component';
 import { CommunityListComponent } from './pages/forum/community-list/community-list.component';
 import { CommunityDetailComponent } from './pages/forum/community-detail/community-detail.component';
+import { ForYouComponent } from './pages/forum/for-you/for-you.component';
 
 export const routes: Routes = [
     {
@@ -67,7 +67,12 @@ export const routes: Routes = [
     },
     {
         path: 'forum',
-        component: CommunityListComponent,
+        component: ForYouComponent,
+        title: 'For You',
+    },
+    {
+        path: 'forum/communities',
+        component: ForYouComponent,
         title: 'Communities',
     },
     {

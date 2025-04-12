@@ -1,0 +1,51 @@
+<div class="sidebar-container">
+  <div class="sidebar-section">
+    <h3 class="sidebar-header">
+      <span>CUSTOM FEEDS</span>
+      <button class="sidebar-toggle">
+        <i class="fa fa-chevron-up"></i>
+      </button>
+    </h3>
+    <div class="sidebar-item">
+      <i class="fa fa-plus"></i>
+      <span>Create a custom feed</span>
+    </div>
+  </div>
+  
+  <div class="sidebar-section">
+    <h3 class="sidebar-header">
+      <span>RECENT</span>
+      <button class="sidebar-toggle">
+        <i class="fa fa-chevron-up"></i>
+      </button>
+    </h3>
+    <div class="sidebar-content">
+      <!-- This would be populated with recent communities -->
+    </div>
+  </div>
+  
+  <div class="sidebar-section">
+    <h3 class="sidebar-header">
+      <span>YOUR COMMUNITIES</span>
+      <button class="sidebar-toggle">
+        <i class="fa fa-chevron-up"></i>
+      </button>
+    </h3>
+    <div class="sidebar-content">
+      <!-- User's joined communities -->
+      <div *ngFor="let community of userCommunities$ | async" class="sidebar-item" [routerLink]="['/forum/community', community.id]">
+        <div class="community-icon">
+          <img *ngIf="community.imageUrl" [src]="community.imageUrl" alt="r/{{ community.name }}">
+          <div *ngIf="!community.imageUrl" class="default-icon">r/</div>
+        </div>
+        <span>r/{{ community.name }}</span>
+      </div>
+      
+      <!-- Create community link -->
+      <div class="sidebar-item" (click)="onCreateCommunityClick($event)">
+        <i class="fa fa-plus"></i>
+        <span>Create a community</span>
+      </div>
+    </div>
+  </div>
+</div>

@@ -3,31 +3,38 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Auth, User } from '@angular/fire/auth';
-import { Observable, of, switchMap } from 'rxjs';
+import { Observable, of, switchMap, take, firstValueFrom } from 'rxjs';
 import { ForumService, Community, Post, SortOption } from '../../../services/forum.service';
 import { TimeAgoPipe } from '../../../pipes/time-ago.pipe';
+import { CommunitySidebarComponent } from '../../../components/community-sidebar/community-sidebar.component';
 
 @Component({
   selector: 'app-community-detail',
   templateUrl: './community-detail.component.html',
   styleUrls: ['./community-detail.component.css'],
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, TimeAgoPipe]
+  imports: [CommonModule, FormsModule, RouterModule, TimeAgoPipe, CommunitySidebarComponent]
 })
 export class CommunityDetailComponent implements OnInit {
-  communityId: string = '';
-  community$: Observable<Community | null>;
+  communityId: string;
+  community$: Observable<Community | undefined>;
   posts$: Observable<Post[]>;
   currentUser: User | null = null;
   showNewPostForm = false;
-  newPost = {
-    title: '',
-    content: ''
-  };
   isMember = false;
   isModerator = false;
   currentSort: SortOption = SortOption.Newest;
   sortOptions = SortOption;
+
+  // New post form data
+  newPost: {
+    title: string;
+    content: string;
+    communityId?: string;
+  } = {
+    title: '',
+    content: ''
+  };
 
   constructor(
     private route: ActivatedRoute,
@@ -76,37 +83,75 @@ export class CommunityDetailComponent implements OnInit {
 
   submitPost(): void {
     if (!this.currentUser) {
-      alert('You must be logged in to create a post.');
+      this.showError('You must be logged in to post');
       return;
     }
 
-    if (!this.isMember) {
-      alert('You must be a member of this community to post.');
+    if (!this.newPost.title.trim()) {
+      this.showError('Title is required');
       return;
     }
 
-    if (!this.newPost.title.trim() || !this.newPost.content.trim()) {
-      alert('Post title and content are required.');
-      return;
-    }
+    const loading = document.getElementById('loading-indicator');
+    if (loading) loading.style.display = 'block';
 
-    this.forumService.createPost(this.communityId, this.newPost).subscribe({
-      next: (postId) => {
-        // Reset the form
-        this.newPost = {
-          title: '',
-          content: ''
-        };
-        this.showNewPostForm = false;
+    // Create a local copy of the post data to avoid reference issues
+    const postData = {
+      title: this.newPost.title.trim(),
+      content: this.newPost.content.trim(),
+      communityId: this.communityId
+    };
+
+    // Clear the form immediately to give user feedback
+    this.resetPostForm();
+
+    // Create post with timeout
+    const postRequest = this.forumService.createPost(this.communityId, postData);
+    
+    // Set a timeout for the request
+    const timeout = 10000; // 10 seconds
+    
+    setTimeout(() => {
+      if (loading) loading.style.display = 'none';
+    }, timeout);
+    
+    // Use firstValueFrom instead of toPromise()
+    firstValueFrom(postRequest)
+      .then((postId: string) => {
+        if (loading) loading.style.display = 'none';
+        console.log('Post created successfully:', postId);
         
-        // Navigate to the new post
-        this.router.navigate(['/forum/post', postId]);
-      },
-      error: (error) => {
+        // Show success message
+        this.showSuccess('Post created successfully!');
+        
+        // Refresh posts
+        this.loadPosts();
+      })
+      .catch(error => {
+        if (loading) loading.style.display = 'none';
         console.error('Error creating post:', error);
-        alert('An error occurred: ' + error.message);
-      }
-    });
+        this.showError('Failed to create post: ' + (error.message || 'Unknown error'));
+      });
+  }
+
+  // Reset the post form
+  private resetPostForm(): void {
+    this.newPost = {
+      title: '',
+      content: ''
+    };
+  }
+
+  // Show error message
+  private showError(message: string): void {
+    // You can implement this with a proper toast/notification component
+    alert(message);
+  }
+
+  // Show success message
+  private showSuccess(message: string): void {
+    // You can implement this with a proper toast/notification component
+    alert(message);
   }
 
   cancelPost(): void {

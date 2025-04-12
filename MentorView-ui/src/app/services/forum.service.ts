@@ -12,7 +12,9 @@ import {
   where,
   Timestamp,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  getDocs,
+  docData
 } from '@angular/fire/firestore';
 import { Auth, onAuthStateChanged, User } from '@angular/fire/auth';
 import { Observable, from, of, throwError, BehaviorSubject } from 'rxjs';
@@ -50,14 +52,14 @@ export interface Post {
 export interface Reply {
   id?: string;
   content: string;
-  createdAt: Date | Timestamp;
+  createdAt: Date | any; // Using any to accommodate Firebase Timestamp
   userId: string;
   userName: string;
-  parentId?: string; // For replies to replies (null or undefined if direct reply to post)
   postId: string; // ID of the post this reply belongs to
-  depth: number; // Depth level of the reply (0 for direct replies to post, 1+ for nested replies)
-  upvotes: string[]; // Array of user IDs who upvoted
-  score: number; // Net score (upvotes count)
+  parentId?: string; // For replies to replies (null or undefined if direct reply to post)
+  depth?: number; // Depth level of the reply (0 for direct replies to post, 1+ for nested replies)
+  upvotes?: string[]; // Array of user IDs who upvoted
+  score?: number; // Net score (upvotes count)
 }
 
 export interface NestedReply extends Reply {
@@ -173,37 +175,56 @@ export class ForumService {
     if (!this.currentUser) {
       return throwError(() => new Error('You must be logged in to create a community'));
     }
-
-    const newCommunity: Community = {
-      ...community,
-      createdAt: new Date(),
-      createdBy: this.currentUser.uid,
-      creatorName: this.currentUser.displayName || 'Anonymous',
-      memberCount: 1, // Creator is the first member
-      members: [this.currentUser.uid],
-      moderators: [this.currentUser.uid], // Creator is the first moderator
-      isPrivate: community.isPrivate || false
-    };
-
-    return from(addDoc(collection(this.firestore, 'communities'), newCommunity)).pipe(
-      map(docRef => {
-        // Update our cache with the new community
-        const communities = this.communitiesSubject.value;
-        const newCommunityWithId = { ...newCommunity, id: docRef.id };
-        this.communitiesSubject.next([
-          newCommunityWithId,
-          ...communities
-        ]);
+    
+    const communitiesCollection = collection(this.firestore, 'communities');
+    
+    // Check if a community with the same name already exists
+    const nameCheckQuery = query(
+      communitiesCollection,
+      where('name', '==', community.name)
+    );
+    
+    return from(getDocs(nameCheckQuery)).pipe(
+      switchMap(querySnapshot => {
+        if (!querySnapshot.empty) {
+          return throwError(() => new Error('A community with this name already exists'));
+        }
         
-        // Update the cache
-        const cachedCommunities = this.communitiesCache.get('all') || [];
-        this.communitiesCache.set('all', [newCommunityWithId, ...cachedCommunities]);
+        // Prepare the community object with default values
+        const newCommunity: Community = {
+          ...community,
+          createdAt: new Date(),
+          createdBy: this.currentUser!.uid,
+          creatorName: this.currentUser!.displayName || this.currentUser!.email || 'Anonymous',
+          memberCount: 1, // Creator is the first member
+          members: [this.currentUser!.uid], // Creator is automatically a member
+          moderators: [this.currentUser!.uid] // Creator is automatically a moderator
+        };
         
-        return docRef.id;
-      }),
-      catchError(error => {
-        console.error('Error creating community:', error);
-        return throwError(() => new Error('Failed to create community'));
+        return from(addDoc(communitiesCollection, newCommunity)).pipe(
+          map(docRef => {
+            // Update cache
+            const communityWithId = {
+              ...newCommunity,
+              id: docRef.id
+            };
+            
+            // Update the communities cache
+            const cachedCommunities = this.communitiesCache.get('all') || [];
+            this.communitiesCache.set('all', [...cachedCommunities, communityWithId]);
+            
+            // Notify subscribers
+            const currentCommunities = this.communitiesSubject.value;
+            this.communitiesSubject.next([...currentCommunities, communityWithId]);
+            
+            console.log(`Created community ${docRef.id}`);
+            return docRef.id;
+          }),
+          catchError(error => {
+            console.error('Error creating community:', error);
+            return throwError(() => new Error('Failed to create community: ' + error.message));
+          })
+        );
       })
     );
   }
@@ -215,33 +236,46 @@ export class ForumService {
     }
     
     try {
+      const userId = this.currentUser.uid;
+      
+      // Check if already a member
       const communityRef = doc(this.firestore, 'communities', communityId);
       const communitySnap = await getDoc(communityRef);
       
-      if (communitySnap.exists()) {
-        const communityData = communitySnap.data() as Community;
-        const members = communityData.members || [];
-        
-        if (!members.includes(this.currentUser.uid)) {
-          // Add user to members and increment count
-          await updateDoc(communityRef, {
-            members: arrayUnion(this.currentUser.uid),
-            memberCount: (communityData.memberCount || 0) + 1
-          });
-          
-          // Update cache
-          this.updateCommunityInCache(communityId, {
-            members: [...members, this.currentUser.uid],
-            memberCount: (communityData.memberCount || 0) + 1
-          });
-        }
+      if (!communitySnap.exists()) {
+        throw new Error('Community not found');
       }
+      
+      const communityData = communitySnap.data() as Community;
+      
+      // Skip if already a member
+      if (communityData.members && communityData.members.includes(userId)) {
+        console.log('User is already a member of this community');
+        return;
+      }
+      
+      // Add user to members array and increment member count
+      await updateDoc(communityRef, {
+        members: arrayUnion(userId),
+        memberCount: (communityData.memberCount || 0) + 1
+      });
+      
+      console.log(`User ${userId} joined community ${communityId}`);
+      
+      // Update cache if it exists
+      this.updateCommunityInCache(communityId, {
+        members: [...(communityData.members || []), userId],
+        memberCount: (communityData.memberCount || 0) + 1
+      });
+      
+      // Refresh communities to update UI
+      this.refreshCommunities();
     } catch (error) {
       console.error(`Error joining community ${communityId}:`, error);
       throw error;
     }
   }
-  
+
   // Leave a community
   async leaveCommunity(communityId: string): Promise<void> {
     if (!this.currentUser) {
@@ -249,36 +283,50 @@ export class ForumService {
     }
     
     try {
+      const userId = this.currentUser.uid;
+      
+      // Check if a member
       const communityRef = doc(this.firestore, 'communities', communityId);
       const communitySnap = await getDoc(communityRef);
       
-      if (communitySnap.exists()) {
-        const communityData = communitySnap.data() as Community;
-        const members = communityData.members || [];
-        
-        if (members.includes(this.currentUser.uid)) {
-          // Remove user from members and decrement count
-          await updateDoc(communityRef, {
-            members: arrayRemove(this.currentUser.uid),
-            memberCount: Math.max((communityData.memberCount || 0) - 1, 0)
-          });
-          
-          // Remove from moderators if they are one
-          const moderators = communityData.moderators || [];
-          if (moderators.includes(this.currentUser.uid)) {
-            await updateDoc(communityRef, {
-              moderators: arrayRemove(this.currentUser.uid)
-            });
-          }
-          
-          // Update cache
-          this.updateCommunityInCache(communityId, {
-            members: members.filter(uid => uid !== this.currentUser?.uid),
-            memberCount: Math.max((communityData.memberCount || 0) - 1, 0),
-            moderators: moderators.filter(uid => uid !== this.currentUser?.uid)
-          });
-        }
+      if (!communitySnap.exists()) {
+        throw new Error('Community not found');
       }
+      
+      const communityData = communitySnap.data() as Community;
+      
+      // Skip if not a member
+      if (!communityData.members || !communityData.members.includes(userId)) {
+        console.log('User is not a member of this community');
+        return;
+      }
+      
+      // Check if user is the creator - creators can't leave their own communities
+      if (communityData.createdBy === userId) {
+        throw new Error('As the creator, you cannot leave your own community. You can delete it instead.');
+      }
+      
+      // Remove user from members array and decrement member count
+      await updateDoc(communityRef, {
+        members: arrayRemove(userId),
+        moderators: arrayRemove(userId), // Also remove from moderators if they are one
+        memberCount: Math.max((communityData.memberCount || 1) - 1, 0)
+      });
+      
+      console.log(`User ${userId} left community ${communityId}`);
+      
+      // Update cache if it exists
+      const updatedMembers = (communityData.members || []).filter(id => id !== userId);
+      const updatedModerators = (communityData.moderators || []).filter(id => id !== userId);
+      
+      this.updateCommunityInCache(communityId, {
+        members: updatedMembers,
+        moderators: updatedModerators,
+        memberCount: Math.max((communityData.memberCount || 1) - 1, 0)
+      });
+      
+      // Refresh communities to update UI
+      this.refreshCommunities();
     } catch (error) {
       console.error(`Error leaving community ${communityId}:`, error);
       throw error;
@@ -360,6 +408,113 @@ export class ForumService {
     
     // Update the all communities cache
     this.communitiesCache.set('all', updatedCommunities);
+  }
+
+  // Get communities that the current user is a member of
+  getUserCommunities(): Observable<Community[]> {
+    if (!this.currentUser) {
+      return of([]);
+    }
+    
+    const userId = this.currentUser.uid;
+    const communitiesCollection = collection(this.firestore, 'communities');
+    
+    // Query for communities where the user is a member
+    const userCommunitiesQuery = query(
+      communitiesCollection,
+      where('members', 'array-contains', userId)
+    );
+    
+    // Use BehaviorSubject to cache the result
+    return collectionData(userCommunitiesQuery, { idField: 'id' }).pipe(
+      map(communities => communities as Community[]),
+      tap(communities => {
+        // Update cache with user's communities
+        const userCommunitiesCache = 'user_communities';
+        this.communitiesCache.set(userCommunitiesCache, communities);
+        
+        // Also update individual community cache entries
+        communities.forEach(community => {
+          const cacheKey = `community_${community.id}`;
+          this.communitiesCache.set(cacheKey, [community]);
+        });
+        
+        console.log(`User has ${communities.length} communities`);
+      }),
+      catchError(error => {
+        console.error('Error fetching user communities:', error);
+        
+        // Try to return from cache if available
+        const cachedCommunities = this.communitiesCache.get('user_communities');
+        if (cachedCommunities && cachedCommunities.length > 0) {
+          console.log('Returning cached user communities');
+          return of(cachedCommunities);
+        }
+        
+        return of([]);
+      })
+    );
+  }
+
+  // Get posts from communities the user has joined (For You feed)
+  getForYouPosts(sortOption: SortOption = SortOption.Newest): Observable<Post[]> {
+    if (!this.currentUser) {
+      return of([]);
+    }
+    
+    return this.getUserCommunities().pipe(
+      switchMap(communities => {
+        if (communities.length === 0) {
+          return of([]);
+        }
+        
+        const communityIds = communities.map(c => c.id!);
+        
+        // Check cache first
+        let cachedPosts: Post[] = [];
+        let allCached = true;
+        
+        for (const communityId of communityIds) {
+          const key = `community_${communityId}`;
+          
+          if (this.postsCache.has(key)) {
+            cachedPosts = [...cachedPosts, ...this.postsCache.get(key)!];
+          } else {
+            allCached = false;
+            break;
+          }
+        }
+        
+        if (allCached && cachedPosts.length > 0) {
+          return of(this.sortPosts(cachedPosts, sortOption));
+        }
+        
+        // If not all in cache, fetch from Firestore
+        const postsCollection = collection(this.firestore, 'posts');
+        const postsQuery = query(
+          postsCollection,
+          where('communityId', 'in', communityIds)
+        );
+        
+        return collectionData(postsQuery, { idField: 'id' }).pipe(
+          map(posts => {
+            const formattedPosts = posts.map(post => {
+              // Format timestamp
+              if (post['createdAt'] && typeof (post['createdAt'] as any).toDate === 'function') {
+                post['createdAt'] = (post['createdAt'] as any).toDate();
+              }
+              return post as Post;
+            });
+            
+            return this.sortPosts(formattedPosts, sortOption);
+          }),
+          catchError(error => {
+            console.error('Error fetching for you posts:', error);
+            return of([]);
+          })
+        );
+      })
+    );
   }
 
   // Refresh posts from Firestore
@@ -463,37 +618,58 @@ export class ForumService {
     }
   }
 
-  // Get a single post by ID
+  // Get a specific post by ID
   getPost(postId: string): Observable<Post | null> {
-    // Check cache first
-    const cachedPosts = this.postsCache.get('all');
-    if (cachedPosts) {
-      const cachedPost = cachedPosts.find(p => p.id === postId);
+    // First check if we have this post in any of our caches
+    for (const [, posts] of this.postsCache.entries()) {
+      const cachedPost = posts.find(p => p.id === postId);
       if (cachedPost) {
+        console.log(`Found post ${postId} in cache`);
         return of(cachedPost);
       }
     }
     
+    // Also check in the main posts subject
+    const mainPosts = this.postsSubject.value;
+    const mainCachedPost = mainPosts.find(p => p.id === postId);
+    if (mainCachedPost) {
+      console.log(`Found post ${postId} in main posts subject`);
+      return of(mainCachedPost);
+    }
+
     // If not in cache, fetch from Firestore
+    console.log(`Fetching post ${postId} from Firestore`);
     const postDoc = doc(this.firestore, 'posts', postId);
-    return from(getDoc(postDoc)).pipe(
-      map(postSnap => {
-        if (postSnap.exists()) {
-          const data = postSnap.data() as Post;
-          // Convert timestamp if needed
-          if (data.createdAt && typeof (data.createdAt as any).toDate === 'function') {
-            data.createdAt = (data.createdAt as any).toDate();
-          }
-          // Default upvotes and score if not present
-          data.upvotes = data.upvotes || [];
-          data.score = data.score || 0;
-          return { ...data, id: postSnap.id };
+    
+    // Use a more efficient approach with a single docData call
+    return docData(postDoc, { idField: 'id' }).pipe(
+      take(1),
+      map(postData => {
+        if (!postData) return null;
+        
+        // Format date
+        let post = postData as any as Post;
+        if (post.createdAt && typeof (post.createdAt as any).toDate === 'function') {
+          post.createdAt = (post.createdAt as any).toDate();
         }
-        return null;
-      }),
-      catchError(error => {
-        console.error(`Error fetching post ${postId}:`, error);
-        return of(null);
+        
+        // Make sure all properties exist
+        post = {
+          ...post,
+          upvotes: post.upvotes || [],
+          replyCount: post.replyCount || 0,
+          score: post.score || 0
+        };
+        
+        // Add to appropriate cache
+        if (post.communityId) {
+          const communityPosts = this.postsCache.get(`community_${post.communityId}`) || [];
+          if (!communityPosts.some(p => p.id === post.id)) {
+            this.postsCache.set(`community_${post.communityId}`, [...communityPosts, post]);
+          }
+        }
+        
+        return post;
       })
     );
   }
@@ -507,67 +683,62 @@ export class ForumService {
       return throwError(() => new Error('You must be logged in to create a post'));
     }
     
-    // Get the community information first
-    return this.getCommunity(communityId).pipe(
-      switchMap(community => {
-        if (!community) {
-          return throwError(() => new Error('Community not found'));
+    // Check if user is a member of the community first
+    return from(this.isCommunityMember(communityId)).pipe(
+      switchMap(isMember => {
+        if (!isMember) {
+          return throwError(() => new Error('You must be a member of this community to post'));
         }
         
-        // Check if user is a member if the community is private
-        if (community.isPrivate) {
-          const isMember = (community.members || []).includes(this.currentUser!.uid);
-          if (!isMember) {
-            return throwError(() => new Error('You must be a member of this community to post'));
-          }
-        }
-        
-        const newPost: Post = {
-          ...post,
-          createdAt: new Date(),
-          userId: this.currentUser.uid,
-          userName: this.currentUser.displayName || 'Anonymous',
-          replyCount: 0,
-          upvotes: [],
-          score: 0,
-          communityId: communityId,
-          communityName: community.name
-        };
-
-        return from(addDoc(collection(this.firestore, 'posts'), newPost)).pipe(
-          map(docRef => {
-            // Update our cache with the new post
-            const posts = this.postsSubject.value;
-            const newPostWithId = { ...newPost, id: docRef.id };
-            this.postsSubject.next([
-              newPostWithId,
-              ...posts
-            ]);
-            
-            // Update community posts cache if it exists
-            const cachedCommunityPosts = this.postsCache.get(`community_${communityId}`);
-            if (cachedCommunityPosts) {
-              this.postsCache.set(`community_${communityId}`, [
-                newPostWithId,
-                ...cachedCommunityPosts
-              ]);
+        // Get community data to include name
+        return from(getDoc(doc(this.firestore, 'communities', communityId))).pipe(
+          switchMap(communityDoc => {
+            if (!communityDoc.exists()) {
+              return throwError(() => new Error('Community not found'));
             }
             
-            // Update all posts cache
-            const cachedAllPosts = this.postsCache.get('all') || [];
-            this.postsCache.set('all', [newPostWithId, ...cachedAllPosts]);
+            const communityData = communityDoc.data() as Community;
             
-            return docRef.id;
-          }),
-          catchError(error => {
-            console.error('Error creating post:', error);
-            return throwError(() => new Error('Failed to create post'));
+            // Prepare the post with user and community data
+            const newPost: Post = {
+              ...post,
+              userId: this.currentUser!.uid,
+              userName: this.currentUser!.displayName || this.currentUser!.email?.split('@')[0] || 'Anonymous',
+              createdAt: new Date(),
+              replyCount: 0,
+              upvotes: [],
+              score: 0,
+              communityId: communityId,
+              communityName: communityData.name
+            };
+            
+            return from(addDoc(collection(this.firestore, 'posts'), newPost)).pipe(
+              map(docRef => {
+                const postWithId = {
+                  ...newPost,
+                  id: docRef.id
+                };
+                
+                // Update the posts cache
+                // Cache under community-specific key
+                const cacheKey = `community_${communityId}`;
+                const communityPosts = this.postsCache.get(cacheKey) || [];
+                this.postsCache.set(cacheKey, [postWithId, ...communityPosts]);
+                
+                // Also update the general posts cache
+                const allPosts = this.postsSubject.value;
+                this.postsSubject.next([postWithId, ...allPosts]);
+                
+                console.log(`Created post ${docRef.id} in community ${communityId}`);
+                return docRef.id;
+              }),
+              catchError(error => {
+                console.error('Error creating post:', error);
+                return throwError(() => new Error('Failed to create post: ' + error.message));
+              })
+            );
           })
         );
-      }),
-      catchError(error => {
-        console.error('Error creating post:', error);
-        return throwError(() => error.message || 'Failed to create post');
       })
     );
   }
@@ -585,28 +756,33 @@ export class ForumService {
       where('postId', '==', postId)
     );
     
-    return collectionData(repliesQuery, { idField: 'id' }).pipe(
-      map(replies => {
-        // Normalize the replies
-        const normalizedReplies = replies.map(reply => {
-          // Convert timestamp if needed
-          if (reply['createdAt'] && typeof (reply['createdAt'] as any).toDate === 'function') {
-            reply['createdAt'] = (reply['createdAt'] as any).toDate();
+    return from(getDocs(repliesQuery)).pipe(
+      map(querySnapshot => {
+        const replies: Reply[] = [];
+        
+        querySnapshot.forEach(doc => {
+          const data = doc.data();
+          // Convert Firebase timestamp to Date if necessary
+          let createdAt = data['createdAt'];
+          if (createdAt && typeof createdAt.toDate === 'function') {
+            createdAt = createdAt.toDate();
           }
           
-          return {
-            ...reply,
-            upvotes: reply['upvotes'] || [],
-            score: reply['score'] || 0,
-            depth: reply['depth'] !== undefined ? reply['depth'] : reply['parentId'] ? 1 : 0
-          };
-        }) as Reply[];
+          replies.push({
+            ...data,
+            id: doc.id,
+            createdAt: createdAt,
+            upvotes: data['upvotes'] || [],
+            score: data['score'] || 0,
+            depth: data['depth'] || 0
+          } as Reply);
+        });
         
         // Cache the replies
-        this.repliesCache.set(postId, normalizedReplies);
+        this.repliesCache.set(postId, replies);
         
         // Sort and return
-        return this.sortReplies(normalizedReplies, sortOption);
+        return this.sortReplies(replies, sortOption);
       }),
       catchError(error => {
         console.error(`Error fetching replies for post ${postId}:`, error);
@@ -620,14 +796,14 @@ export class ForumService {
     switch (sortOption) {
       case SortOption.Newest:
         return replies.sort((a, b) => {
-          const dateA = a['createdAt'] instanceof Date ? a['createdAt'] : this.formatDate(a['createdAt']);
-          const dateB = b['createdAt'] instanceof Date ? b['createdAt'] : this.formatDate(b['createdAt']);
+          const dateA = a['createdAt'] instanceof Date ? a['createdAt'] : this.getDateFromTimestamp(a['createdAt']);
+          const dateB = b['createdAt'] instanceof Date ? b['createdAt'] : this.getDateFromTimestamp(b['createdAt']);
           return dateB.getTime() - dateA.getTime(); // Newest first
         });
       case SortOption.Oldest:
         return replies.sort((a, b) => {
-          const dateA = a['createdAt'] instanceof Date ? a['createdAt'] : this.formatDate(a['createdAt']);
-          const dateB = b['createdAt'] instanceof Date ? b['createdAt'] : this.formatDate(b['createdAt']);
+          const dateA = a['createdAt'] instanceof Date ? a['createdAt'] : this.getDateFromTimestamp(a['createdAt']);
+          const dateB = b['createdAt'] instanceof Date ? b['createdAt'] : this.getDateFromTimestamp(b['createdAt']);
           return dateA.getTime() - dateB.getTime(); // Oldest first
         });
       case SortOption.Best:
@@ -678,85 +854,112 @@ export class ForumService {
   }
 
   // Add a reply to a post or another reply
-  addReply(
-    postId: string, 
-    content: string, 
-    parentId?: string
-  ): Observable<string> {
+  addReply(postId: string, content: string, parentId?: string): Observable<string> {
     if (!this.currentUser) {
       return throwError(() => new Error('You must be logged in to reply'));
     }
-
-    // Determine depth based on parent
-    let depth = 0;
     
-    const getParentDepthPromise = parentId ? 
-      getDoc(doc(this.firestore, 'replies', parentId)).then(parentDoc => {
-        if (parentDoc.exists()) {
-          const parentData = parentDoc.data() as Reply;
-          // Child depth is parent depth + 1
-          return (parentData.depth !== undefined ? parentData.depth : 0) + 1;
+    if (!content.trim()) {
+      return throwError(() => new Error('Reply content cannot be empty'));
+    }
+    
+    // First get the post to validate it exists
+    return from(getDoc(doc(this.firestore, 'posts', postId))).pipe(
+      switchMap(postDoc => {
+        if (!postDoc.exists()) {
+          return throwError(() => new Error('Post not found'));
         }
-        return 0;
-      }) : 
-      Promise.resolve(0); // Direct replies to post have depth 0
-
-    return from(getParentDepthPromise).pipe(
-      switchMap(replyDepth => {
-        const reply: Reply = {
-          content,
-          createdAt: new Date(),
-          userId: this.currentUser!.uid,
-          userName: this.currentUser!.displayName || 'Anonymous',
-          postId,
-          depth: replyDepth,
-          upvotes: [],
-          score: 0
-        };
-
+        
+        const postData = postDoc.data() as Post;
+        
+        // If it's a reply to another reply, get the parent to determine depth
+        let getParentReply$ = of({ depth: 0 }); // Default for direct replies to post
+        
         if (parentId) {
-          reply.parentId = parentId;
-        }
-
-        return from(addDoc(collection(this.firestore, 'replies'), reply));
-      }),
-      switchMap(docRef => {
-        // Update the post's reply count
-        const postRef = doc(this.firestore, 'posts', postId);
-        return from(
-          getDoc(postRef).then(postSnap => {
-            if (postSnap.exists()) {
-              const postData = postSnap.data() as Post;
-              return updateDoc(postRef, {
-                replyCount: (postData.replyCount || 0) + 1
-              });
-            }
-            return Promise.resolve(); // Ensure all code paths return a value
-          })
-        ).pipe(
-          map(() => {
-            // Clear replies cache for this post
-            this.repliesCache.delete(postId);
-            
-            // Update posts cache
-            const allPosts = this.postsSubject.value;
-            const updatedPosts = allPosts.map(p => {
-              if (p.id === postId) {
-                return { ...p, replyCount: p.replyCount + 1 };
+          getParentReply$ = from(getDoc(doc(this.firestore, 'replies', parentId))).pipe(
+            map(replyDoc => {
+              if (!replyDoc.exists()) {
+                throw new Error('Parent reply not found');
               }
-              return p;
-            });
-            this.postsSubject.next(updatedPosts);
+              const replyData = replyDoc.data() as Reply;
+              return { 
+                depth: replyData.depth !== undefined ? replyData.depth : 0 
+              };
+            })
+          );
+        }
+        
+        return getParentReply$.pipe(
+          switchMap(parentReply => {
+            // Calculate depth (0 for direct replies to post, parentDepth + 1 for replies to replies)
+            const depth = parentId ? (parentReply.depth + 1) : 0;
             
-            return docRef.id;
+            // Create the new reply
+            const newReply: Reply = {
+              content: content.trim(),
+              createdAt: new Date(),
+              userId: this.currentUser!.uid,
+              userName: this.currentUser!.displayName || this.currentUser!.email?.split('@')[0] || 'Anonymous',
+              postId: postId,
+              parentId: parentId,
+              depth: depth,
+              upvotes: [],
+              score: 0
+            };
+            
+            // Add the reply to the replies collection
+            return from(addDoc(collection(this.firestore, 'replies'), newReply)).pipe(
+              switchMap(replyDocRef => {
+                // Increment the post's reply count
+                return from(updateDoc(doc(this.firestore, 'posts', postId), {
+                  replyCount: (postData.replyCount || 0) + 1
+                })).pipe(
+                  map(() => {
+                    // Update cache if it exists
+                    const cachedReplies = this.repliesCache.get(postId) || [];
+                    const replyWithId = { ...newReply, id: replyDocRef.id };
+                    this.repliesCache.set(postId, [...cachedReplies, replyWithId]);
+                    
+                    // Update post's reply count in cache
+                    this.updatePostInCache(postId, { replyCount: (postData.replyCount || 0) + 1 });
+                    
+                    console.log(`Added reply ${replyDocRef.id} to post ${postId}`);
+                    return replyDocRef.id;
+                  })
+                );
+              }),
+              catchError(error => {
+                console.error('Error adding reply:', error);
+                return throwError(() => new Error('Failed to add reply: ' + error.message));
+              })
+            );
           })
         );
-      }),
-      catchError(error => {
-        console.error('Error adding reply:', error);
-        return throwError(() => new Error('Failed to add reply'));
       })
     );
+  }
+  
+  // Helper method to update a post in the cache
+  private updatePostInCache(postId: string, update: Partial<Post>): void {
+    // Update in the main posts subject
+    const posts = this.postsSubject.value;
+    const updatedPosts = posts.map(post => {
+      if (post.id === postId) {
+        return { ...post, ...update };
+      }
+      return post;
+    });
+    this.postsSubject.next(updatedPosts);
+    
+    // Update in each relevant cache entry
+    for (const [key, cachedPosts] of this.postsCache.entries()) {
+      const postIndex = cachedPosts.findIndex(p => p.id === postId);
+      if (postIndex !== -1) {
+        const updatedCachedPosts = [...cachedPosts];
+        updatedCachedPosts[postIndex] = { ...updatedCachedPosts[postIndex], ...update };
+        this.postsCache.set(key, updatedCachedPosts);
+      }
+    }
   }
 
   // Toggle upvote on a post
@@ -806,18 +1009,6 @@ export class ForumService {
       console.error(`Error upvoting post ${postId}:`, error);
       throw error;
     }
-  }
-
-  // Update a post in the cache
-  private updatePostInCache(postId: string, update: Partial<Post>): void {
-    const allPosts = this.postsSubject.value;
-    const updatedPosts = allPosts.map(post => {
-      if (post.id === postId) {
-        return { ...post, ...update };
-      }
-      return post;
-    });
-    this.postsSubject.next(updatedPosts);
   }
 
   // Toggle upvote on a reply
@@ -956,6 +1147,14 @@ export class ForumService {
       return (timestamp as any).toDate();
     }
     return timestamp as Date;
+  }
+
+  // Helper method to get formatted date from a potential Firebase timestamp
+  getDateFromTimestamp(timestamp: any): Date {
+    if (timestamp && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate();
+    }
+    return timestamp;
   }
 
   // Get current user

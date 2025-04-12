@@ -1,29 +1,32 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { Observable, of, BehaviorSubject } from 'rxjs';
+import { map, switchMap, tap, catchError } from 'rxjs/operators';
+import { ForumService, Post, Reply, SortOption } from '../../../services/forum.service';
 import { Auth, User } from '@angular/fire/auth';
-import { Observable, of, map } from 'rxjs';
-import { ForumService, Post, Reply, NestedReply, SortOption } from '../../../services/forum.service';
-import { Firestore, deleteDoc, doc, collection, query, where, getDocs } from '@angular/fire/firestore';
-import { TimeAgoPipe } from '../../../pipes/time-ago.pipe';
+import { CommunitySidebarComponent } from '../../../components/community-sidebar/community-sidebar.component';
 
 @Component({
   selector: 'app-post-detail',
   templateUrl: './post-detail.component.html',
   styleUrls: ['./post-detail.component.css'],
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, TimeAgoPipe]
+  imports: [CommonModule, FormsModule, RouterModule, CommunitySidebarComponent]
 })
 export class PostDetailComponent implements OnInit {
-  postId: string = '';
-  post: Post | null = null;
+  postId: string;
+  post$: Observable<Post | null>;
   replies$: Observable<Reply[]>;
-  nestedReplies$: Observable<NestedReply[]>;
-  newReply: string = '';
-  replyingTo: string | null = null; // ID of the reply being replied to (null means replying to the post)
   currentUser: User | null = null;
-  replyingToName: string = '';
+  newReply = '';
+  parentReplyId: string | undefined;
+  replyingToUsername: string | undefined;
+  isLoading = true;
+  loadingError = false;
+  
+  // For reply sorting
   currentSort: SortOption = SortOption.Best;
   sortOptions = SortOption;
 
@@ -31,267 +34,195 @@ export class PostDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private forumService: ForumService,
-    private auth: Auth,
-    private firestore: Firestore
+    private auth: Auth
   ) {
-    // Initialize with empty observable, we'll update it in ngOnInit
+    this.postId = '';
+    this.post$ = of(null);
     this.replies$ = of([]);
-    this.nestedReplies$ = of([]);
   }
 
   ngOnInit(): void {
-    // Get post ID from route params
-    this.route.paramMap.subscribe(params => {
-      const id = params.get('id');
+    // Get the current logged in user
+    this.currentUser = this.forumService.getCurrentUser();
+    
+    // Get the post ID from the route
+    this.route.paramMap.pipe(
+      map(params => params.get('id') || '')
+    ).subscribe(id => {
       if (id) {
         this.postId = id;
-        this.loadPost();
-        this.loadReplies();
+        this.loadPostAndReplies();
+      } else {
+        this.router.navigate(['/forum']);
       }
     });
-
-    // Get current user
-    this.currentUser = this.forumService.getCurrentUser();
   }
 
-  loadPost(): void {
-    this.forumService.getPost(this.postId).subscribe({
-      next: (post) => {
-        this.post = post;
-      },
-      error: (error) => {
+  // Safe method to format timestamps for templates
+  formatDate(timestamp: any): string {
+    if (!timestamp) return '';
+    
+    // Handle Firebase Timestamp objects
+    if (timestamp && typeof timestamp.toDate === 'function') {
+      const date = timestamp.toDate();
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
+    
+    // Handle regular Date objects
+    if (timestamp instanceof Date) {
+      return timestamp.toLocaleDateString() + ' ' + timestamp.toLocaleTimeString();
+    }
+    
+    // Default fallback
+    return '';
+  }
+
+  loadPostAndReplies(): void {
+    this.isLoading = true;
+    this.loadingError = false;
+    
+    // Load the post
+    this.post$ = this.forumService.getPost(this.postId).pipe(
+      tap(post => {
+        this.isLoading = false;
+        if (!post) {
+          this.loadingError = true;
+          console.error('Post not found');
+        }
+      }),
+      catchError(error => {
+        this.isLoading = false;
+        this.loadingError = true;
         console.error('Error loading post:', error);
-      }
-    });
+        return of(null);
+      })
+    );
+    
+    // Load replies
+    this.loadReplies();
   }
 
   loadReplies(): void {
-    // Load both flat and nested replies
-    this.replies$ = this.forumService.getReplies(this.postId, this.currentSort);
-    this.nestedReplies$ = this.forumService.getNestedReplies(this.postId, this.currentSort);
+    this.replies$ = this.forumService.getReplies(this.postId, this.currentSort).pipe(
+      catchError(error => {
+        console.error('Error loading replies:', error);
+        return of([]);
+      })
+    );
   }
 
-  startReply(replyId: string | null = null, userName: string = ''): void {
-    this.replyingTo = replyId;
-    this.replyingToName = userName;
+  startReply(parentId?: string, username?: string): void {
+    if (!this.currentUser) {
+      alert('You must be logged in to reply');
+      return;
+    }
+    
+    this.parentReplyId = parentId;
+    this.replyingToUsername = username;
+    
     // Scroll to reply form
     setTimeout(() => {
-      document.getElementById('reply-form')?.scrollIntoView({ behavior: 'smooth' });
+      const replyForm = document.getElementById('reply-form');
+      if (replyForm) {
+        replyForm.scrollIntoView({ behavior: 'smooth' });
+        const replyInput = document.getElementById('reply-input');
+        if (replyInput) {
+          replyInput.focus();
+        }
+      }
     }, 100);
   }
 
   cancelReply(): void {
-    this.replyingTo = null;
-    this.replyingToName = '';
+    this.parentReplyId = undefined;
+    this.replyingToUsername = undefined;
     this.newReply = '';
   }
 
   submitReply(): void {
     if (!this.currentUser) {
-      alert('You must be logged in to reply.');
+      alert('You must be logged in to reply');
       return;
     }
-
+    
     if (!this.newReply.trim()) {
-      alert('Reply cannot be empty.');
+      alert('Reply content cannot be empty');
       return;
     }
-
-    this.forumService.addReply(
-      this.postId,
-      this.newReply.trim(),
-      this.replyingTo || undefined
-    ).subscribe({
+    
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) loadingIndicator.style.display = 'block';
+    
+    // Store reply content and parent ID before clearing the form
+    const replyContent = this.newReply.trim();
+    const parentId = this.parentReplyId;
+    
+    // Clear form immediately for better UX
+    this.cancelReply();
+    
+    this.forumService.addReply(this.postId, replyContent, parentId).subscribe({
       next: () => {
-        // Reset the form
-        this.newReply = '';
-        this.replyingTo = null;
-        this.replyingToName = '';
-        
-        // Reload the post and replies to get updated data
-        this.loadPost();
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        // Reload replies to include the new one
         this.loadReplies();
       },
       error: (error) => {
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
         console.error('Error submitting reply:', error);
-        alert('An error occurred while submitting your reply.');
+        alert('Failed to submit reply: ' + error.message);
       }
     });
   }
 
-  // Delete the current post
-  async deletePost(): Promise<void> {
-    if (!this.currentUser || !this.post) {
-      alert('You must be logged in to delete this post.');
-      return;
-    }
-
-    // Verify the current user is the owner of the post
-    if (this.post.userId !== this.currentUser.uid) {
-      alert('You can only delete your own posts.');
-      return;
-    }
-
-    if (confirm('Are you sure you want to delete this post? All replies will also be deleted. This action cannot be undone.')) {
-      try {
-        // First, delete all replies to this post
-        await this.deleteAllRepliesForPost();
-        
-        // Then delete the post itself
-        await deleteDoc(doc(this.firestore, 'posts', this.postId));
-        
-        // Navigate back to forum
-        this.router.navigate(['/forum']);
-      } catch (error) {
-        console.error('Error deleting post:', error);
-        alert('An error occurred while deleting the post.');
-      }
-    }
-  }
-
-  // Delete a reply
-  async deleteReply(replyId: string): Promise<void> {
-    if (!this.currentUser) {
-      alert('You must be logged in to delete a reply.');
-      return;
-    }
-
-    // Get the reply to check ownership
-    const replyRef = doc(this.firestore, 'replies', replyId);
-    
-    try {
-      // Verify current user is the owner
-      this.replies$.pipe(
-        map(replies => replies.find(reply => reply.id === replyId))
-      ).subscribe(async reply => {
-        if (!reply) {
-          alert('Reply not found.');
-          return;
-        }
-
-        if (reply.userId !== this.currentUser?.uid) {
-          alert('You can only delete your own replies.');
-          return;
-        }
-
-        if (confirm('Are you sure you want to delete this reply?')) {
-          try {
-            // Delete the reply
-            await deleteDoc(replyRef);
-            
-            // Update post's reply count if this is a direct reply to the post
-            if (!reply.parentId && this.post) {
-              const postRef = doc(this.firestore, 'posts', this.postId);
-              // We'll let the UI refresh handle the count update rather than explicit update here
-            }
-            
-            // Reload replies
-            this.loadReplies();
-            // Reload post to update the reply count
-            this.loadPost();
-          } catch (error) {
-            console.error('Error deleting reply:', error);
-            alert('An error occurred while deleting the reply.');
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Error checking reply:', error);
-      alert('An error occurred while checking the reply.');
-    }
-  }
-
-  // Helper method to delete all replies for a post
-  private async deleteAllRepliesForPost(): Promise<void> {
-    const repliesRef = collection(this.firestore, 'replies');
-    const q = query(repliesRef, where('postId', '==', this.postId));
-    
-    try {
-      const querySnapshot = await getDocs(q);
-      const deletePromises: Promise<void>[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        deletePromises.push(deleteDoc(doc.ref));
-      });
-      
-      await Promise.all(deletePromises);
-    } catch (error) {
-      console.error('Error deleting replies:', error);
-      throw error; // Re-throw to be handled by the caller
-    }
-  }
-
-  // Helper method to determine if a reply is a direct reply to the post or a reply to another reply
-  isDirectReply(reply: Reply): boolean {
-    return !reply.parentId;
-  }
-
-  // Helper method to get all replies to a specific parent reply
-  getRepliesTo(parentId: string): Observable<Reply[]> {
-    return this.replies$.pipe(
-      map(replies => replies.filter(reply => reply.parentId === parentId))
-    );
-  }
-
-  // Helper method to format timestamps
-  formatDate(timestamp: any): Date {
-    return this.forumService.formatDate(timestamp);
-  }
-
-  // Change the sort option
   changeSortOption(sort: SortOption): void {
     this.currentSort = sort;
     this.loadReplies();
   }
 
-  // Upvote a post
-  async upvotePost(): Promise<void> {
-    if (!this.currentUser || !this.post) {
-      alert('You must be logged in to vote.');
-      return;
-    }
-
-    try {
-      const hasUpvoted = await this.forumService.hasUpvotedPost(this.postId);
-      await this.forumService.upvotePost(this.postId, !hasUpvoted);
-      // Reload post to reflect new upvote status
-      this.loadPost();
-    } catch (error) {
-      console.error('Error upvoting post:', error);
-      alert('An error occurred while voting.');
-    }
+  getReplyDepthClass(depth: number | undefined): string {
+    if (depth === undefined) return 'depth-0';
+    // Limit depth for display purposes
+    const clampedDepth = Math.min(depth, 5);
+    return `depth-${clampedDepth}`;
   }
 
-  // Upvote a reply
-  async upvoteReply(replyId: string, event: Event): Promise<void> {
+  async upvotePost(post: Post, event: Event): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
     
     if (!this.currentUser) {
-      alert('You must be logged in to vote.');
+      alert('You must be logged in to vote');
       return;
     }
-
+    
     try {
-      const hasUpvoted = await this.forumService.hasUpvotedReply(replyId);
-      await this.forumService.upvoteReply(replyId, !hasUpvoted);
-      // Reload replies to reflect new upvote status
+      const hasUpvoted = post.upvotes?.includes(this.currentUser.uid) || false;
+      await this.forumService.upvotePost(post.id!, !hasUpvoted);
+      // Reload the post to reflect the updated score
+      this.loadPostAndReplies();
+    } catch (error) {
+      console.error('Error upvoting post:', error);
+      alert('Failed to vote: ' + (error as Error).message);
+    }
+  }
+
+  async upvoteReply(reply: Reply, event: Event): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!this.currentUser) {
+      alert('You must be logged in to vote');
+      return;
+    }
+    
+    try {
+      const hasUpvoted = reply.upvotes?.includes(this.currentUser.uid) || false;
+      await this.forumService.upvoteReply(reply.id!, !hasUpvoted);
+      // Reload replies to reflect updated scores
       this.loadReplies();
     } catch (error) {
       console.error('Error upvoting reply:', error);
-      alert('An error occurred while voting.');
+      alert('Failed to vote: ' + (error as Error).message);
     }
-  }
-
-  // Check if the current user has upvoted a post
-  hasUserUpvotedPost(): Promise<boolean> {
-    if (!this.currentUser || !this.postId) return Promise.resolve(false);
-    return this.forumService.hasUpvotedPost(this.postId);
-  }
-
-  // Check if the current user has upvoted a reply
-  hasUserUpvotedReply(replyId: string): Promise<boolean> {
-    if (!this.currentUser || !replyId) return Promise.resolve(false);
-    return this.forumService.hasUpvotedReply(replyId);
   }
 }

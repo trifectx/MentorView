@@ -68,6 +68,7 @@ export class CommunityListComponent implements OnInit {
       bannerUrl: ''
     }).subscribe({
       next: (communityId) => {
+        console.log('Community created successfully with ID:', communityId);
         // Reset the form
         this.newCommunity = {
           name: '',

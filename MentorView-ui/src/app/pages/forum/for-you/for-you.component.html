@@ -1,0 +1,112 @@
+<div class="for-you-container">
+  <div class="sidebar">
+    <app-community-sidebar (showCreateCommunityForm)="onShowCreateCommunityForm()"></app-community-sidebar>
+  </div>
+  
+  <div class="content">
+    <h1 class="page-title">For You</h1>
+    <p class="description">Posts from communities you've joined</p>
+    
+    <!-- Sort Controls -->
+    <div class="sort-controls">
+      <span>Sort by:</span>
+      <button [class.active]="currentSort === sortOptions.Newest" (click)="changeSortOption(sortOptions.Newest)">
+        New
+      </button>
+      <button [class.active]="currentSort === sortOptions.Oldest" (click)="changeSortOption(sortOptions.Oldest)">
+        Old
+      </button>
+      <button [class.active]="currentSort === sortOptions.Best" (click)="changeSortOption(sortOptions.Best)">
+        Best
+      </button>
+    </div>
+    
+    <!-- Posts List -->
+    <div class="posts-list">
+      <div *ngIf="(posts$ | async)?.length === 0" class="no-posts">
+        <p *ngIf="currentUser">You haven't joined any communities yet or there are no posts in your joined communities.</p>
+        <p *ngIf="!currentUser">Please log in to see posts from communities you've joined.</p>
+        <button routerLink="/forum" class="browse-communities-btn">Browse Communities</button>
+      </div>
+
+      <div *ngFor="let post of posts$ | async" class="post-card">
+        <div class="vote-area" (click)="$event.stopPropagation()">
+          <button class="upvote-btn" (click)="upvotePost(post, $event)">
+            <i class="fa fa-arrow-up"></i>
+          </button>
+          <span class="score">{{ post.score || 0 }}</span>
+        </div>
+
+        <div class="post-content" (click)="viewPost(post.id!)">
+          <div class="post-community">
+            <span class="community-name">r/{{ post.communityName }}</span>
+          </div>
+          <h3 class="post-title">{{ post.title }}</h3>
+          <p class="post-info">
+            Posted by {{ post.userName }} • {{ formatDate(post.createdAt) | timeAgo }}
+          </p>
+          <p class="post-excerpt">{{ post.content.length > 200 ? post.content.substring(0, 200) + '...' : post.content }}</p>
+          <div class="post-footer">
+            <span class="replies-count">
+              <i class="fa fa-comment"></i> 
+              {{ post.replyCount }} {{ post.replyCount === 1 ? 'reply' : 'replies' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Community Creation Form Modal -->
+<div class="modal-overlay" *ngIf="showCreateCommunityForm">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h2>Create a community</h2>
+      <button class="close-button" (click)="cancelCommunityForm()">
+        <i class="fa fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="community-name">Name</label>
+        <div class="input-prefix-container">
+          <span class="input-prefix">r/</span>
+          <input 
+            type="text" 
+            id="community-name" 
+            [(ngModel)]="newCommunity.name" 
+            placeholder="community_name"
+          >
+        </div>
+        <small>Community names must be formatted like: community_name (lowercase, underscores)</small>
+      </div>
+      
+      <div class="form-group">
+        <label for="community-description">Description</label>
+        <textarea 
+          id="community-description" 
+          [(ngModel)]="newCommunity.description" 
+          placeholder="What is your community about?"
+          rows="4"
+        ></textarea>
+      </div>
+      
+      <div class="form-group checkbox-group">
+        <input 
+          type="checkbox" 
+          id="community-private" 
+          [(ngModel)]="newCommunity.isPrivate"
+        >
+        <label for="community-private">Make this community private</label>
+        <small>Private communities can only be joined by invitation</small>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="cancel-button" (click)="cancelCommunityForm()">Cancel</button>
+      <button class="submit-button" (click)="submitCommunity()">Create Community</button>
+    </div>
+  </div>
+</div>

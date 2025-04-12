@@ -1,118 +1,155 @@
 <div class="post-detail-container">
-  <a routerLink="/forum" class="back-link">
-    <i class="fa fa-arrow-left"></i> Back to Forum
-  </a>
-
-  <!-- Post Content -->
-  <div *ngIf="post" class="post-card">
-    <div class="vote-area" (click)="$event.stopPropagation()">
-      <button class="upvote-btn" (click)="upvotePost()">
-        <i class="fa fa-arrow-up"></i>
-      </button>
-      <span class="score">{{ post.score || 0 }}</span>
+  <div class="sidebar">
+    <app-community-sidebar></app-community-sidebar>
+  </div>
+  
+  <div class="content">
+    <!-- Loading indicator -->
+    <div class="loading-container" *ngIf="isLoading">
+      <div class="spinner"></div>
+      <p>Loading post...</p>
     </div>
-
-    <div class="post-content">
-      <h1 class="post-title">{{ post.title }}</h1>
-      <p class="post-info">
-        Posted by {{ post.userName }} • {{ formatDate(post.createdAt) | timeAgo }}
-      </p>
-      <div class="post-body">{{ post.content }}</div>
-      
-      <div class="post-actions">
-        <button class="reply-btn" (click)="startReply()">
-          <i class="fa fa-reply"></i> Reply
-        </button>
-        <button *ngIf="currentUser && post.userId === currentUser.uid" 
-          class="delete-btn" (click)="deletePost()">
-          <i class="fa fa-trash"></i> Delete
-        </button>
-      </div>
+    
+    <!-- Error message -->
+    <div class="error-container" *ngIf="loadingError">
+      <h3>Oops! Something went wrong</h3>
+      <p>We couldn't load this post. It might have been deleted or you may not have permission to view it.</p>
+      <button (click)="loadPostAndReplies()" class="retry-button">Retry</button>
+      <button [routerLink]="['/forum']" class="return-button">Return to Forum</button>
     </div>
-  </div>
-
-  <!-- Sort Controls -->
-  <div class="sort-controls">
-    <span>Sort by:</span>
-    <button [class.active]="currentSort === sortOptions.Best" (click)="changeSortOption(sortOptions.Best)">
-      Best
-    </button>
-    <button [class.active]="currentSort === sortOptions.Newest" (click)="changeSortOption(sortOptions.Newest)">
-      New
-    </button>
-    <button [class.active]="currentSort === sortOptions.Oldest" (click)="changeSortOption(sortOptions.Oldest)">
-      Old
-    </button>
-  </div>
-
-  <!-- Reply Form -->
-  <div id="reply-form" class="reply-form" *ngIf="currentUser">
-    <h3 *ngIf="!replyingTo">Add a Reply</h3>
-    <h3 *ngIf="replyingTo">Replying to {{ replyingToName }}</h3>
-    <textarea 
-      [(ngModel)]="newReply" 
-      placeholder="What are your thoughts?"
-      rows="4"
-    ></textarea>
-    <div class="form-actions">
-      <button class="btn-cancel" *ngIf="replyingTo" (click)="cancelReply()">Cancel</button>
-      <button class="btn-submit" (click)="submitReply()">Submit</button>
-    </div>
-  </div>
-
-  <!-- Login prompt if not logged in -->
-  <div *ngIf="!currentUser" class="login-prompt">
-    <p>Please log in to reply to this post.</p>
-  </div>
-
-  <!-- Replies Section -->
-  <div class="replies-section">
-    <h2 *ngIf="(nestedReplies$ | async)?.length">Replies ({{ post?.replyCount || 0 }})</h2>
-    <div *ngIf="(nestedReplies$ | async)?.length === 0" class="no-replies">
-      <p>No replies yet. Be the first to reply!</p>
-    </div>
-
-    <!-- Recursively render nested replies -->
-    <ng-container *ngFor="let reply of nestedReplies$ | async">
-      <ng-container *ngTemplateOutlet="replyTemplate; context: { $implicit: reply, depth: 0 }"></ng-container>
-    </ng-container>
-  </div>
-
-  <!-- Reply Template (used recursively for nested replies) -->
-  <ng-template #replyTemplate let-reply let-depth="depth">
-    <div class="reply-card" [ngClass]="'depth-' + depth">
-      <div class="reply-connector"></div>
-      
-      <div class="vote-area" (click)="$event.stopPropagation()">
-        <button class="upvote-btn" (click)="upvoteReply(reply.id!, $event)">
-          <i class="fa fa-arrow-up"></i>
-        </button>
-        <span class="score">{{ reply.score || 0 }}</span>
-      </div>
-
-      <div class="reply-content">
-        <p class="reply-info">
-          {{ reply.userName }} • {{ formatDate(reply.createdAt) | timeAgo }}
-        </p>
-        <div class="reply-body">{{ reply.content }}</div>
+    
+    <!-- Post content -->
+    <ng-container *ngIf="(post$ | async) as post; else notFound">
+      <div class="post-container">
+        <!-- Back to community link -->
+        <div class="back-link">
+          <a [routerLink]="['/forum/community', post.communityId]">
+            <i class="fa fa-arrow-left"></i> Back to r/{{ post.communityName }}
+          </a>
+        </div>
         
-        <div class="reply-actions">
-          <button class="reply-btn" (click)="startReply(reply.id, reply.userName)">
-            <i class="fa fa-reply"></i> Reply
-          </button>
-          <button *ngIf="currentUser && reply.userId === currentUser.uid" 
-            class="delete-btn" (click)="deleteReply(reply.id!)">
-            <i class="fa fa-trash"></i> Delete
-          </button>
+        <!-- Post header and content -->
+        <div class="post-content">
+          <div class="vote-section">
+            <button class="vote-button" (click)="upvotePost(post, $event)">
+              <i class="fa fa-arrow-up" [class.upvoted]="post.upvotes?.includes(currentUser?.uid || '')"></i>
+            </button>
+            <span class="vote-count">{{ post.score || 0 }}</span>
+            <button class="vote-button down">
+              <i class="fa fa-arrow-down"></i>
+            </button>
+          </div>
+          
+          <div class="post-main">
+            <div class="post-header">
+              <a [routerLink]="['/forum/community', post.communityId]" class="post-community">
+                r/{{ post.communityName }}
+              </a>
+              <span class="post-author">Posted by u/{{ post.userName }}</span>
+              <span class="post-time">{{ formatDate(post.createdAt) }}</span>
+            </div>
+            
+            <h1 class="post-title">{{ post.title }}</h1>
+            
+            <div class="post-body" *ngIf="post.content">
+              <p>{{ post.content }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Reply form -->
+        <div class="reply-form" id="reply-form">
+          <h3>
+            <span *ngIf="!parentReplyId">Add a comment</span>
+            <span *ngIf="parentReplyId">
+              Replying to u/{{ replyingToUsername }}
+              <button class="cancel-reply-button" (click)="cancelReply()">Cancel</button>
+            </span>
+          </h3>
+          
+          <textarea 
+            id="reply-input"
+            [(ngModel)]="newReply" 
+            placeholder="What are your thoughts?"
+            rows="4"
+          ></textarea>
+          
+          <div class="reply-actions">
+            <button class="cancel-button" (click)="cancelReply()">Cancel</button>
+            <button class="submit-button" (click)="submitReply()" [disabled]="!newReply.trim()">
+              Comment
+            </button>
+          </div>
+        </div>
+        
+        <!-- Sort replies -->
+        <div class="sort-bar">
+          <span>Sort by:</span>
+          <div class="sort-options">
+            <button class="sort-button" [class.active]="currentSort === sortOptions.Best" (click)="changeSortOption(sortOptions.Best)">
+              Best
+            </button>
+            <button class="sort-button" [class.active]="currentSort === sortOptions.Newest" (click)="changeSortOption(sortOptions.Newest)">
+              New
+            </button>
+            <button class="sort-button" [class.active]="currentSort === sortOptions.Oldest" (click)="changeSortOption(sortOptions.Oldest)">
+              Old
+            </button>
+          </div>
+        </div>
+        
+        <!-- Replies list -->
+        <div class="replies-container">
+          <div *ngIf="(replies$ | async)?.length === 0" class="no-replies">
+            <p>No comments yet. Be the first to comment!</p>
+          </div>
+          
+          <div *ngFor="let reply of (replies$ | async)" class="reply" [class]="getReplyDepthClass(reply.depth || 0)">
+            <div class="vote-section">
+              <button class="vote-button" (click)="upvoteReply(reply, $event)">
+                <i class="fa fa-arrow-up" [class.upvoted]="reply.upvotes?.includes(currentUser?.uid || '')"></i>
+              </button>
+              <span class="vote-count">{{ reply.score || 0 }}</span>
+              <button class="vote-button down">
+                <i class="fa fa-arrow-down"></i>
+              </button>
+            </div>
+            
+            <div class="reply-main">
+              <div class="reply-header">
+                <span class="reply-author">u/{{ reply.userName }}</span>
+                <span class="reply-time">{{ formatDate(reply.createdAt) }}</span>
+              </div>
+              
+              <div class="reply-content">
+                <p>{{ reply.content }}</p>
+              </div>
+              
+              <div class="reply-actions">
+                <button class="action-button" (click)="startReply(reply.id, reply.userName)">
+                  <i class="fa fa-reply"></i> Reply
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </ng-container>
+    
+    <ng-template #notFound>
+      <div class="not-found-container" *ngIf="!isLoading && !loadingError">
+        <h2>Post not found</h2>
+        <p>The post you're looking for doesn't exist or has been removed.</p>
+        <button [routerLink]="['/forum']" class="return-button">Return to Forum</button>
+      </div>
+    </ng-template>
+  </div>
+</div>
 
-    <!-- Render child replies recursively -->
-    <div class="nested-replies" *ngIf="reply.children && reply.children.length > 0">
-      <ng-container *ngFor="let childReply of reply.children">
-        <ng-container *ngTemplateOutlet="replyTemplate; context: { $implicit: childReply, depth: depth + 1 }"></ng-container>
-      </ng-container>
-    </div>
-  </ng-template>
+<!-- Loading Indicator for replies -->
+<div id="loading-indicator" class="loading-overlay" style="display: none;">
+  <div class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Processing your request...</p>
+  </div>
 </div>
