@@ -9,6 +9,8 @@ import { SavedInterviewsComponent } from './pages/saved-interviews/saved-intervi
 import { OverviewComponent } from './pages/overview/overview.component';
 import { FriendsComponent } from './pages/friends/friends.component';
 import { AssessmentCentreComponent } from './pages/assessment-centre/assessment-centre.component';
+import { ForumComponent } from './pages/forum/forum.component';
+import { PostDetailComponent } from './pages/forum/post-detail/post-detail.component';
 
 export const routes: Routes = [
     {
@@ -60,6 +62,16 @@ export const routes: Routes = [
         path: 'assessment-centre',
         component: AssessmentCentreComponent,
         title: 'Assessment Centre',
+    },
+    {
+        path: 'forum',
+        component: ForumComponent,
+        title: 'Community Forum',
+    },
+    {
+        path: 'forum/:id',
+        component: PostDetailComponent,
+        title: 'Forum Post',
     },
     {
         path: '**',
