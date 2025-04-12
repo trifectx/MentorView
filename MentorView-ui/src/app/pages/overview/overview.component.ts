@@ -5,6 +5,7 @@ import { ApiService, SavedInterview } from '../../services/api.service';
 import { Subscription } from 'rxjs';
 import { FillerWordsService, FillerWordData, UserFillerWordHistory } from '../../services/filler-words.service';
 import { SpeakingPaceService, SpeakingPaceData, UserPaceHistory } from '../../services/speaking-pace.service';
+import { NavbarComponent } from '../../components/navbar/navbar.component';
 
 interface InterviewStats {
   totalInterviews: number;
@@ -26,7 +27,7 @@ const MAX_OPTIMAL_WPM = 160;
   templateUrl: './overview.component.html',
   styleUrls: ['./overview.component.css'],
   standalone: true,
-  imports: [RouterModule, CommonModule]
+  imports: [RouterModule, CommonModule, NavbarComponent]
 })
 export class OverviewComponent implements OnInit, OnDestroy {
   // Performance data structure

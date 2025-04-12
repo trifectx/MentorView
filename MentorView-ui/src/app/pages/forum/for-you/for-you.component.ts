@@ -7,13 +7,14 @@ import { Observable, of } from 'rxjs';
 import { ForumService, Post, SortOption } from '../../../services/forum.service';
 import { TimeAgoPipe } from '../../../pipes/time-ago.pipe';
 import { CommunitySidebarComponent } from '../../../components/community-sidebar/community-sidebar.component';
+import { NavbarComponent } from '../../../components/navbar/navbar.component';
 
 @Component({
   selector: 'app-for-you',
   templateUrl: './for-you.component.html',
   styleUrls: ['./for-you.component.css'],
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, TimeAgoPipe, CommunitySidebarComponent]
+  imports: [CommonModule, FormsModule, RouterModule, TimeAgoPipe, CommunitySidebarComponent, NavbarComponent]
 })
 export class ForYouComponent implements OnInit {
   posts$: Observable<Post[]>;

@@ -6,13 +6,14 @@ import { Auth, User } from '@angular/fire/auth';
 import { Observable, of } from 'rxjs';
 import { ForumService, Post, SortOption } from '../../services/forum.service';
 import { TimeAgoPipe } from '../../pipes/time-ago.pipe';
+import { NavbarComponent } from '../../components/navbar/navbar.component';
 
 @Component({
   selector: 'app-forum',
   templateUrl: './forum.component.html',
   styleUrls: ['./forum.component.css'],
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, TimeAgoPipe]
+  imports: [CommonModule, FormsModule, RouterModule, TimeAgoPipe, NavbarComponent]
 })
 export class ForumComponent implements OnInit {
   posts$: Observable<Post[]>;

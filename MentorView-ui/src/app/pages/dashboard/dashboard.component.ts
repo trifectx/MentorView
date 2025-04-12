@@ -3,6 +3,7 @@ import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LevelIndicatorComponent } from '../../components/level-indicator/level-indicator.component';
+import { NavbarComponent } from '../../components/navbar/navbar.component';
 import { StacksService, Stack, Question } from '../../services/stacks.service';
 
 @Component({
@@ -10,7 +11,7 @@ import { StacksService, Stack, Question } from '../../services/stacks.service';
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css'],
   standalone: true,
-  imports: [RouterModule, CommonModule, FormsModule, LevelIndicatorComponent]
+  imports: [RouterModule, CommonModule, FormsModule, LevelIndicatorComponent, NavbarComponent]
 })
 export class DashboardComponent implements OnInit {
   // Dialog states

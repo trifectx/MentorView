@@ -1,0 +1,240 @@
+/* Header Styles */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(26, 26, 26, 0.8);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  width: 100%;
+  left: 0;
+}
+
+.header-left, .header-right {
+  display: flex;
+  align-items: center;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  font-size: 24px;
+  cursor: pointer;
+  margin-right: 16px;
+  transition: color 0.2s ease;
+}
+
+.back-button:hover {
+  color: #ffffff;
+}
+
+.main-nav {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.nav-item {
+  color: #b3b3b3;
+  cursor: pointer;
+  position: relative;
+  padding: 8px 0;
+  transition: color 0.2s ease;
+  text-decoration: none;
+}
+
+.nav-item:hover, .nav-item.active {
+  color: #ffffff;
+}
+
+.user-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.notification-btn, .user-btn {
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  font-size: 18px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.notification-btn:hover, .user-btn:hover {
+  color: #ffffff;
+}
+
+.premium-btn {
+  background-color: rgb(41, 121, 255);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.premium-btn:hover {
+  background-color: rgb(31, 111, 245);
+}
+
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  color: #b3b3b3;
+}
+
+.dropdown:hover .dropdown-button {
+  color: #ffffff;
+}
+
+.dropdown-icon {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-left: 1px;
+  margin-top: 1px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.dropdown:hover .dropdown-icon {
+  opacity: 1;
+  transform: rotate(180deg);
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 160px;
+  background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  z-index: 100;
+  border-radius: 8px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+}
+
+/* Important fix: Display the dropdown on hover of EITHER the main dropdown or the dropdown content */
+.dropdown:hover .dropdown-content,
+.dropdown-content:hover {
+  display: block;
+}
+
+/* Add a pseudo-element to bridge the gap between dropdown button and content */
+.dropdown:hover::after {
+  content: '';
+  position: absolute;
+  height: 20px; /* Height of the gap between button and dropdown */
+  width: 100%;
+  top: 100%;
+  left: 0;
+  /* No background so it's invisible but still detects hover */
+}
+
+.dropdown-content::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+}
+
+.dropdown-item {
+  color: #b3b3b3;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+  border-radius: 0;
+  text-align: left;
+  font-size: 14px;
+  gap: 8px;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.dropdown-item i {
+  font-size: 14px;
+  color: #b3b3b3;
+  opacity: 0.8;
+  width: 16px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:hover i {
+  opacity: 1;
+  color: #ffffff;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .main-nav {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 576px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header-right {
+    margin-top: 16px;
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .main-nav {
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 8px;
+  }
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) translateX(-50%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(-50%);
+  }
+}
+
+/* XP Level Indicator Positioning */
+.xp-corner-indicator {
+  position: fixed;
+  top: 70px; /* Moved down to avoid overlapping with navbar icons */
+  right: 15px;
+  z-index: 1000;
+}
