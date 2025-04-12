@@ -11,6 +11,8 @@ import { FriendsComponent } from './pages/friends/friends.component';
 import { AssessmentCentreComponent } from './pages/assessment-centre/assessment-centre.component';
 import { ForumComponent } from './pages/forum/forum.component';
 import { PostDetailComponent } from './pages/forum/post-detail/post-detail.component';
+import { CommunityListComponent } from './pages/forum/community-list/community-list.component';
+import { CommunityDetailComponent } from './pages/forum/community-detail/community-detail.component';
 
 export const routes: Routes = [
     {
@@ -65,11 +67,16 @@ export const routes: Routes = [
     },
     {
         path: 'forum',
-        component: ForumComponent,
-        title: 'Community Forum',
+        component: CommunityListComponent,
+        title: 'Communities',
     },
     {
-        path: 'forum/:id',
+        path: 'forum/community/:id',
+        component: CommunityDetailComponent,
+        title: 'Community',
+    },
+    {
+        path: 'forum/post/:id',
         component: PostDetailComponent,
         title: 'Forum Post',
     },

@@ -18,6 +18,21 @@ import { Auth, onAuthStateChanged, User } from '@angular/fire/auth';
 import { Observable, from, of, throwError, BehaviorSubject } from 'rxjs';
 import { map, switchMap, tap, catchError, take } from 'rxjs/operators';
 
+export interface Community {
+  id?: string;
+  name: string;
+  description: string;
+  createdAt: Date | Timestamp;
+  createdBy: string; // User ID of creator
+  creatorName: string; // Display name of creator
+  memberCount: number;
+  imageUrl?: string; // Optional community image
+  bannerUrl?: string; // Optional banner image
+  isPrivate: boolean; // Whether the community is private (requires membership to view/post)
+  members?: string[]; // Array of user IDs who are members
+  moderators: string[]; // Array of user IDs who can moderate
+}
+
 export interface Post {
   id?: string;
   title: string;
@@ -28,6 +43,8 @@ export interface Post {
   replyCount: number;
   upvotes: string[]; // Array of user IDs who upvoted
   score: number; // Net score (upvotes count)
+  communityId: string; // ID of the community this post belongs to
+  communityName?: string; // Name of the community (for convenience)
 }
 
 export interface Reply {
@@ -60,7 +77,9 @@ export class ForumService {
   private currentUser: User | null = null;
   private postsCache = new Map<string, Post[]>();
   private repliesCache = new Map<string, Reply[]>();
+  private communitiesCache = new Map<string, Community[]>();
   private postsSubject = new BehaviorSubject<Post[]>([]);
+  private communitiesSubject = new BehaviorSubject<Community[]>([]);
   
   constructor(private firestore: Firestore, private auth: Auth) {
     // Listen to auth state changes
@@ -68,10 +87,281 @@ export class ForumService {
       this.currentUser = user;
     });
     
-    // Initial load of posts
-    this.refreshPosts();
+    // Initial load of communities and posts
+    this.refreshCommunities();
   }
   
+  // COMMUNITY METHODS
+  
+  // Refresh communities from Firestore
+  private refreshCommunities(): void {
+    const communitiesCollection = collection(this.firestore, 'communities');
+    const communitiesQuery = query(communitiesCollection);
+    
+    collectionData(communitiesQuery, { idField: 'id' })
+      .pipe(
+        take(1),
+        map(communities => {
+          return communities.map(community => {
+            // Format timestamp and ensure properties exist
+            if (community['createdAt'] && typeof (community['createdAt'] as any).toDate === 'function') {
+              community['createdAt'] = (community['createdAt'] as any).toDate();
+            }
+            return {
+              ...community,
+              memberCount: community['memberCount'] || 0,
+              members: community['members'] || [],
+              moderators: community['moderators'] || []
+            };
+          }) as Community[];
+        }),
+        catchError(error => {
+          console.error('Error fetching communities:', error);
+          return of([]);
+        })
+      )
+      .subscribe(communities => {
+        this.communitiesSubject.next(communities);
+        this.communitiesCache.set('all', communities);
+        
+        // After communities are loaded, load posts for each community
+        if (communities.length > 0) {
+          this.refreshPosts();
+        }
+      });
+  }
+  
+  // Get all communities
+  getCommunities(): Observable<Community[]> {
+    return this.communitiesSubject.asObservable();
+  }
+  
+  // Get a single community by ID
+  getCommunity(communityId: string): Observable<Community | null> {
+    // Check cache first
+    const cachedCommunities = this.communitiesCache.get('all');
+    if (cachedCommunities) {
+      const cachedCommunity = cachedCommunities.find(c => c.id === communityId);
+      if (cachedCommunity) {
+        return of(cachedCommunity);
+      }
+    }
+    
+    // If not in cache, fetch from Firestore
+    const communityDoc = doc(this.firestore, 'communities', communityId);
+    return from(getDoc(communityDoc)).pipe(
+      map(communitySnap => {
+        if (communitySnap.exists()) {
+          const data = communitySnap.data() as Community;
+          // Convert timestamp if needed
+          if (data.createdAt && typeof (data.createdAt as any).toDate === 'function') {
+            data.createdAt = (data.createdAt as any).toDate();
+          }
+          return { ...data, id: communitySnap.id };
+        }
+        return null;
+      }),
+      catchError(error => {
+        console.error(`Error fetching community ${communityId}:`, error);
+        return of(null);
+      })
+    );
+  }
+  
+  // Create a new community
+  createCommunity(community: Omit<Community, 'createdAt' | 'createdBy' | 'creatorName' | 'memberCount' | 'members' | 'moderators'>): Observable<string> {
+    if (!this.currentUser) {
+      return throwError(() => new Error('You must be logged in to create a community'));
+    }
+
+    const newCommunity: Community = {
+      ...community,
+      createdAt: new Date(),
+      createdBy: this.currentUser.uid,
+      creatorName: this.currentUser.displayName || 'Anonymous',
+      memberCount: 1, // Creator is the first member
+      members: [this.currentUser.uid],
+      moderators: [this.currentUser.uid], // Creator is the first moderator
+      isPrivate: community.isPrivate || false
+    };
+
+    return from(addDoc(collection(this.firestore, 'communities'), newCommunity)).pipe(
+      map(docRef => {
+        // Update our cache with the new community
+        const communities = this.communitiesSubject.value;
+        const newCommunityWithId = { ...newCommunity, id: docRef.id };
+        this.communitiesSubject.next([
+          newCommunityWithId,
+          ...communities
+        ]);
+        
+        // Update the cache
+        const cachedCommunities = this.communitiesCache.get('all') || [];
+        this.communitiesCache.set('all', [newCommunityWithId, ...cachedCommunities]);
+        
+        return docRef.id;
+      }),
+      catchError(error => {
+        console.error('Error creating community:', error);
+        return throwError(() => new Error('Failed to create community'));
+      })
+    );
+  }
+  
+  // Join a community (become a member)
+  async joinCommunity(communityId: string): Promise<void> {
+    if (!this.currentUser) {
+      throw new Error('You must be logged in to join a community');
+    }
+    
+    try {
+      const communityRef = doc(this.firestore, 'communities', communityId);
+      const communitySnap = await getDoc(communityRef);
+      
+      if (communitySnap.exists()) {
+        const communityData = communitySnap.data() as Community;
+        const members = communityData.members || [];
+        
+        if (!members.includes(this.currentUser.uid)) {
+          // Add user to members and increment count
+          await updateDoc(communityRef, {
+            members: arrayUnion(this.currentUser.uid),
+            memberCount: (communityData.memberCount || 0) + 1
+          });
+          
+          // Update cache
+          this.updateCommunityInCache(communityId, {
+            members: [...members, this.currentUser.uid],
+            memberCount: (communityData.memberCount || 0) + 1
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Error joining community ${communityId}:`, error);
+      throw error;
+    }
+  }
+  
+  // Leave a community
+  async leaveCommunity(communityId: string): Promise<void> {
+    if (!this.currentUser) {
+      throw new Error('You must be logged in to leave a community');
+    }
+    
+    try {
+      const communityRef = doc(this.firestore, 'communities', communityId);
+      const communitySnap = await getDoc(communityRef);
+      
+      if (communitySnap.exists()) {
+        const communityData = communitySnap.data() as Community;
+        const members = communityData.members || [];
+        
+        if (members.includes(this.currentUser.uid)) {
+          // Remove user from members and decrement count
+          await updateDoc(communityRef, {
+            members: arrayRemove(this.currentUser.uid),
+            memberCount: Math.max((communityData.memberCount || 0) - 1, 0)
+          });
+          
+          // Remove from moderators if they are one
+          const moderators = communityData.moderators || [];
+          if (moderators.includes(this.currentUser.uid)) {
+            await updateDoc(communityRef, {
+              moderators: arrayRemove(this.currentUser.uid)
+            });
+          }
+          
+          // Update cache
+          this.updateCommunityInCache(communityId, {
+            members: members.filter(uid => uid !== this.currentUser?.uid),
+            memberCount: Math.max((communityData.memberCount || 0) - 1, 0),
+            moderators: moderators.filter(uid => uid !== this.currentUser?.uid)
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Error leaving community ${communityId}:`, error);
+      throw error;
+    }
+  }
+  
+  // Check if user is a member of a community
+  async isCommunityMember(communityId: string): Promise<boolean> {
+    if (!this.currentUser) return false;
+    
+    try {
+      // Check cache first
+      const cachedCommunities = this.communitiesCache.get('all');
+      if (cachedCommunities) {
+        const cachedCommunity = cachedCommunities.find(c => c.id === communityId);
+        if (cachedCommunity) {
+          return (cachedCommunity.members || []).includes(this.currentUser.uid);
+        }
+      }
+      
+      // If not in cache, fetch from Firestore
+      const communityRef = doc(this.firestore, 'communities', communityId);
+      const communitySnap = await getDoc(communityRef);
+      
+      if (communitySnap.exists()) {
+        const communityData = communitySnap.data() as Community;
+        const members = communityData.members || [];
+        return members.includes(this.currentUser.uid);
+      }
+      
+      return false;
+    } catch (error) {
+      console.error(`Error checking membership for community ${communityId}:`, error);
+      return false;
+    }
+  }
+  
+  // Check if user is a moderator of a community
+  async isCommunityModerator(communityId: string): Promise<boolean> {
+    if (!this.currentUser) return false;
+    
+    try {
+      // Check cache first
+      const cachedCommunities = this.communitiesCache.get('all');
+      if (cachedCommunities) {
+        const cachedCommunity = cachedCommunities.find(c => c.id === communityId);
+        if (cachedCommunity) {
+          return (cachedCommunity.moderators || []).includes(this.currentUser.uid);
+        }
+      }
+      
+      // If not in cache, fetch from Firestore
+      const communityRef = doc(this.firestore, 'communities', communityId);
+      const communitySnap = await getDoc(communityRef);
+      
+      if (communitySnap.exists()) {
+        const communityData = communitySnap.data() as Community;
+        const moderators = communityData.moderators || [];
+        return moderators.includes(this.currentUser.uid);
+      }
+      
+      return false;
+    } catch (error) {
+      console.error(`Error checking moderator status for community ${communityId}:`, error);
+      return false;
+    }
+  }
+  
+  // Update a community in the cache
+  private updateCommunityInCache(communityId: string, update: Partial<Community>): void {
+    const allCommunities = this.communitiesSubject.value;
+    const updatedCommunities = allCommunities.map(community => {
+      if (community.id === communityId) {
+        return { ...community, ...update };
+      }
+      return community;
+    });
+    this.communitiesSubject.next(updatedCommunities);
+    
+    // Update the all communities cache
+    this.communitiesCache.set('all', updatedCommunities);
+  }
+
   // Refresh posts from Firestore
   private refreshPosts(): void {
     const postsCollection = collection(this.firestore, 'posts');
@@ -109,6 +399,44 @@ export class ForumService {
     return this.postsSubject.pipe(
       map(posts => {
         return this.sortPosts([...posts], sortOption);
+      })
+    );
+  }
+  
+  // Get posts for a specific community
+  getPostsForCommunity(communityId: string, sortOption: SortOption = SortOption.Newest): Observable<Post[]> {
+    // Check cache first
+    const cachedPosts = this.postsCache.get(`community_${communityId}`);
+    if (cachedPosts) {
+      return of(this.sortPosts([...cachedPosts], sortOption));
+    }
+    
+    // If not in cache, fetch from Firestore
+    const postsCollection = collection(this.firestore, 'posts');
+    const postsQuery = query(postsCollection, where('communityId', '==', communityId));
+    
+    return collectionData(postsQuery, { idField: 'id' }).pipe(
+      map(posts => {
+        const normalizedPosts = posts.map(post => {
+          // Format timestamp and ensure properties exist
+          if (post['createdAt'] && typeof (post['createdAt'] as any).toDate === 'function') {
+            post['createdAt'] = (post['createdAt'] as any).toDate();
+          }
+          return {
+            ...post,
+            upvotes: post['upvotes'] || [],
+            score: post['score'] || 0
+          };
+        }) as Post[];
+        
+        // Cache the community posts
+        this.postsCache.set(`community_${communityId}`, normalizedPosts);
+        
+        return this.sortPosts(normalizedPosts, sortOption);
+      }),
+      catchError(error => {
+        console.error(`Error fetching posts for community ${communityId}:`, error);
+        return of([]);
       })
     );
   }
@@ -170,36 +498,76 @@ export class ForumService {
     );
   }
 
-  // Create a new post
-  createPost(post: Omit<Post, 'userId' | 'userName' | 'createdAt' | 'replyCount' | 'upvotes' | 'score'>): Observable<string> {
+  // Create a new post in a community
+  createPost(
+    communityId: string, 
+    post: Omit<Post, 'userId' | 'userName' | 'createdAt' | 'replyCount' | 'upvotes' | 'score' | 'communityId' | 'communityName'>
+  ): Observable<string> {
     if (!this.currentUser) {
       return throwError(() => new Error('You must be logged in to create a post'));
     }
-
-    const newPost: Post = {
-      ...post,
-      createdAt: new Date(),
-      userId: this.currentUser.uid,
-      userName: this.currentUser.displayName || 'Anonymous',
-      replyCount: 0,
-      upvotes: [],
-      score: 0
-    };
-
-    return from(addDoc(collection(this.firestore, 'posts'), newPost)).pipe(
-      map(docRef => {
-        // Update our cache with the new post
-        const posts = this.postsSubject.value;
-        this.postsSubject.next([
-          { ...newPost, id: docRef.id },
-          ...posts
-        ]);
+    
+    // Get the community information first
+    return this.getCommunity(communityId).pipe(
+      switchMap(community => {
+        if (!community) {
+          return throwError(() => new Error('Community not found'));
+        }
         
-        return docRef.id;
+        // Check if user is a member if the community is private
+        if (community.isPrivate) {
+          const isMember = (community.members || []).includes(this.currentUser!.uid);
+          if (!isMember) {
+            return throwError(() => new Error('You must be a member of this community to post'));
+          }
+        }
+        
+        const newPost: Post = {
+          ...post,
+          createdAt: new Date(),
+          userId: this.currentUser.uid,
+          userName: this.currentUser.displayName || 'Anonymous',
+          replyCount: 0,
+          upvotes: [],
+          score: 0,
+          communityId: communityId,
+          communityName: community.name
+        };
+
+        return from(addDoc(collection(this.firestore, 'posts'), newPost)).pipe(
+          map(docRef => {
+            // Update our cache with the new post
+            const posts = this.postsSubject.value;
+            const newPostWithId = { ...newPost, id: docRef.id };
+            this.postsSubject.next([
+              newPostWithId,
+              ...posts
+            ]);
+            
+            // Update community posts cache if it exists
+            const cachedCommunityPosts = this.postsCache.get(`community_${communityId}`);
+            if (cachedCommunityPosts) {
+              this.postsCache.set(`community_${communityId}`, [
+                newPostWithId,
+                ...cachedCommunityPosts
+              ]);
+            }
+            
+            // Update all posts cache
+            const cachedAllPosts = this.postsCache.get('all') || [];
+            this.postsCache.set('all', [newPostWithId, ...cachedAllPosts]);
+            
+            return docRef.id;
+          }),
+          catchError(error => {
+            console.error('Error creating post:', error);
+            return throwError(() => new Error('Failed to create post'));
+          })
+        );
       }),
       catchError(error => {
         console.error('Error creating post:', error);
-        return throwError(() => new Error('Failed to create post'));
+        return throwError(() => error.message || 'Failed to create post');
       })
     );
   }

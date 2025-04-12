@@ -60,23 +60,16 @@ export class ForumComponent implements OnInit {
       return;
     }
 
-    this.forumService.createPost(this.newPost).subscribe({
-      next: () => {
-        // Reset the form
-        this.newPost = {
-          title: '',
-          content: ''
-        };
-        this.showNewPostForm = false;
-        
-        // Reload posts to show the new one
-        this.loadPosts();
-      },
-      error: (error) => {
-        console.error('Error creating post:', error);
-        alert('An error occurred while creating your post.');
-      }
-    });
+    // Redirect to community list instead - posts must be created within a community
+    alert('Posts must now be created within a specific community. Redirecting to communities page.');
+    this.router.navigate(['/forum']);
+    this.showNewPostForm = false;
+    
+    // Reset the form data
+    this.newPost = {
+      title: '',
+      content: ''
+    };
   }
 
   async upvotePost(post: Post, event: Event): Promise<void> {
@@ -100,7 +93,7 @@ export class ForumComponent implements OnInit {
   }
 
   viewPost(postId: string): void {
-    this.router.navigate(['/forum', postId]);
+    this.router.navigate(['/forum/post', postId]);
   }
 
   cancelPost(): void {
