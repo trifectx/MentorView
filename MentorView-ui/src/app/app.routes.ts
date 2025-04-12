@@ -6,6 +6,7 @@ import { SignupComponent } from './pages/signup/signup.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { InterviewComponent } from './pages/interview/interview.component';
 import { SavedInterviewsComponent } from './pages/saved-interviews/saved-interviews.component';
+import { InterviewDetailComponent } from './pages/interview-detail/interview-detail.component';
 import { OverviewComponent } from './pages/overview/overview.component';
 import { FriendsComponent } from './pages/friends/friends.component';
 import { AssessmentCentreComponent } from './pages/assessment-centre/assessment-centre.component';
@@ -49,6 +50,11 @@ export const routes: Routes = [
         path: 'saved-interviews',
         component: SavedInterviewsComponent,
         title: 'Saved Interviews',
+    },
+    {
+        path: 'saved-interviews/:id',
+        component: InterviewDetailComponent,
+        title: 'Interview Details',
     },
     {
         path: 'overview',

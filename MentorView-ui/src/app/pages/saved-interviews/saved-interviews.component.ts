@@ -4,11 +4,12 @@ import { Router, NavigationEnd } from '@angular/router';
 import { ApiService, SavedInterview } from '../../services/api.service';
 import { filter } from 'rxjs/operators';
 import { forkJoin, Subscription } from 'rxjs';
+import { NavbarComponent } from '../../components/navbar/navbar.component';
 
 @Component({
   selector: 'app-saved-interviews',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, NavbarComponent],
   templateUrl: './saved-interviews.component.html',
   styleUrls: ['./saved-interviews.component.css']
 })
@@ -82,13 +83,8 @@ export class SavedInterviewsComponent implements OnInit, OnDestroy {
       return;
     }
     
-    this.selectedInterview = interview;
-    // Wait for the view to update with the video element
-    setTimeout(() => {
-      if (this.videoPlayer) {
-        this.videoPlayer.nativeElement.muted = true; // Start muted by default
-      }
-    }, 100);
+    // Navigate to the detail page instead of showing a popup
+    this.router.navigate(['/saved-interviews', interview.id]);
   }
 
   closeDetails(): void {

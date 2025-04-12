@@ -1,0 +1,89 @@
+<app-navbar></app-navbar>
+
+<div class="interview-detail-container">
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading interview details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="error-container">
+    <i class="material-icons">error</i>
+    <p>{{ error }}</p>
+    <button class="btn btn-secondary" (click)="goBack()">
+      <i class="material-icons">arrow_back</i> Back to Saved Interviews
+    </button>
+  </div>
+
+  <!-- Interview Details -->
+  <div *ngIf="!loading && !error && interview" class="interview-content">
+    <div class="page-header">
+      <button class="back-btn" (click)="goBack()">
+        <i class="material-icons">arrow_back</i>
+      </button>
+      <h1>Saved Interview</h1>
+    </div>
+
+    <div class="interview-info-card">
+      <div class="interview-info">
+        <h2>{{ interview.role }} at {{ interview.company }}</h2>
+        <p class="interview-date">{{ formatDate(interview.date) }}</p>
+        <div class="interview-metadata">
+          <span class="tag">{{ interview.style }}</span>
+          <span class="score">Score: {{ extractScore(interview.feedback) }}</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Video Player Section -->
+    <div class="card video-section">
+      <h3>Interview Recording</h3>
+      <div class="video-container">
+        <video 
+          #videoPlayer 
+          class="interview-video" 
+          controls 
+          [src]="getStreamUrl(interview.id)" 
+          preload="metadata"
+        ></video>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>Question</h3>
+      <p class="question-text">{{ interview.question }}</p>
+    </div>
+    
+    <div class="card">
+      <h3>Your Answer</h3>
+      <div class="transcript">
+        <p>{{ interview.answer }}</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Feedback</h3>
+      <div class="feedback-content">
+        <p>{{ interview.feedback }}</p>
+      </div>
+    </div>
+    
+    <div class="card download-section">
+      <h3>Download</h3>
+      <a [href]="getDownloadUrl(interview.id)" class="btn btn-download" download>
+        <i class="material-icons">download</i> Download Interview Video
+      </a>
+      <p class="download-note">The video will be saved to your computer's default download location.</p>
+    </div>
+
+    <div class="action-buttons">
+      <button class="btn btn-primary" (click)="reattemptInterview()">
+        <i class="material-icons">replay</i> Reattempt Interview
+      </button>
+      <button class="btn btn-secondary" (click)="goBack()">
+        <i class="material-icons">arrow_back</i> Back to Saved Interviews
+      </button>
+    </div>
+  </div>
+</div>
