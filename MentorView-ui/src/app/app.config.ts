@@ -9,6 +9,8 @@ import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { getAuth, provideAuth } from '@angular/fire/auth';
 import { getFirestore, provideFirestore } from '@angular/fire/firestore';
 import { XpService } from './services/xp.service';
+import { AgoraService } from './services/agora.service';
+import { ApiService } from './services/api.service';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -31,5 +33,7 @@ export const appConfig: ApplicationConfig = {
     provideAuth(() => getAuth()),
     provideFirestore(() => getFirestore()),
     XpService,
+    AgoraService,
+    ApiService,
   ],
 };

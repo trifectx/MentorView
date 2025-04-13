@@ -77,10 +77,28 @@
                             "buildTarget": "MentorView-ui:build:production"
                         },
                         "development": {
-                            "buildTarget": "MentorView-ui:build:development"
+                            "buildTarget": "MentorView-ui:build:development",
+                            "headers": {
+                                "Access-Control-Allow-Origin": "*",
+                                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                                "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+                            },
+                            "allowedHosts": ["localhost", "127.0.0.1", ".ngrok-free.app", ".ngrok.io"],
+                            "host": "0.0.0.0",
+                            "port": 4200
                         }
                     },
-                    "defaultConfiguration": "development"
+                    "defaultConfiguration": "development",
+                    "options": {
+                        "headers": {
+                            "Access-Control-Allow-Origin": "*",
+                            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+                        },
+                        "allowedHosts": ["localhost", "127.0.0.1", ".ngrok-free.app", ".ngrok.io"],
+                        "host": "0.0.0.0",
+                        "port": 4200
+                    }
                 },
                 "extract-i18n": {
                     "builder": "@angular-devkit/build-angular:extract-i18n"

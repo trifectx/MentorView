@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -12,6 +12,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { SafeHtmlPipe } from '../../pipes/safe-html.pipe';
 import { ApiService } from '../../services/api.service';
+import { AgoraService } from '../../services/agora.service';
 import { COMPANIES, ROLES } from '../../components/interview-details/interview-details.constants';
 
 interface VideoSlot {
@@ -63,12 +64,13 @@ interface TranscriptEntry {
     ])
   ]
 })
-export class AssessmentCentreComponent implements OnInit, OnDestroy {
+export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('videoElement1') videoElement1!: ElementRef<HTMLVideoElement>;
   @ViewChild('videoElement2') videoElement2!: ElementRef<HTMLVideoElement>;
   @ViewChild('videoElement3') videoElement3!: ElementRef<HTMLVideoElement>;
   @ViewChild('videoElement4') videoElement4!: ElementRef<HTMLVideoElement>;
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('localVideo') localVideoRef!: ElementRef;
 
   videoSlots: VideoSlot[] = [
     { active: false, micMuted: true, camActive: true, isRecording: false },
@@ -108,7 +110,19 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
   private roleInputSubject = new Subject<string>();
   private companyInputSubject = new Subject<string>();
 
-  constructor(private apiService: ApiService) {
+  // Video call properties
+  connectionState: 'IDLE' | 'CONNECTING' | 'CONNECTED' = 'IDLE';
+  isAudioEnabled = true;
+  isVideoEnabled = true;
+  isJoining = false;
+  channelName = '';
+  remoteUsers: { [uid: string]: any } = {};
+  messages: { sender: string; message: string }[] = [];
+  newMessage = '';
+
+  activeSlotIndex: number | null = null;
+
+  constructor(private apiService: ApiService, private agoraService: AgoraService) {
     // Set up debounce for role input - wait 800ms after user stops typing
     this.roleInputSubject.pipe(
       debounceTime(800),
@@ -133,10 +147,21 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Load questions
     this.loadQuestions();
+    
+    // Setup Agora event listeners when component is initialized
+    this.setupVideoCall();
+  }
+
+  ngAfterViewInit(): void {
+    // Setup Agora button event listeners after the view is initialized
+    this.setupAgoraButtons();
   }
 
   ngOnDestroy(): void {
-    // Clean up all media streams when component is destroyed
+    // Clean up recorder and media stream
+    if (this.activeSlotIndex !== null) {
+      this.stopRecording(this.activeSlotIndex);
+    }
     this.leaveAllSlots();
   }
 
@@ -1004,5 +1029,144 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy {
           alert(`API Status Error: ${error.message}`);
         }
       });
+  }
+
+  // Video Call Implementation
+  
+  /**
+   * Setup video call - initialize event handlers
+   */
+  private setupVideoCall(): void {
+    // Subscribe to connection state changes for debugging
+    this.agoraService.connectionState$.subscribe(state => {
+      console.log('Agora connection state:', state);
+    });
+  }
+
+  /**
+   * Setup Agora button event listeners
+   */
+  private setupAgoraButtons(): void {
+    // Join button
+    const joinBtn = document.getElementById('join-btn');
+    if (joinBtn) {
+      joinBtn.addEventListener('click', this.joinStream.bind(this));
+    }
+    
+    // Leave button
+    const leaveBtn = document.getElementById('leave-btn');
+    if (leaveBtn) {
+      leaveBtn.addEventListener('click', this.leaveAndRemoveLocalStream.bind(this));
+    }
+    
+    // Mic button
+    const micBtn = document.getElementById('mic-btn');
+    if (micBtn) {
+      micBtn.addEventListener('click', this.toggleMicAgora.bind(this));
+    }
+    
+    // Camera button
+    const cameraBtn = document.getElementById('camera-btn');
+    if (cameraBtn) {
+      cameraBtn.addEventListener('click', this.toggleCamera.bind(this));
+    }
+  }
+
+  /**
+   * Join and display local stream
+   */
+  private async joinStream(): Promise<void> {
+    try {
+      // Hide join button, show controls
+      const joinBtn = document.getElementById('join-btn');
+      const streamControls = document.getElementById('stream-controls');
+      
+      if (joinBtn) joinBtn.style.display = 'none';
+      if (streamControls) streamControls.style.display = 'flex';
+      
+      // Create local user container if it doesn't exist yet
+      const videoStreams = document.getElementById('video-streams');
+      if (videoStreams) {
+        // Check if user container exists
+        const playerExists = document.getElementById(`user-container-${this.agoraService.client.uid}`);
+        if (!playerExists) {
+          // Create player container
+          const playerHTML = `
+            <div class="video-container" id="user-container-${this.agoraService.client.uid}">
+              <div class="video-player" id="user-${this.agoraService.client.uid}"></div>
+            </div>
+          `;
+          videoStreams.insertAdjacentHTML('beforeend', playerHTML);
+        }
+      }
+      
+      // Join and display local stream
+      await this.agoraService.joinAndDisplayLocalStream(`user-${this.agoraService.client.uid}`);
+    } catch (error) {
+      console.error('Error joining stream:', error);
+    }
+  }
+
+  /**
+   * Leave and remove local stream
+   */
+  private async leaveAndRemoveLocalStream(): Promise<void> {
+    try {
+      // Leave channel and remove local stream
+      await this.agoraService.leaveAndRemoveLocalStream();
+      
+      // Show join button, hide controls
+      const joinBtn = document.getElementById('join-btn');
+      const streamControls = document.getElementById('stream-controls');
+      
+      if (joinBtn) joinBtn.style.display = 'block';
+      if (streamControls) streamControls.style.display = 'none';
+      
+      // Clear video streams
+      const videoStreams = document.getElementById('video-streams');
+      if (videoStreams) videoStreams.innerHTML = '';
+    } catch (error) {
+      console.error('Error leaving stream:', error);
+    }
+  }
+
+  /**
+   * Toggle microphone for Agora
+   */
+  private async toggleMicAgora(e: Event): Promise<void> {
+    try {
+      const target = e.target as HTMLButtonElement;
+      const isMuted = await this.agoraService.toggleMic();
+      
+      if (isMuted) {
+        target.innerText = 'Mic off';
+        target.style.backgroundColor = '#EE4B2B';
+      } else {
+        target.innerText = 'Mic on';
+        target.style.backgroundColor = 'cadetblue';
+      }
+    } catch (error) {
+      console.error('Error toggling mic:', error);
+    }
+  }
+
+  /**
+   * Toggle camera
+   */
+  private async toggleCamera(e: Event): Promise<void> {
+    try {
+      const target = e.target as HTMLButtonElement;
+      const isMuted = await this.agoraService.toggleCamera();
+      
+      if (isMuted) {
+        target.innerText = 'Camera off';
+        target.style.backgroundColor = '#EE4B2B';
+      } else {
+        target.innerText = 'Camera on';
+        target.style.backgroundColor = 'cadetblue';
+      }
+    } catch (error) {
+      console.error('Error toggling camera:', error);
+    }
   }
 }
