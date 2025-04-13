@@ -109,151 +109,57 @@
       </div>
     </div>
 
-    <!-- Main content area -->
     <div class="main-content">
-      <!-- Current Question Display -->
-      <div class="current-question-container" *ngIf="currentQuestion">
-        <div class="question-card current" [innerHTML]="currentQuestion | safeHtml"></div>
+      <!-- Video Call Section - Simplified to match the exact layout in the screenshots -->
+      <div id="video-call-wrapper">
+        <div id="video-streams">
+          <!-- Video streams will be added here by the component -->
+        </div>
+        
+        <!-- Join Button -->
+        <button id="join-btn">Join Stream</button>
+        
+        <!-- Stream Controls -->
+        <div id="stream-controls">
+          <button id="mic-btn">Mic on</button>
+          <button id="camera-btn">Camera on</button>
+          <button id="leave-btn">Leave Call</button>
+        </div>
       </div>
-
-      <!-- Interview Controls -->
-      <div class="interview-controls">
-        <button class="control-btn record-btn" (click)="startInterview()" [disabled]="isRecording">
-          <i class="material-icons">videocam</i>
-          <span>Start Interview</span>
-        </button>
-        <button class="control-btn stop-btn" (click)="stopInterview()" [disabled]="!isRecording">
-          <i class="material-icons">stop</i>
-          <span>Stop Interview</span>
-        </button>
-      </div>
-
-      <!-- Global Controls -->
-      <div class="global-controls">
-        <button class="control-btn" [ngClass]="{'active': !globalMicMuted}" (click)="toggleGlobalMic()">
-          <span class="material-icons">{{ globalMicMuted ? 'mic_off' : 'mic' }}</span>
-          <span>{{ globalMicMuted ? 'All Muted' : 'All Unmuted' }}</span>
-        </button>
-        <button class="control-btn" [ngClass]="{'active': globalCamActive}" (click)="toggleGlobalCam()">
-          <span class="material-icons">{{ globalCamActive ? 'videocam' : 'videocam_off' }}</span>
-          <span>{{ globalCamActive ? 'All Cameras On' : 'All Cameras Off' }}</span>
-        </button>
-      </div>
-
+      
       <!-- Combined Transcript Section -->
-      <div class="combined-transcript-section" *ngIf="isAnyTranscriptAvailable() || isLoadingAnyTranscript() || isRecording">
-        <h3 class="section-title">Interview Transcript</h3>
+      <div class="combined-transcript-section" *ngIf="isAnyTranscriptAvailable() || isLoadingAnyTranscript()">
+        <h2 class="section-title">Interview Transcript</h2>
         
         <div class="transcript-content">
-          <div class="loading-container" *ngIf="isLoadingAnyTranscript() && !isRecording">
-            <mat-spinner [diameter]="30" color="accent"></mat-spinner>
-            <p>Generating transcript from interview recording...</p>
+          <div class="loading-container" *ngIf="isLoadingAnyTranscript() && !isAnyTranscriptAvailable()">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p>Generating transcripts...</p>
           </div>
           
           <div class="recording-transcript-container" *ngIf="isRecording">
             <div class="recording-indicator-large">
               <div class="recording-pulse"></div>
-              <span>Recording in progress</span>
+              <span>Recording in Progress</span>
             </div>
-            <p class="recording-transcript-note">Transcripts will be finalized when recording stops</p>
+            <p class="recording-transcript-note">Transcripts will be available after recording is completed.</p>
           </div>
           
-          <div *ngIf="!isLoadingAnyTranscript() && getCombinedTranscript().length > 0" class="combined-transcript">
-            <div *ngFor="let entry of getCombinedTranscript()" class="transcript-entry">
+          <div class="combined-transcript" *ngIf="isAnyTranscriptAvailable()">
+            <div class="transcript-entry" *ngFor="let entry of getCombinedTranscript()">
               <div class="participant-label">Participant {{ entry.participantIndex + 1 }}</div>
               <div class="transcript-text">{{ entry.text }}</div>
             </div>
           </div>
-          
-          <div *ngIf="!isLoadingAnyTranscript() && !isRecording && getCombinedTranscript().length === 0" class="empty-state">
-            No transcript available yet. Start recording to generate a transcript.
-          </div>
         </div>
         
-        <!-- Save Button -->
-        <button class="save-btn" 
-                *ngIf="getCombinedTranscript() && getCombinedTranscript().length > 0 && !isLoadingAnyTranscript()" 
-                (click)="saveAllInterviews()">
-          <i class="material-icons">save</i>
-          <span>Save Interview</span>
+        <button class="save-btn" (click)="saveAllInterviews()" [disabled]="isSaving || !isAnyTranscriptAvailable()">
+          <span *ngIf="!isSaving && !saveSuccess">Save Interview</span>
+          <span *ngIf="isSaving">Saving...</span>
+          <span *ngIf="!isSaving && saveSuccess">Saved Successfully!</span>
         </button>
         
-        <!-- Debug Button -->
-        <button class="debug-btn" (click)="debugMode = !debugMode">
-          <i class="material-icons">bug_report</i>
-          <span>Toggle Debug Info</span>
-        </button>
-        
-        <!-- Debug Panel -->
-        <div class="debug-panel" *ngIf="debugMode">
-          <h4>Debug Information</h4>
-          <div class="debug-info">
-            <div class="debug-section">
-              <h5>General State</h5>
-              <p><strong>Transcript Entries:</strong> {{ transcriptEntries.length }}</p>
-              <p><strong>Loading Any Transcript:</strong> {{ isLoadingAnyTranscript() }}</p>
-              <p><strong>Is Recording:</strong> {{ isRecording }}</p>
-              <p><strong>Is Any Transcript Available:</strong> {{ isAnyTranscriptAvailable() }}</p>
-            </div>
-            
-            <div class="debug-section" *ngFor="let slot of videoSlots; let i = index">
-              <h5>Participant {{ i + 1 }}</h5>
-              <p><strong>Active:</strong> {{ slot.active }}</p>
-              <p><strong>Is Recording:</strong> {{ slot.isRecording }}</p>
-              <p><strong>Loading Transcript:</strong> {{ slot.loadingTranscript }}</p>
-              <p><strong>Has Stream:</strong> {{ !!slot.stream }}</p>
-              <p><strong>Has Video Blob:</strong> {{ !!slot.videoBlob }}</p>
-              <p><strong>Has Media Recorder:</strong> {{ !!slot.mediaRecorder }}</p>
-              <p><strong>Has Transcript:</strong> {{ !!slot.transcript }}</p>
-              <div *ngIf="slot.transcript" class="transcript-preview">
-                <p><strong>Transcript Preview:</strong></p>
-                <pre>{{ slot.transcript | slice:0:200 }}...</pre>
-              </div>
-            </div>
-            
-            <div class="debug-section">
-              <h5>Combined Transcript</h5>
-              <div *ngIf="transcriptEntries.length > 0">
-                <div *ngFor="let entry of transcriptEntries" class="debug-transcript-entry">
-                  <p><strong>Participant {{ entry.participantIndex + 1 }}</strong> ({{ entry.timestamp | date:'short' }})</p>
-                  <pre>{{ entry.text | slice:0:100 }}...</pre>
-                </div>
-              </div>
-              <p *ngIf="transcriptEntries.length === 0">No transcript entries available</p>
-            </div>
-            
-            <div class="debug-actions">
-              <button class="debug-action-btn" (click)="forceRefreshTranscripts()">
-                <i class="material-icons">refresh</i>
-                <span>Force Refresh Transcripts</span>
-              </button>
-              <button class="debug-action-btn" (click)="checkApiStatus()">
-                <i class="material-icons">network_check</i>
-                <span>Check API Status</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Agora Video Call Section -->
-    <div id="video-call-container" class="mt-4 assessment-container">
-      <div class="assessment-header d-flex justify-content-between align-items-center mb-3">
-        <h3>Video Call</h3>
-        <div class="d-flex gap-2">
-          <button id="join-btn" class="btn btn-primary">Join Stream</button>
-          <div id="stream-controls" style="display: none;" class="d-flex gap-2">
-            <button id="mic-btn" class="btn btn-info">Mic on</button>
-            <button id="camera-btn" class="btn btn-info">Camera on</button>
-            <button id="leave-btn" class="btn btn-danger">Leave</button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Video Streams Container - Simplified Layout -->
-      <div id="video-streams" class="video-streams-container">
-        <!-- Video players will be added here dynamically by Agora -->
+        <div *ngIf="saveError" class="error-message">{{ saveError }}</div>
       </div>
     </div>
   </div>

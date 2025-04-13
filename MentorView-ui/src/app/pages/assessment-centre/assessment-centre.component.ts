@@ -1022,7 +1022,7 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       if (videoStreams) {
         videoStreams.innerHTML = '';
         
-        // Create a dedicated container for local user (YOU)
+        // Create container box for local user
         const localUserHTML = `
           <div class="video-container local-user" id="local-user-container">
             <div class="video-player" id="local-user-video"></div>
@@ -1031,10 +1031,7 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
         `;
         videoStreams.insertAdjacentHTML('beforeend', localUserHTML);
         
-        // Join and display local stream in this specific container
-        await this.agoraService.joinAndDisplayLocalStream('local-user-video');
-        
-        // Create containers for potential remote users
+        // Create containers for remote users
         for (let i = 1; i <= 3; i++) {
           const remoteUserHTML = `
             <div class="video-container" id="participant-container-${i}">
@@ -1043,6 +1040,42 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
             </div>
           `;
           videoStreams.insertAdjacentHTML('beforeend', remoteUserHTML);
+        }
+        
+        // Make sure the grid layout is correct
+        const containerStyle = videoStreams.style;
+        containerStyle.display = 'grid';
+        containerStyle.gridTemplateColumns = 'repeat(2, 1fr)';
+        containerStyle.gridTemplateRows = 'repeat(2, 1fr)';
+        containerStyle.gap = '10px';
+        containerStyle.width = '500px';
+        containerStyle.margin = '20px auto';
+        
+        // Join and display local stream
+        try {
+          await this.agoraService.joinAndDisplayLocalStream('local-user-video');
+          console.log('Successfully joined and displayed local stream');
+          
+          // Extra styling for video containers to make sure they're sized correctly
+          document.querySelectorAll('.video-container').forEach(container => {
+            const el = container as HTMLElement;
+            el.style.width = '240px';
+            el.style.height = '180px';
+            el.style.overflow = 'hidden';
+            el.style.position = 'relative';
+            el.style.display = 'block';
+          });
+          
+          // Style the video players too
+          document.querySelectorAll('.video-player').forEach(player => {
+            const el = player as HTMLElement;
+            el.style.width = '100%';
+            el.style.height = '100%';
+            el.style.overflow = 'hidden';
+            el.style.position = 'relative';
+          });
+        } catch (error) {
+          console.error('Error displaying local stream:', error);
         }
       }
     } catch (error) {

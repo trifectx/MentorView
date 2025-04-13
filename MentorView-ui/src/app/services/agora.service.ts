@@ -167,8 +167,21 @@ export class AgoraService {
       // Store reference instead of the actual track to avoid type errors
       this.remoteUsers[user.uid].videoTrack = user.videoTrack;
       
-      // The container will be created by the component
-      const containerId = `remote-user-${user.uid}`;
+      // Find a free container among our pre-created ones
+      let slotNumber = 1;
+      while (slotNumber <= 3) {
+        const targetContainer = document.getElementById(`remote-user-${slotNumber}`);
+        if (targetContainer && !targetContainer.firstChild) {
+          break;
+        }
+        slotNumber++;
+      }
+      
+      // If all slots are filled, reuse the last one
+      if (slotNumber > 3) slotNumber = 3;
+      
+      const containerId = `remote-user-${slotNumber}`;
+      console.log(`Playing remote user ${user.uid} video in container ${containerId}`);
       
       // Play with specific dimensions
       const playerOptions = {
@@ -179,22 +192,38 @@ export class AgoraService {
       
       user.videoTrack.play(containerId, playerOptions);
       
-      // Extra DOM manipulation to ensure correct size
+      // Extra DOM manipulation to ensure correct size and position
       setTimeout(() => {
         const playerElement = document.getElementById(containerId);
         if (playerElement) {
+          // Ensure the player element is properly sized and positioned
           playerElement.style.width = '240px';
           playerElement.style.height = '180px';
           playerElement.style.maxWidth = '240px';
           playerElement.style.maxHeight = '180px';
           playerElement.style.overflow = 'hidden';
+          playerElement.style.position = 'relative';
           
+          // Find the actual video element created by Agora
           const videoElements = playerElement.getElementsByTagName('video');
           for (let i = 0; i < videoElements.length; i++) {
             videoElements[i].style.width = '240px';
             videoElements[i].style.height = '180px';
             videoElements[i].style.objectFit = 'cover';
+            videoElements[i].style.position = 'absolute';
+            videoElements[i].style.top = '0';
+            videoElements[i].style.left = '0';
           }
+          
+          // Find any Agora player elements and ensure proper styling
+          const agoraElements = document.querySelectorAll('[id^="agora-video-player"]');
+          agoraElements.forEach(el => {
+            (el as HTMLElement).style.width = '240px';
+            (el as HTMLElement).style.height = '180px';
+            (el as HTMLElement).style.position = 'absolute';
+            (el as HTMLElement).style.top = '0';
+            (el as HTMLElement).style.left = '0';
+          });
         }
       }, 100);
     } else if (mediaType === 'audio') {
