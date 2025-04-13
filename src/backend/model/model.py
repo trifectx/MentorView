@@ -21,7 +21,7 @@ class Model:
 
     def construct_prompt_for_questions(self, role, company, style):
         # Check the interview style and use the appropriate prompt generator
-        if style == "assessment":
+        if style and "assessment" in style.lower():
             return self.construct_prompt_for_assessment_centre(role, company)
         else:
             return self.construct_prompt_for_interview_questions(role, company, style)
@@ -65,13 +65,16 @@ class Model:
         return [
             {
                 "role": "system",
-                "content": "You are an expert recruiter who designs assessment centre group exercises for evaluating multiple candidates simultaneously."
+                "content": "You are an expert recruiter who designs assessment centre GROUP EXERCISES for evaluating multiple candidates simultaneously. You MUST ONLY create collaborative group tasks and NEVER individual interview questions. Your tasks should always involve multiple people working together on a shared challenge."
             },
             {
                 "role": "user",
                 "content": f"""
-                Create 1 group assessment task for {role} candidates at {company}.
+                Create 1 GROUP ASSESSMENT TASK for {role} candidates at {company}.
 
+                IMPORTANT: This MUST be a task designed for a GROUP of 3-5 candidates to work on TOGETHER. 
+                DO NOT create individual interview questions - they must be collaborative exercises.
+                
                 Format the task EXACTLY as follows:
                 
                 Scenario:
@@ -83,19 +86,24 @@ class Model:
                 [Include a deliverable or outcome the group must produce]
                 [Specify a timeframe (between 10-30 minutes)]
                 
-                THE FORMAT MUST BE EXACTLY LIKE THIS EXAMPLE:
+                USE THESE EXAMPLES AS YOUR PRIMARY REFERENCES:
                 
+                Example 1:
                 Scenario:
-                Your group has been given a limited budget and must decide how to distribute it among several departmental initiatives (e.g., marketing, research and development, staffing). Each participant represents a different department, and all believe their department should receive the most funding.
+                Your team represents a charitable foundation with $1 million to allocate. You must collectively agree on how to distribute these funds among these five causes: climate change initiatives, educational programs in underserved areas, medical research for rare diseases, homeless support services, and clean water projects in developing countries. You must determine the exact percentage each cause receives and justify your decisions.
 
-                Instructions:
-                Discuss and list the key priorities of the organization (e.g., growth, innovation, customer retention).
-                Present your department's case for funding.
-                Negotiate with the other "departments" in the group to reach a consensus on the final budget allocation.
-                Prepare a short presentation explaining your group's final decision to the assessors.
+                Example 2:
+                Scenario:
+                Your team is stranded on a remote island after a plane crash. You've recovered 10 items from the wreckage: a box of matches, a compass, a mirror, a first aid kit, a tarp, 5 liters of water, a hunting knife, a rope, a fishing net, and a flashlight. As a group, rank these items in order of importance for survival and provide reasoning for your rankings.
+
+                Example 3:
+                Scenario:
+                Your team runs a large urban public library facing declining visitors and budget cuts. Collectively develop three innovative solutions to revitalize the library and make it relevant for the next decade. Each solution must be realistic, cost-effective, and serve diverse community needs.
                 
-                Generate a unique, engaging scenario with instructions relevant to {role} at {company}.
-                Make the scenario test various competencies (leadership, teamwork, communication, problem-solving, decision-making).
+                Your task should follow a SIMILAR GROUP FORMAT to these examples, but adapted for the {role} at {company}.
+                Make the scenario test various collaborative competencies (leadership, teamwork, communication, problem-solving, decision-making).
+                
+                REMEMBER: The exercise MUST involve the entire group working TOGETHER. It should NOT be an individual interview question.
                 """
             }
         ]

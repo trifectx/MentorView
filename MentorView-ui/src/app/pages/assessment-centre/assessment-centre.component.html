@@ -102,7 +102,8 @@
             <div class="question-card" *ngFor="let question of selectedQuestions" 
                  [class.selected]="question === currentQuestion"
                  (click)="selectQuestion(question)">
-              <p>{{ question.split('\n')[0] }}</p>
+              <p *ngIf="question.includes('Scenario:')">{{ (question.split('Scenario:')[1] || '').split('\n')[0] | slice:0:60 }}...</p>
+              <p *ngIf="!question.includes('Scenario:')">{{ question.split('\n')[0] | slice:0:60 }}...</p>
             </div>
           </div>
         </div>
@@ -110,6 +111,14 @@
     </div>
 
     <div class="main-content">
+      <!-- Current Assessment Task Display -->
+      <div class="current-task-container" *ngIf="currentQuestion">
+        <h2 class="section-title">Current Assessment Task</h2>
+        <div class="task-content">
+          <div [innerHTML]="formatAssessmentTask(currentQuestion)" class="formatted-task"></div>
+        </div>
+      </div>
+
       <!-- Video Call Section - Simplified to match the exact layout in the screenshots -->
       <div id="video-call-wrapper">
         <div id="video-streams">
@@ -119,11 +128,11 @@
         <!-- Join Button -->
         <button id="join-btn">Join Stream</button>
         
-        <!-- Stream Controls -->
+        <!-- Stream Controls - Fixed position at the bottom of the screen -->
         <div id="stream-controls">
-          <button id="mic-btn">Mic on</button>
-          <button id="camera-btn">Camera on</button>
-          <button id="leave-btn">Leave Call</button>
+          <button id="mic-btn" class="control-btn">Mic on</button>
+          <button id="camera-btn" class="control-btn">Camera on</button>
+          <button id="leave-btn" class="control-btn">Leave Call</button>
         </div>
       </div>
       

@@ -964,6 +964,41 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       });
   }
 
+  /**
+   * Format the assessment task for HTML display
+   * @param task The assessment task to format
+   * @returns The formatted task with HTML
+   */
+  formatAssessmentTask(task: string): string {
+    if (!task) return '';
+
+    // Safety check - sanitize the task text
+    const sanitizedTask = task.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    
+    // Split by Scenario and Instructions sections
+    let formattedHtml = '';
+    
+    if (sanitizedTask.includes('Scenario:') && sanitizedTask.includes('Instructions:')) {
+      const scenarioParts = sanitizedTask.split('Instructions:');
+      const scenarioText = scenarioParts[0].replace('Scenario:', '<h3>Scenario:</h3>');
+      const instructionsText = '<h3>Instructions:</h3>' + scenarioParts[1];
+      
+      // Apply some basic formatting to the sections
+      formattedHtml = scenarioText + instructionsText;
+      
+      // Convert newlines to <br> for proper HTML display
+      formattedHtml = formattedHtml.replace(/\n/g, '<br>');
+      
+      // Add some extra spacing between paragraphs
+      formattedHtml = formattedHtml.replace(/<br><br>/g, '<br><br>');
+    } else {
+      // Fallback for non-standard format
+      formattedHtml = sanitizedTask.replace(/\n/g, '<br>');
+    }
+    
+    return formattedHtml;
+  }
+
   // Video Call Implementation
   
   /**
@@ -1108,6 +1143,24 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       // Clear video streams
       const videoStreams = document.getElementById('video-streams');
       if (videoStreams) videoStreams.innerHTML = '';
+      
+      // Reset button states
+      const micBtn = document.getElementById('mic-btn');
+      const cameraBtn = document.getElementById('camera-btn');
+      
+      if (micBtn) {
+        micBtn.innerText = 'Mic on';
+        micBtn.style.backgroundColor = 'cadetblue';
+        micBtn.classList.remove('off');
+      }
+      
+      if (cameraBtn) {
+        cameraBtn.innerText = 'Camera on';
+        cameraBtn.style.backgroundColor = 'cadetblue';
+        cameraBtn.classList.remove('off');
+      }
+      
+      console.log('Successfully left the stream');
     } catch (error) {
       console.error('Error leaving stream:', error);
     }
@@ -1124,9 +1177,11 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       if (isMuted) {
         target.innerText = 'Mic off';
         target.style.backgroundColor = '#EE4B2B';
+        target.classList.add('off');
       } else {
         target.innerText = 'Mic on';
         target.style.backgroundColor = 'cadetblue';
+        target.classList.remove('off');
       }
     } catch (error) {
       console.error('Error toggling mic:', error);
@@ -1144,9 +1199,11 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       if (isMuted) {
         target.innerText = 'Camera off';
         target.style.backgroundColor = '#EE4B2B';
+        target.classList.add('off');
       } else {
         target.innerText = 'Camera on';
         target.style.backgroundColor = 'cadetblue';
+        target.classList.remove('off');
       }
     } catch (error) {
       console.error('Error toggling camera:', error);
