@@ -128,75 +128,6 @@
         </button>
       </div>
 
-      <!-- Participant Grid -->
-      <div class="participant-grid">
-        <div class="participant-container" *ngFor="let slot of videoSlots; let i = index">
-          <div class="participant-video" [ngClass]="{'active': slot.active}">
-            <video 
-              #videoElement1 
-              *ngIf="i === 0" 
-              autoplay 
-              [muted]="true" 
-              [ngClass]="{'video-off': !slot.camActive}">
-            </video>
-            <video 
-              #videoElement2 
-              *ngIf="i === 1" 
-              autoplay 
-              [muted]="true" 
-              [ngClass]="{'video-off': !slot.camActive}">
-            </video>
-            <video 
-              #videoElement3 
-              *ngIf="i === 2" 
-              autoplay 
-              [muted]="true" 
-              [ngClass]="{'video-off': !slot.camActive}">
-            </video>
-            <video 
-              #videoElement4 
-              *ngIf="i === 3" 
-              autoplay 
-              [muted]="true" 
-              [ngClass]="{'video-off': !slot.camActive}">
-            </video>
-            <div class="participant-info">
-              <span class="participant-name">Participant {{ i + 1 }}</span>
-              <div class="participant-controls" *ngIf="slot.active">
-                <button class="control-btn" [ngClass]="{'active': !slot.micMuted}" (click)="toggleMic(i)" [disabled]="i === 1 && slot.videoBlob">
-                  <span class="material-icons">{{ slot.micMuted ? 'mic_off' : 'mic' }}</span>
-                </button>
-                <button class="control-btn" [ngClass]="{'active': slot.camActive}" (click)="toggleCam(i)" [disabled]="i === 1 && slot.videoBlob">
-                  <span class="material-icons">{{ slot.camActive ? 'videocam' : 'videocam_off' }}</span>
-                </button>
-              </div>
-            </div>
-            <button class="join-btn" (click)="joinParticipantSlot(i)">
-              {{ slot.active ? 'Leave' : 'Join' }}
-            </button>
-            <!-- Special button for participant 2 (index 1) to load test video -->
-            <button class="test-video-btn" *ngIf="i === 1" (click)="loadTestVideo()">
-              {{ selectedVideoFile ? 'Change Video' : 'Select Video' }}
-            </button>
-            <!-- Recording status indicator -->
-            <div class="recording-status" *ngIf="slot.isRecording">
-              <span class="recording-indicator"></span>
-              <span class="recording-text">Recording</span>
-            </div>
-            <!-- Prerecorded video indicator for participant 2 -->
-            <div class="prerecorded-indicator" *ngIf="i === 1 && slot.active && slot.videoBlob">
-              <span class="material-icons">movie</span>
-              <span>Prerecorded</span>
-            </div>
-            <!-- Transcribing indicator -->
-            <div class="transcribing-indicator" *ngIf="slot.loadingTranscript && !slot.isRecording">
-              <span class="material-icons">subtitles</span>
-              <span>Transcribing...</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Global Controls -->
       <div class="global-controls">
         <button class="control-btn" [ngClass]="{'active': !globalMicMuted}" (click)="toggleGlobalMic()">
@@ -310,7 +241,7 @@
     <div id="video-call-container" class="mt-4 assessment-container">
       <div class="assessment-header d-flex justify-content-between align-items-center mb-3">
         <h3>Video Call</h3>
-        <div class="d-flex">
+        <div class="d-flex gap-2">
           <button id="join-btn" class="btn btn-primary">Join Stream</button>
           <div id="stream-controls" style="display: none;" class="d-flex gap-2">
             <button id="mic-btn" class="btn btn-info">Mic on</button>
@@ -320,9 +251,9 @@
         </div>
       </div>
       
-      <!-- Video Streams Container -->
+      <!-- Video Streams Container - Simplified Layout -->
       <div id="video-streams" class="video-streams-container">
-        <!-- Video players will be added here dynamically -->
+        <!-- Video players will be added here dynamically by Agora -->
       </div>
     </div>
   </div>

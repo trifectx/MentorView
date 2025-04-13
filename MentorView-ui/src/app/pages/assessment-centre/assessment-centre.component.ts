@@ -120,7 +120,7 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   messages: { sender: string; message: string }[] = [];
   newMessage = '';
 
-  activeSlotIndex: number | null = null;
+  activeSlot?: number;
 
   constructor(private apiService: ApiService, private agoraService: AgoraService) {
     // Set up debounce for role input - wait 800ms after user stops typing
@@ -153,14 +153,14 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   ngAfterViewInit(): void {
-    // Setup Agora button event listeners after the view is initialized
+    // Setup Agora video call buttons
     this.setupAgoraButtons();
   }
 
   ngOnDestroy(): void {
     // Clean up recorder and media stream
-    if (this.activeSlotIndex !== null) {
-      this.stopRecording(this.activeSlotIndex);
+    if (this.activeSlot !== undefined) {
+      this.stopRecording(this.activeSlot);
     }
     this.leaveAllSlots();
   }
@@ -302,92 +302,12 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   /**
-   * Joins a participant slot in the assessment
-   * @param slotIndex The index of the slot to join
-   */
-  async joinParticipantSlot(slotIndex: number): Promise<void> {
-    // Check if slot is already active
-    if (this.videoSlots[slotIndex].active) {
-      this.leaveParticipantSlot(slotIndex);
-      return;
-    }
-
-    try {
-      // Request access to camera and microphone
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
-
-      // Store the stream in the slot
-      this.videoSlots[slotIndex].stream = stream;
-      this.videoSlots[slotIndex].active = true;
-
-      // Set initial state based on global controls
-      this.videoSlots[slotIndex].micMuted = this.globalMicMuted;
-      this.videoSlots[slotIndex].camActive = this.globalCamActive;
-
-      // Update the video element after Angular change detection
-      setTimeout(() => {
-        const videoElement = this.getVideoElement(slotIndex);
-        if (videoElement) {
-          videoElement.nativeElement.srcObject = stream;
-          // Apply initial mute state
-          videoElement.nativeElement.muted = true; // Always mute local video to prevent echo
-          
-          // Apply initial camera state
-          this.updateVideoTrackState(slotIndex);
-        }
-      }, 0);
-
-      console.log(`Participant joined slot ${slotIndex + 1}`);
-    } catch (error) {
-      console.error('Error accessing media devices:', error);
-      alert('Could not access camera or microphone. Please check your permissions.');
-    }
-  }
-
-  /**
-   * Leaves a participant slot in the assessment
-   * @param slotIndex The index of the slot to leave
-   */
-  leaveParticipantSlot(slotIndex: number): void {
-    if (!this.videoSlots[slotIndex].active) {
-      return;
-    }
-
-    // Stop all tracks in the stream
-    if (this.videoSlots[slotIndex].stream) {
-      this.videoSlots[slotIndex].stream.getTracks().forEach(track => track.stop());
-    }
-
-    // Reset the video element
-    const videoElement = this.getVideoElement(slotIndex);
-    if (videoElement && videoElement.nativeElement.srcObject) {
-      videoElement.nativeElement.srcObject = null;
-    }
-
-    // Reset the slot
-    this.videoSlots[slotIndex] = {
-      active: false,
-      micMuted: true,
-      camActive: true,
-      isRecording: false
-    };
-
-    console.log(`Participant left slot ${slotIndex + 1}`);
-  }
-
-  /**
    * Leaves all participant slots in the assessment
    */
   leaveAllSlots(): void {
-    for (let i = 0; i < this.videoSlots.length; i++) {
-      if (this.videoSlots[i].active) {
-        this.leaveParticipantSlot(i);
-      }
+    if (this.activeSlot !== undefined) {
+      this.leaveAndRemoveLocalStream();
     }
-    console.log('All participants left');
   }
 
   /**
@@ -451,13 +371,18 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   toggleGlobalCam(): void {
     this.globalCamActive = !this.globalCamActive;
 
-    // Apply to all active slots
-    this.videoSlots.forEach((slot, index) => {
-      if (slot.active) {
-        slot.camActive = this.globalCamActive;
-        this.updateVideoTrackState(index);
+    // If we have an active Agora slot, update it
+    if (this.activeSlot !== undefined) {
+      this.toggleCamera({ target: document.getElementById('camera-btn') } as any);
+    }
+    
+    // Update traditional slots
+    for (let i = 0; i < this.videoSlots.length; i++) {
+      if (this.videoSlots[i].active) {
+        this.videoSlots[i].camActive = this.globalCamActive;
+        this.updateVideoTrackState(i);
       }
-    });
+    }
 
     console.log(`Global camera ${this.globalCamActive ? 'enabled' : 'disabled'}`);
   }
@@ -527,7 +452,22 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   loadTestVideo(): void {
     // If slot is already active, leave it first
     if (this.videoSlots[1].active) {
-      this.leaveParticipantSlot(1);
+      // Clear video slot without using the old leaveParticipantSlot method
+      if (this.videoSlots[1].stream) {
+        this.videoSlots[1].stream.getTracks().forEach(track => track.stop());
+      }
+      
+      const videoElement = this.getVideoElement(1);
+      if (videoElement && videoElement.nativeElement.srcObject) {
+        videoElement.nativeElement.srcObject = null;
+      }
+      
+      this.videoSlots[1] = {
+        active: false,
+        micMuted: true,
+        camActive: true,
+        isRecording: false
+      };
     }
     
     const videoElement = this.getVideoElement(1);
@@ -764,7 +704,7 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
    * Stops recording for a specific participant
    * @param slotIndex The index of the slot to stop recording
    */
-  private stopRecording(slotIndex: number): void {
+  private async stopRecording(slotIndex: number): Promise<void> {
     const slot = this.videoSlots[slotIndex];
     
     if (!slot.isRecording || !slot.mediaRecorder) {
@@ -772,20 +712,13 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
     }
     
     try {
-      console.log(`Stopping recording for participant ${slotIndex + 1}...`);
-      
-      // Set loading state before stopping to ensure UI shows loading indicator immediately
-      slot.loadingTranscript = true;
-      
-      // Stop the media recorder - this will trigger the onstop event
+      // Stop the recorder
       slot.mediaRecorder.stop();
       slot.isRecording = false;
       
-      console.log(`Recording stopped for participant ${slotIndex + 1}, waiting for processing...`);
+      console.log(`Recording stopped for participant ${slotIndex + 1}`);
     } catch (error) {
-      console.error(`Error stopping recording for participant ${slotIndex + 1}:`, error);
-      slot.isRecording = false;
-      slot.loadingTranscript = false;
+      console.error('Error stopping recording:', error);
     }
   }
 
@@ -1084,26 +1017,43 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       if (joinBtn) joinBtn.style.display = 'none';
       if (streamControls) streamControls.style.display = 'flex';
       
-      // Create local user container if it doesn't exist yet
+      // Clear any existing streams first
       const videoStreams = document.getElementById('video-streams');
       if (videoStreams) {
-        // Check if user container exists
-        const playerExists = document.getElementById(`user-container-${this.agoraService.client.uid}`);
-        if (!playerExists) {
-          // Create player container
-          const playerHTML = `
-            <div class="video-container" id="user-container-${this.agoraService.client.uid}">
-              <div class="video-player" id="user-${this.agoraService.client.uid}"></div>
+        videoStreams.innerHTML = '';
+        
+        // Create a dedicated container for local user (YOU)
+        const localUserHTML = `
+          <div class="video-container local-user" id="local-user-container">
+            <div class="video-player" id="local-user-video"></div>
+            <div class="participant-label">YOU</div>
+          </div>
+        `;
+        videoStreams.insertAdjacentHTML('beforeend', localUserHTML);
+        
+        // Join and display local stream in this specific container
+        await this.agoraService.joinAndDisplayLocalStream('local-user-video');
+        
+        // Create containers for potential remote users
+        for (let i = 1; i <= 3; i++) {
+          const remoteUserHTML = `
+            <div class="video-container" id="participant-container-${i}">
+              <div class="video-player" id="remote-user-${i}"></div>
+              <div class="participant-label">Participant ${i}</div>
             </div>
           `;
-          videoStreams.insertAdjacentHTML('beforeend', playerHTML);
+          videoStreams.insertAdjacentHTML('beforeend', remoteUserHTML);
         }
       }
-      
-      // Join and display local stream
-      await this.agoraService.joinAndDisplayLocalStream(`user-${this.agoraService.client.uid}`);
     } catch (error) {
       console.error('Error joining stream:', error);
+      
+      // If something goes wrong, restore the join button
+      const joinBtn = document.getElementById('join-btn');
+      const streamControls = document.getElementById('stream-controls');
+      
+      if (joinBtn) joinBtn.style.display = 'block';
+      if (streamControls) streamControls.style.display = 'none';
     }
   }
 

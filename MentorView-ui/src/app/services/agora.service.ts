@@ -86,11 +86,54 @@ export class AgoraService {
       const uid = await this.client.join(this.APP_ID, this.CHANNEL, this.TOKEN, null);
       console.log('Joined channel with UID:', uid);
       
-      // Create and publish local tracks
-      this.localTracks = await window.AgoraRTC.createMicrophoneAndCameraTracks();
+      // Create and publish local tracks with constraints to keep size small
+      this.localTracks = await window.AgoraRTC.createMicrophoneAndCameraTracks(
+        {}, // Audio config
+        {
+          encoderConfig: {
+            width: 240,
+            height: 180,
+            frameRate: 15,
+            bitrateMin: 200,
+            bitrateMax: 500
+          },
+          optimizationMode: 'detail', // prioritize image quality over motion
+          facingMode: 'user'
+        }
+      );
       
-      // Play local video
-      this.localTracks[1].play(localVideoContainer);
+      // Force strict playback options for small size
+      const playerOptions = {
+        fit: 'cover',
+        width: '240px',
+        height: '180px',
+      };
+      
+      // Play local video with specific dimensions
+      const videoTrack = this.localTracks[1];
+      videoTrack.play(localVideoContainer, playerOptions);
+      
+      // Extra DOM manipulation to ensure correct size
+      setTimeout(() => {
+        // Find all video elements in the specified container and force size
+        const playerElement = document.getElementById(localVideoContainer);
+        if (playerElement) {
+          // Apply strict styling directly
+          playerElement.style.width = '240px';
+          playerElement.style.height = '180px';
+          playerElement.style.maxWidth = '240px';
+          playerElement.style.maxHeight = '180px';
+          playerElement.style.overflow = 'hidden';
+          
+          // Find any video elements inside and force size
+          const videoElements = playerElement.getElementsByTagName('video');
+          for (let i = 0; i < videoElements.length; i++) {
+            videoElements[i].style.width = '240px';
+            videoElements[i].style.height = '180px';
+            videoElements[i].style.objectFit = 'cover';
+          }
+        }
+      }, 100);
       
       // Publish local tracks
       await this.client.publish(this.localTracks);
@@ -126,7 +169,34 @@ export class AgoraService {
       
       // The container will be created by the component
       const containerId = `remote-user-${user.uid}`;
-      user.videoTrack.play(containerId);
+      
+      // Play with specific dimensions
+      const playerOptions = {
+        fit: 'cover',
+        width: '240px',
+        height: '180px',
+      };
+      
+      user.videoTrack.play(containerId, playerOptions);
+      
+      // Extra DOM manipulation to ensure correct size
+      setTimeout(() => {
+        const playerElement = document.getElementById(containerId);
+        if (playerElement) {
+          playerElement.style.width = '240px';
+          playerElement.style.height = '180px';
+          playerElement.style.maxWidth = '240px';
+          playerElement.style.maxHeight = '180px';
+          playerElement.style.overflow = 'hidden';
+          
+          const videoElements = playerElement.getElementsByTagName('video');
+          for (let i = 0; i < videoElements.length; i++) {
+            videoElements[i].style.width = '240px';
+            videoElements[i].style.height = '180px';
+            videoElements[i].style.objectFit = 'cover';
+          }
+        }
+      }, 100);
     } else if (mediaType === 'audio') {
       // Store reference instead of the actual track to avoid type errors
       this.remoteUsers[user.uid].audioTrack = user.audioTrack;
