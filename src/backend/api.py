@@ -260,6 +260,74 @@ def get_saved_interview(interview_id):
         return jsonify({"error": f"Error retrieving interview: {str(e)}"}), 500
 
 
+# Transcribe audio from assessment centre participants
+@app.route('/transcribe_audio', methods=['POST'])
+def transcribe_audio():
+    try:
+        # Check if the 'file' part is in the request
+        if 'file' not in request.files:
+            return jsonify({"error": "No audio file provided"}), 400
+
+        audio_file = request.files['file']  # Get the file from the request
+        participant_index = request.form.get('participantIndex', '0')
+        participant_name = request.form.get('participantName', f'Participant {participant_index}')
+        
+        # Create a temporary file for the audio
+        temp_audio_path = os.path.join(tempfile.gettempdir(), f"participant_{participant_index}_audio_{uuid.uuid4()}.webm")
+        audio_file.save(temp_audio_path)
+        
+        print(f"Saved audio file for {participant_name} to {temp_audio_path}")
+        
+        try:
+            # First try to transcribe with OpenAI Whisper
+            with open(temp_audio_path, "rb") as audio:
+                transcription = client.audio.transcriptions.create(
+                    model="whisper-1", 
+                    file=audio, 
+                    response_format="text"
+                )
+                
+            transcript_text = transcription
+            print(f"OpenAI Whisper transcription completed for {participant_name}")
+            
+        except Exception as whisper_error:
+            print(f"Error with OpenAI Whisper: {str(whisper_error)}. Trying Deepgram...")
+            
+            # Fallback to Deepgram if Whisper fails
+            try:
+                deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+                
+                with open(temp_audio_path, "rb") as audio:
+                    payload = {'buffer': audio}
+                    options = PrerecordedOptions(
+                        punctuate=True,
+                        model="nova-2", 
+                        language="en-US",
+                        filler_words=True,
+                    )
+                    
+                    response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
+                    transcript_text = response['results']['channels'][0]['alternatives'][0]['transcript']
+                    print(f"Deepgram transcription completed for {participant_name}")
+                    
+            except Exception as deepgram_error:
+                return jsonify({"error": f"Error transcribing with both services: {str(whisper_error)} and {str(deepgram_error)}"}), 500
+        
+        # Clean up the temporary file
+        try:
+            os.remove(temp_audio_path)
+        except:
+            print(f"Warning: Failed to remove temporary audio file: {temp_audio_path}")
+        
+        # Format the transcript with the participant name
+        formatted_transcript = f"{participant_name}: {transcript_text}"
+        
+        return jsonify({"transcript": formatted_transcript}), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Error processing audio for transcription: {str(e)}"}), 500
+
+
 # Download interview video
 @app.route('/download_interview/<interview_id>', methods=['GET'])
 def download_interview(interview_id):

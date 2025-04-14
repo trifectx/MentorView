@@ -40,7 +40,8 @@ export class ApiService {
         downloadInterview: `${this.baseUrl}/download_interview`,
         streamInterview: `${this.baseUrl}/stream_interview`,
         updateInterview: `${this.baseUrl}/update_interview`,
-        deleteInterview: `${this.baseUrl}/delete_interview`
+        deleteInterview: `${this.baseUrl}/delete_interview`,
+        transcribeAudio: `${this.baseUrl}/transcribe_audio`
     };
 
     // Subject to notify components when interviews are updated
@@ -146,6 +147,20 @@ export class ApiService {
         });
 
         return deleteObservable;
+    }
+
+    /**
+     * Uploads audio recording for transcription with GPT
+     * @param formData FormData with audio file and participant info
+     * @returns Observable with transcript response
+     */
+    uploadAudioForTranscription(formData: FormData): Observable<{transcript: string}> {
+        return this.http.post<{transcript: string}>(this.endpoints.transcribeAudio, formData, {
+            headers: {
+                // No Content-Type header as it's set automatically for FormData
+                'Accept': 'application/json'
+            }
+        });
     }
 
     /**

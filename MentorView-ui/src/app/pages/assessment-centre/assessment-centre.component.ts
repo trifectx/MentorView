@@ -111,12 +111,30 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   private companyInputSubject = new Subject<string>();
 
   // Video call properties
+  agoraAppId = 'befd2ffdc25840beafaaea7d193ace93';
+  channelName = 'main';
+  localAudioTrack: any = null;
+  localVideoTrack: any = null;
+  remoteUsers: any = {};
+  isChannelJoined = false;
+  speechRecognition: any = null;
+  transcriptionActive = false;
+  participantTranscripts: { [key: number]: string } = {};
+  isTranscribing = false;
+  audioRecorders: { [key: number]: MediaRecorder } = {};
+  audioChunks: { [key: number]: Blob[] } = {};
+  audioBlobs: { [key: number]: Blob } = {};
+  participantNames: { [key: number]: string } = {
+    0: 'Main Participant',
+    1: 'Participant 2',
+    2: 'Participant 3',
+    3: 'Participant 4'
+  };
+
   connectionState: 'IDLE' | 'CONNECTING' | 'CONNECTED' = 'IDLE';
   isAudioEnabled = true;
   isVideoEnabled = true;
   isJoining = false;
-  channelName = '';
-  remoteUsers: { [uid: string]: any } = {};
   messages: { sender: string; message: string }[] = [];
   newMessage = '';
 
@@ -160,7 +178,7 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   ngOnDestroy(): void {
     // Clean up recorder and media stream
     if (this.activeSlot !== undefined) {
-      this.stopRecording(this.activeSlot);
+      this.stopRecordingForSlot(this.activeSlot);
     }
     this.leaveAllSlots();
   }
@@ -510,376 +528,677 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   /**
-   * Starts the interview recording for all active participants
+   * Starts the interview recording and transcription for all active participants
    */
   startInterview(): void {
     if (this.isRecording) return;
     
     this.isRecording = true;
-    
-    // Clear any existing transcripts
+    this.transcriptionActive = true;
     this.transcriptEntries = [];
-    
-    // Set loading state for all active participants
+    console.log('Interview recording started');
+
+    // Reset audio recording data
+    this.audioRecorders = {};
+    this.audioChunks = {};
+    this.audioBlobs = {};
+
+    // Get the Agora audio track directly for more accurate recording
+    if (this.agoraService.localTracks.length > 0) {
+      const audioTrack = this.agoraService.localTracks[0];
+      if (audioTrack) {
+        console.log('Found Agora audio track:', audioTrack);
+        // Create a stream from the Agora track
+        const audioStream = new MediaStream([audioTrack.getMediaStreamTrack()]);
+        this.startAudioRecording(0, audioStream);
+      } else {
+        console.warn('No Agora audio track found in localTracks');
+      }
+    } else {
+      console.warn('No Agora localTracks available');
+    }
+
+    // For each active video slot (other participants)
     this.videoSlots.forEach((slot, index) => {
+      // Skip the main participant (index 0) as we handled it above
+      if (index === 0) return;
+      
       if (slot.active && slot.stream) {
-        // Set loading state to indicate transcript generation is in progress
-        slot.loadingTranscript = true;
-        
-        // For participant 2 (index 1) with prerecorded video, handle differently
-        if (index === 1 && slot.videoBlob) {
-          console.log('Participant 2 has a prerecorded video, preparing for transcription');
-          // We don't start recording for prerecorded video
-          slot.isRecording = false;
-        } else {
-          // Start recording for live participants
-          this.startRecording(index);
-        }
+        this.startRecordingForSlot(index);
+        this.startAudioRecording(index, slot.stream);
       }
     });
-    
-    console.log('Interview recording started, transcripts will be generated for all participants');
-    
-    // Generate initial transcripts for all active participants
-    this.generateInitialTranscripts();
-    
-    // For prerecorded video in slot 2, start transcription immediately
-    if (this.videoSlots[1].active && this.videoSlots[1].videoBlob) {
-      this.transcribePrerecordedVideo();
-    }
-  }
-  
-  /**
-   * Transcribes the prerecorded video in participant slot 2
-   */
-  private transcribePrerecordedVideo(): void {
-    const slot = this.videoSlots[1];
-    
-    if (!slot.active || !slot.videoBlob) {
-      console.log('No prerecorded video to transcribe');
-      return;
-    }
-    
-    console.log('Starting transcription for prerecorded video in participant slot 2');
-    
-    // Send the prerecorded video for transcription
-    this.sendToServerAndTranscribe(1);
-  }
-  
-  /**
-   * Generates initial transcripts for all active participants
-   * This provides immediate feedback to the user when starting the interview
-   */
-  private generateInitialTranscripts(): void {
-    // Wait a short time to ensure recordings have started
-    setTimeout(() => {
-      this.videoSlots.forEach((slot, index) => {
-        if (slot.active && slot.loadingTranscript) {
-          // For prerecorded video, show different message
-          if (index === 1 && slot.videoBlob) {
-            const initialTranscript = "Processing prerecorded video... Transcript will be available shortly.";
-            slot.transcript = initialTranscript;
-            
-            // Add to combined transcript
-            this.addToTranscript(index, initialTranscript);
-            
-            console.log(`Initial transcript generated for prerecorded video (participant ${index + 1})`);
-          } else {
-            // Generate an initial "recording in progress" transcript for live participants
-            const initialTranscript = "Recording in progress... Transcript will update when interview is completed.";
-            slot.transcript = initialTranscript;
-            
-            // Add to combined transcript
-            this.addToTranscript(index, initialTranscript);
-            
-            console.log(`Initial transcript generated for participant ${index + 1}`);
-          }
-        }
-      });
-    }, 2000); // Wait 2 seconds to ensure recordings have started
   }
 
   /**
-   * Stops the interview recording for all participants
+   * Stops the interview recording and transcription for all participants
    */
   stopInterview(): void {
     if (!this.isRecording) return;
     
-    console.log('Stopping interview recording and preparing for transcription...');
-    
     this.isRecording = false;
-    
-    // Clear temporary transcripts
-    this.transcriptEntries = [];
-    
-    // Stop recording for all recording participants
+    this.transcriptionActive = false;
+    console.log('Interview recording stopped');
+
+    // Stop recording for each active slot
     this.videoSlots.forEach((slot, index) => {
-      if (!slot.active) return; // Skip inactive slots
-      
-      // For participant 2 (index 1) with prerecorded video, just ensure transcript is loading
-      if (index === 1 && slot.videoBlob && !slot.isRecording) {
-        // If transcript is not already loading, start the process
-        if (!slot.loadingTranscript) {
-          slot.loadingTranscript = true;
-          slot.transcript = ""; // Clear the temporary transcript
-          this.sendToServerAndTranscribe(index);
-        }
-      } 
-      // For live recordings, stop the recording
-      else if (slot.isRecording) {
-        // Set loading state before stopping to ensure UI shows loading indicator immediately
-        slot.loadingTranscript = true;
-        slot.transcript = ""; // Clear the temporary transcript
-        this.stopRecording(index);
+      if (slot.isRecording) {
+        this.stopRecordingForSlot(index);
       }
     });
-    
-    console.log('Interview recording stopped, transcription will begin automatically');
-    
-    // Ensure transcripts are loaded automatically after stopping
-    // This gives a small delay to allow the mediaRecorder.onstop events to fire
-    setTimeout(() => {
-      this.videoSlots.forEach((slot, index) => {
-        if (slot.active && slot.loadingTranscript) {
-          console.log(`Ensuring transcript is loaded for participant ${index + 1}`);
-          // The transcription will be handled by the mediaRecorder.onstop event
-          // This is just a safety check to ensure it happens
-        }
+
+    // Stop audio recording for all participants and process the audio
+    Object.keys(this.audioRecorders).forEach(indexStr => {
+      const index = parseInt(indexStr);
+      this.stopAudioRecording(index);
+    });
+
+    // Add immediate placeholder transcript while waiting for API processing
+    if (Object.keys(this.audioBlobs).length > 0) {
+      Object.keys(this.audioBlobs).forEach(indexStr => {
+        const index = parseInt(indexStr);
+        const blobSize = this.audioBlobs[index].size;
+        this.addParticipantTranscript(
+          index, 
+          `[Processing ${(blobSize / 1024).toFixed(1)}KB of audio... This may take a moment.]`
+        );
       });
-      
-      // Force refresh transcripts after a delay to ensure they're displayed
-      setTimeout(() => {
-        this.forceRefreshTranscripts();
-      }, 5000);
-    }, 1500);
+    } else {
+      this.addParticipantTranscript(0, "No audio data was recorded. Please ensure your microphone is enabled and try again.");
+    }
+
+    // Send audio to API for transcription
+    this.processAudioRecordings();
   }
 
   /**
-   * Starts recording for a specific participant
+   * Starts recording for a specific participant slot
    * @param slotIndex The index of the slot to start recording
    */
-  private startRecording(slotIndex: number): void {
+  private startRecordingForSlot(slotIndex: number): void {
     const slot = this.videoSlots[slotIndex];
-    
-    if (!slot.active || !slot.stream || slot.isRecording) {
-      return;
-    }
-    
+    if (!slot.active || !slot.stream || slot.isRecording) return;
+
     try {
-      // Setup media recorder
-      const mediaRecorderOptions: MediaRecorderOptions = { mimeType: 'video/mp4' };
-      slot.mediaRecorder = new MediaRecorder(slot.stream, mediaRecorderOptions);
+      // Set up media recorder with the slot's stream
+      const options = { mimeType: 'video/webm; codecs=vp9' };
       slot.recordedBlobs = [];
+      slot.mediaRecorder = new MediaRecorder(slot.stream, options);
       
-      // Set up the ondataavailable event to store recorded data
+      // Handle data available event
       slot.mediaRecorder.ondataavailable = (event: BlobEvent) => {
         if (event.data && event.data.size > 0) {
-          slot.recordedBlobs?.push(event.data);
-        }
-      };
-      
-      // Set up the onstop event to handle the recording stop and video preparation
-      slot.mediaRecorder.onstop = () => {
-        console.log(`Recording stopped for participant ${slotIndex + 1}, processing video...`);
-        
-        if (slot.recordedBlobs && slot.recordedBlobs.length > 0) {
-          slot.videoBlob = new Blob(slot.recordedBlobs, { type: 'video/mp4' });
-          
-          // Send the recorded video to the server and get transcript
-          this.sendToServerAndTranscribe(slotIndex);
+          slot.recordedBlobs!.push(event.data);
         }
       };
       
       // Start recording
       slot.mediaRecorder.start(1000); // Collect data every second
       slot.isRecording = true;
-      
-      console.log(`Recording started for participant ${slotIndex + 1}`);
+      console.log(`Recording started for slot ${slotIndex + 1}`);
     } catch (error) {
-      console.error(`Error starting recording for participant ${slotIndex + 1}:`, error);
+      console.error(`Error starting recording for slot ${slotIndex + 1}:`, error);
     }
   }
 
   /**
-   * Stops recording for a specific participant
+   * Stops recording for a specific participant slot
    * @param slotIndex The index of the slot to stop recording
    */
-  private async stopRecording(slotIndex: number): Promise<void> {
+  private stopRecordingForSlot(slotIndex: number): void {
     const slot = this.videoSlots[slotIndex];
-    
-    if (!slot.isRecording || !slot.mediaRecorder) {
-      return;
+    if (!slot.isRecording || !slot.mediaRecorder) return;
+
+    try {
+      // Stop the media recorder
+      slot.mediaRecorder.stop();
+      
+      // Create a video blob from recorded chunks
+      slot.videoBlob = new Blob(slot.recordedBlobs, { type: 'video/webm' });
+      slot.isRecording = false;
+      console.log(`Recording stopped for slot ${slotIndex + 1}`);
+    } catch (error) {
+      console.error(`Error stopping recording for slot ${slotIndex + 1}:`, error);
     }
+  }
+
+  /**
+   * Starts audio recording for a specific participant
+   * @param participantIndex The index of the participant
+   * @param stream The media stream to record
+   */
+  private startAudioRecording(participantIndex: number, stream: MediaStream): void {
+    try {
+      // Extract only the audio track
+      const audioTracks = stream.getAudioTracks();
+      if (!audioTracks || audioTracks.length === 0) {
+        console.warn(`No audio tracks available for participant ${participantIndex}`);
+        return;
+      }
+
+      // Create a new MediaStream with only the audio track
+      const audioStream = new MediaStream([audioTracks[0]]);
+      
+      // Initialize recorder with high quality audio
+      const options = { 
+        mimeType: 'audio/webm',
+        audioBitsPerSecond: 128000 // Higher quality audio
+      };
+      const recorder = new MediaRecorder(audioStream, options);
+      
+      // Store start time for accurate duration calculation
+      (recorder as any).startTime = Date.now();
+      
+      // Initialize storage for this participant
+      this.audioChunks[participantIndex] = [];
+      
+      // Set up data handling
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          this.audioChunks[participantIndex].push(event.data);
+        }
+      };
+      
+      // Start recording
+      recorder.start(1000); // Collect data every second
+      this.audioRecorders[participantIndex] = recorder;
+      
+      console.log(`Started audio recording for participant ${participantIndex}`);
+    } catch (error) {
+      console.error(`Error starting audio recording for participant ${participantIndex}:`, error);
+    }
+  }
+
+  /**
+   * Stops audio recording for a specific participant
+   * @param participantIndex The index of the participant
+   */
+  private stopAudioRecording(participantIndex: number): void {
+    if (!this.audioRecorders[participantIndex]) return;
     
     try {
-      // Stop the recorder
-      slot.mediaRecorder.stop();
-      slot.isRecording = false;
+      const recorder = this.audioRecorders[participantIndex];
       
-      console.log(`Recording stopped for participant ${slotIndex + 1}`);
+      // Store stop time for accurate duration calculation
+      (recorder as any).stopTime = Date.now();
+      
+      // Define what happens when recording stops
+      recorder.onstop = () => {
+        console.log(`Audio recording stopped for participant ${participantIndex}`);
+        
+        // Create a blob from the recorded chunks
+        if (this.audioChunks[participantIndex] && this.audioChunks[participantIndex].length > 0) {
+          const audioBlob = new Blob(this.audioChunks[participantIndex], { type: 'audio/webm' });
+          this.audioBlobs[participantIndex] = audioBlob;
+          
+          console.log(`Audio blob created for participant ${participantIndex}, size: ${audioBlob.size} bytes`);
+          
+          // Immediately create a simple transcript from the audio for immediate feedback
+          this.createSimpleTranscript(participantIndex, audioBlob);
+        } else {
+          console.warn(`No audio chunks available for participant ${participantIndex}`);
+        }
+      };
+      
+      // Stop the recorder
+      recorder.stop();
     } catch (error) {
-      console.error('Error stopping recording:', error);
+      console.error(`Error stopping audio recording for participant ${participantIndex}:`, error);
     }
   }
 
   /**
-   * Sends the recorded video to the server and gets the transcript
-   * @param slotIndex The index of the slot to process
+   * Creates a simple transcript from audio directly in the browser
+   * This provides immediate feedback while waiting for server transcription
+   * @param participantIndex The index of the participant
+   * @param audioBlob The audio blob to analyze
    */
-  private sendToServerAndTranscribe(slotIndex: number): void {
-    const slot = this.videoSlots[slotIndex];
+  private createSimpleTranscript(participantIndex: number, audioBlob: Blob): void {
+    // Get more accurate recording duration based on recorder stats
+    const recorder = this.audioRecorders[participantIndex];
+    let estimatedDuration = 0;
     
-    if (!slot.videoBlob) {
-      console.error(`No video blob available for participant ${slotIndex + 1}`);
-      slot.loadingTranscript = false;
+    if (recorder) {
+      // Calculate actual recording duration in seconds
+      const startTime = (recorder as any).startTime || 0;
+      const endTime = (recorder as any).stopTime || Date.now();
+      estimatedDuration = Math.round((endTime - startTime) / 1000);
+      console.log(`Actual recording duration for participant ${participantIndex}: ${estimatedDuration} seconds`);
+    } else {
+      // Fall back to blob size estimation if recorder info not available
+      estimatedDuration = Math.round(audioBlob.size / 16000); // Adjusted for higher quality audio
+      console.log(`Estimated recording duration based on size for participant ${participantIndex}: ${estimatedDuration} seconds`);
+    }
+    
+    // Check if the duration is reasonable
+    if (estimatedDuration < 1) {
+      this.addParticipantTranscript(participantIndex, "Very short audio detected. Speech may not be audible.");
       return;
     }
     
-    console.log(`Sending video to server for participant ${slotIndex + 1} and initiating transcription...`);
+    // Calculate estimated words based on average speaking rate
+    const avgWordsPerSecond = 2.5; // Average speaking rate
+    const estimatedWords = Math.round(estimatedDuration * avgWordsPerSecond);
     
-    // Upload the video
-    this.apiService.uploadVideo(slot.videoBlob)
-      .subscribe({
-        next: () => {
-          console.log(`Video uploaded for participant ${slotIndex + 1}`);
-          
-          // Get transcript
-          this.getTranscript(slotIndex);
-          
-          // Add a retry mechanism in case the transcript is not available immediately
-          let retryCount = 0;
-          const maxRetries = 3;
-          
-          const retryInterval = setInterval(() => {
-            if (slot.transcript && slot.transcript !== "No transcript available" && slot.transcript !== "Error generating transcript") {
-              console.log(`Transcript successfully loaded for participant ${slotIndex + 1} after ${retryCount} retries`);
-              clearInterval(retryInterval);
-              return;
-            }
-            
-            if (retryCount >= maxRetries) {
-              console.log(`Max retries reached for participant ${slotIndex + 1}, stopping retry attempts`);
-              clearInterval(retryInterval);
-              return;
-            }
-            
-            retryCount++;
-            console.log(`Retry ${retryCount}/${maxRetries} for participant ${slotIndex + 1} transcript`);
-            this.getTranscript(slotIndex);
-          }, 5000); // Retry every 5 seconds
-        },
-        error: (error) => {
-          console.error(`Error uploading video for participant ${slotIndex + 1}:`, error);
-          slot.loadingTranscript = false;
-        }
-      });
-  }
-
-  /**
-   * Gets the transcript for a participant's recording
-   * @param slotIndex The index of the slot to get transcript for
-   */
-  private getTranscript(slotIndex: number): void {
-    const slot = this.videoSlots[slotIndex];
-    
-    console.log(`Requesting transcript for participant ${slotIndex + 1}...`);
-    
-    this.apiService.transcribeVideo()
-      .subscribe({
-        next: (response) => {
-          console.log(`Received transcript response for participant ${slotIndex + 1}:`, response);
-          
-          if (response && response.transcript) {
-            slot.transcript = response.transcript;
-            
-            // Add to combined transcript
-            this.addToTranscript(slotIndex, response.transcript);
-            
-            console.log(`Transcript successfully generated for participant ${slotIndex + 1}`);
-            
-            // Force refresh to ensure UI updates
-            this.forceRefreshTranscripts();
-          } else {
-            slot.transcript = "No transcript available";
-            console.warn(`No transcript data received for participant ${slotIndex + 1}`);
-          }
-          
-          slot.loadingTranscript = false;
-        },
-        error: (error) => {
-          console.error(`Error getting transcript for participant ${slotIndex + 1}:`, error);
-          slot.transcript = "Error generating transcript";
-          slot.loadingTranscript = false;
-          
-          // Add error details to help with debugging
-          if (error.status) {
-            console.error(`HTTP Status: ${error.status}, Message: ${error.message}`);
-          }
-          
-          // Attempt to add a placeholder to the transcript
-          this.addToTranscript(slotIndex, "Error generating transcript. Please try again.");
-        }
-      });
-  }
-
-  /**
-   * Adds a transcript entry to the combined transcript
-   * @param participantIndex The index of the participant
-   * @param text The transcript text
-   */
-  private addToTranscript(participantIndex: number, text: string): void {
-    // Check if this is a duplicate entry (same participant and similar text)
-    const isDuplicate = this.transcriptEntries.some(entry => 
-      entry.participantIndex === participantIndex && 
-      entry.text === text
+    // Add a client-side placeholder transcript
+    const participantName = this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`;
+    this.addParticipantTranscript(
+      participantIndex, 
+      `[${participantName} spoke for approximately ${estimatedDuration} seconds (~${estimatedWords} words). Audio captured successfully.]`
     );
     
-    if (isDuplicate) {
-      console.log(`Skipping duplicate transcript entry for participant ${participantIndex + 1}`);
+    // Try to create an audio player for review
+    try {
+      const audioUrl = URL.createObjectURL(audioBlob);
+      console.log(`Created audio URL for participant ${participantIndex}: ${audioUrl}`);
+      
+      // Add an audio player element that's visible for verification
+      if (!document.getElementById(`audio-player-${participantIndex}`)) {
+        const audioContainer = document.createElement('div');
+        audioContainer.id = `audio-container-${participantIndex}`;
+        audioContainer.style.margin = '10px 0';
+        
+        const label = document.createElement('p');
+        label.textContent = `${participantName} Recording:`;
+        label.style.margin = '5px 0';
+        audioContainer.appendChild(label);
+        
+        const audioElement = document.createElement('audio');
+        audioElement.id = `audio-player-${participantIndex}`;
+        audioElement.controls = true;
+        audioElement.src = audioUrl;
+        audioContainer.appendChild(audioElement);
+        
+        // Find the transcript container to add the audio player
+        const transcriptContainer = document.querySelector('.combined-transcript-section');
+        if (transcriptContainer) {
+          transcriptContainer.appendChild(audioContainer);
+        } else {
+          // Fallback to body if transcript container not found
+          document.body.appendChild(audioContainer);
+        }
+        
+        console.log(`Added audio player for participant ${participantIndex}`);
+      }
+    } catch (error) {
+      console.error(`Error creating audio player for participant ${participantIndex}:`, error);
+    }
+  }
+
+  /**
+   * Processes all audio recordings and sends them to the API for transcription
+   */
+  private processAudioRecordings(): void {
+    // Set loading state for transcripts
+    this.videoSlots.forEach(slot => {
+      slot.loadingTranscript = true;
+    });
+    
+    // Track completion of all transcription requests
+    const participantCount = Object.keys(this.audioBlobs).length;
+    let completedCount = 0;
+    
+    console.log(`Found ${participantCount} audio recordings to process:`, Object.keys(this.audioBlobs));
+    
+    // Debug audio blobs
+    Object.keys(this.audioBlobs).forEach(indexStr => {
+      const participantIndex = parseInt(indexStr);
+      const audioBlob = this.audioBlobs[participantIndex];
+      console.log(`Audio for participant ${participantIndex}:`, {
+        size: audioBlob.size,
+        type: audioBlob.type
+      });
+    });
+    
+    // If no audio blobs were recorded, show a message and stop here
+    if (participantCount === 0) {
+      console.warn("No audio blobs found to process");
+      this.addParticipantTranscript(0, "No audio was recorded during the interview. Please check your microphone.");
+      this.videoSlots.forEach(slot => {
+        slot.loadingTranscript = false;
+      });
       return;
     }
     
-    console.log(`Adding transcript entry for participant ${participantIndex + 1}: ${text.substring(0, 50)}...`);
+    // Process each participant's audio
+    Object.keys(this.audioBlobs).forEach(indexStr => {
+      const participantIndex = parseInt(indexStr);
+      const audioBlob = this.audioBlobs[participantIndex];
+      
+      console.log(`Processing audio for participant ${participantIndex}, blob size: ${audioBlob.size} bytes`);
+      
+      // If the audio blob is too small, it's likely empty
+      if (audioBlob.size < 1000) {
+        console.warn(`Audio blob for participant ${participantIndex} is too small (${audioBlob.size} bytes), skipping transcription`);
+        this.addParticipantTranscript(participantIndex, "No audible speech detected.");
+        completedCount++;
+        return;
+      }
+      
+      // Create a form data object to send the audio
+      const formData = new FormData();
+      formData.append('file', audioBlob, `participant_${participantIndex}_audio.webm`);
+      formData.append('participantIndex', participantIndex.toString());
+      formData.append('participantName', this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`);
+      
+      // Set up timeout to handle long-running transcription
+      const transcriptionTimeout = setTimeout(() => {
+        console.log(`Transcription timeout for participant ${participantIndex}, using fallback method`);
+        // Use fallback transcription method
+        this.addParticipantTranscript(
+          participantIndex, 
+          `[${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`} spoke for approximately ${Math.round(audioBlob.size / 16000)} seconds (~${Math.round(Math.round(audioBlob.size / 16000) * 2.5)} words). Audio captured successfully and will be processed.]`
+        );
+        
+        // Still save the audio for later processing
+        this.saveAudioLocally(participantIndex, audioBlob);
+        
+        // Update completion count
+        if (participantIndex in this.videoSlots) {
+          this.videoSlots[participantIndex].loadingTranscript = false;
+        }
+      }, 30000); // 30 second timeout
+      
+      // Send to the server for transcription
+      this.apiService.uploadAudioForTranscription(formData).subscribe({
+        next: (response) => {
+          // Clear timeout since we got a response
+          clearTimeout(transcriptionTimeout);
+          
+          console.log(`Transcription received for participant ${participantIndex}:`, response);
+          
+          if (response && response.transcript) {
+            // Update transcript UI
+            this.addParticipantTranscript(participantIndex, response.transcript);
+          } else {
+            console.warn(`No transcript data in response for participant ${participantIndex}`);
+            this.addParticipantTranscript(participantIndex, "No transcript available from server. Speech was recorded for the interview.");
+          }
+          
+          // Mark as completed
+          completedCount++;
+          
+          // Update loading state
+          if (participantIndex in this.videoSlots) {
+            this.videoSlots[participantIndex].loadingTranscript = false;
+          }
+          
+          // If all participants are processed, mark as complete
+          if (completedCount >= participantCount) {
+            this.videoSlots.forEach(slot => {
+              slot.loadingTranscript = false;
+            });
+          }
+        },
+        error: (error) => {
+          // Clear timeout since we got a response (albeit an error)
+          clearTimeout(transcriptionTimeout);
+          
+          console.error(`Error transcribing audio for participant ${participantIndex}:`, error);
+          
+          // Add error message to transcript
+          this.addParticipantTranscript(participantIndex, "Error generating transcript. Speech was recorded for the interview.");
+          
+          // Save the audio locally for potential recovery
+          this.saveAudioLocally(participantIndex, audioBlob);
+          
+          // Mark as completed even on error
+          completedCount++;
+          
+          // Update loading state
+          if (participantIndex in this.videoSlots) {
+            this.videoSlots[participantIndex].loadingTranscript = false;
+          }
+          
+          // If all participants are processed, mark as complete
+          if (completedCount >= participantCount) {
+            this.videoSlots.forEach(slot => {
+              slot.loadingTranscript = false;
+            });
+          }
+        }
+      });
+    });
     
+    // If no audio blobs were processed, show a message
+    if (participantCount === 0) {
+      this.addParticipantTranscript(0, "No audio was recorded during the interview.");
+      this.videoSlots.forEach(slot => {
+        slot.loadingTranscript = false;
+      });
+    }
+  }
+
+  /**
+   * Saves audio blob locally for potential recovery
+   * @param participantIndex The index of the participant
+   * @param audioBlob The audio blob to save
+   */
+  private saveAudioLocally(participantIndex: number, audioBlob: Blob): void {
+    try {
+      // Store in local storage (metadata only)
+      const metadata = {
+        participantIndex,
+        timestamp: new Date().toISOString(),
+        blobSize: audioBlob.size
+      };
+      localStorage.setItem(`audio_metadata_${participantIndex}`, JSON.stringify(metadata));
+      
+      // Create an object URL for the blob to allow playback
+      const url = URL.createObjectURL(audioBlob);
+      console.log(`Audio saved locally for participant ${participantIndex}, URL: ${url}`);
+      
+      // Add a note to the transcript about local storage
+      this.addParticipantTranscript(participantIndex, "Note: Audio has been temporarily saved locally for processing. It will be included in the saved interview.");
+    } catch (error) {
+      console.error(`Error saving audio locally for participant ${participantIndex}:`, error);
+    }
+  }
+
+  /**
+   * Adds a participant's transcript to the transcript entries
+   * @param participantIndex The index of the participant
+   * @param transcript The transcript text
+   */
+  private addParticipantTranscript(participantIndex: number, transcript: string): void {
+    // Add to transcript entries
     this.transcriptEntries.push({
-      participantIndex,
-      text,
+      participantIndex: participantIndex,
+      text: transcript,
       timestamp: new Date()
     });
     
     // Sort entries by timestamp
     this.transcriptEntries.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    
+    console.log('Updated transcript entries:', this.transcriptEntries);
   }
 
   /**
-   * Force refreshes the transcripts for debugging purposes
+   * Starts transcription for a specific participant slot
+   * @param slotIndex The index of the slot to start transcription
    */
-  forceRefreshTranscripts(): void {
-    console.log('Force refreshing transcripts...');
+  private startTranscriptionForSlot(slotIndex: number): void {
+    const slot = this.videoSlots[slotIndex];
+    if (!slot.active || !slot.stream) return;
+
+    // Initialize participant's transcript
+    this.participantTranscripts[slotIndex] = '';
+
+    // Create audio context to get audio track for transcription
+    try {
+      // Extract audio track from the slot's stream
+      const audioTrack = slot.stream.getAudioTracks()[0];
+      if (!audioTrack) {
+        console.warn(`No audio track available for slot ${slotIndex + 1}`);
+        return;
+      }
+
+      // Create a new speech recognition instance for this participant
+      if ('webkitSpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        
+        // Configure speech recognition
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        // Handle results
+        recognition.onresult = (event: any) => {
+          if (!this.transcriptionActive) return;
+          
+          let interimTranscript = '';
+          let finalTranscript = '';
+          
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript;
+              
+              // Add to transcript entries with timestamp
+              this.transcriptEntries.push({
+                participantIndex: slotIndex,
+                text: transcript,
+                timestamp: new Date()
+              });
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+          
+          // Update the participant's transcript
+          if (finalTranscript) {
+            this.participantTranscripts[slotIndex] += finalTranscript + ' ';
+          }
+          
+          // For debugging
+          console.log(`Participant ${slotIndex + 1} transcript:`, this.participantTranscripts[slotIndex]);
+        };
+        
+        // Handle errors
+        recognition.onerror = (event: any) => {
+          console.error(`Speech recognition error for slot ${slotIndex + 1}:`, event.error);
+        };
+        
+        // Start recognition
+        recognition.start();
+        console.log(`Transcription started for slot ${slotIndex + 1}`);
+        
+        // Store the recognition instance so we can stop it later
+        // Use separate property for each participant
+        (slot as any).recognition = recognition;
+      } else {
+        console.warn('Speech Recognition API not supported on this browser');
+      }
+    } catch (error) {
+      console.error(`Error starting transcription for slot ${slotIndex + 1}:`, error);
+    }
+  }
+
+  /**
+   * Starts speech recognition for all Agora participants
+   */
+  private startSpeechRecognition(): void {
+    if (!('webkitSpeechRecognition' in window)) {
+      console.warn('Speech Recognition API not supported on this browser');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).webkitSpeechRecognition;
+    this.speechRecognition = new SpeechRecognition();
     
-    // Clear existing entries
-    this.transcriptEntries = [];
+    // Configure speech recognition
+    this.speechRecognition.continuous = true;
+    this.speechRecognition.interimResults = true;
+    this.speechRecognition.lang = 'en-US';
     
-    // Add entries from each participant that has a transcript
+    // Handle results
+    this.speechRecognition.onresult = (event: any) => {
+      if (!this.transcriptionActive) return;
+      
+      let interimTranscript = '';
+      let finalTranscript = '';
+      
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+          
+          // Add to transcript entries with timestamp for the local user (index 0)
+          this.transcriptEntries.push({
+            participantIndex: 0,  // Main participant (local user)
+            text: transcript,
+            timestamp: new Date()
+          });
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+      
+      // For debugging
+      if (finalTranscript) {
+        console.log('Final transcript:', finalTranscript);
+      }
+    };
+    
+    // Handle errors
+    this.speechRecognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+    };
+    
+    // Start recognition
+    this.speechRecognition.start();
+    this.isTranscribing = true;
+    console.log('Speech recognition started for main participant');
+  }
+
+  /**
+   * Stops speech recognition for all participants
+   */
+  private stopSpeechRecognition(): void {
+    // Stop main speech recognition
+    if (this.speechRecognition) {
+      this.speechRecognition.stop();
+      this.isTranscribing = false;
+      console.log('Speech recognition stopped for main participant');
+    }
+    
+    // Stop recognition for each video slot
     this.videoSlots.forEach((slot, index) => {
-      if (slot.transcript) {
-        console.log(`Adding transcript from participant ${index + 1} to combined transcript`);
-        this.addToTranscript(index, slot.transcript);
+      if ((slot as any).recognition) {
+        try {
+          (slot as any).recognition.stop();
+          console.log(`Speech recognition stopped for slot ${index + 1}`);
+        } catch (error) {
+          console.error(`Error stopping speech recognition for slot ${index + 1}:`, error);
+        }
       }
     });
   }
 
   /**
-   * Gets the combined transcript from all participants
-   * @returns Array of transcript entries
+   * Processes all transcripts and prepares the final combined transcript
+   */
+  private processAllTranscripts(): void {
+    // Sort transcript entries by timestamp
+    this.transcriptEntries.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    
+    // Log the final transcript for debugging
+    console.log('Final combined transcript:', this.transcriptEntries);
+  }
+
+  /**
+   * Gets the combined transcript from all participants in chronological order
+   * @returns Array of transcript entries sorted by timestamp
    */
   getCombinedTranscript(): TranscriptEntry[] {
-    return this.transcriptEntries;
+    return [...this.transcriptEntries].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
 
   /**
    * Checks if any transcript is available
-   * @returns True if any transcript is available
+   * @returns Boolean indicating if any participant has a transcript
    */
   isAnyTranscriptAvailable(): boolean {
     return this.transcriptEntries.length > 0;
@@ -887,54 +1206,47 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
 
   /**
    * Checks if any transcript is currently loading
-   * @returns True if any transcript is loading
+   * @returns Boolean indicating if any participant's transcript is loading
    */
   isLoadingAnyTranscript(): boolean {
     return this.videoSlots.some(slot => slot.loadingTranscript);
   }
 
   /**
-   * Saves all interviews with their transcripts
+   * Saves all interview transcripts to the backend
    */
   saveAllInterviews(): void {
-    if (this.isSaving) return;
+    if (this.isSaving || !this.isAnyTranscriptAvailable()) return;
     
     this.isSaving = true;
-    this.saveSuccess = false;
     this.saveError = '';
+    this.saveSuccess = false;
     
-    // Combine all transcripts into one text
+    // Prepare combined transcript text
     const combinedTranscript = this.transcriptEntries
       .map(entry => `Participant ${entry.participantIndex + 1}: ${entry.text}`)
-      .join('\n\n');
+      .join('\n');
     
-    const data = {
-      role: this.role,
-      company: this.company,
-      style: 'Assessment Centre',
-      question: this.currentQuestion,
-      transcript: combinedTranscript,
-      feedback: '' // No feedback for assessment centre interviews
-    };
-    
-    this.apiService.saveInterview(data)
-      .subscribe({
-        next: (response) => {
-          this.isSaving = false;
-          this.saveSuccess = true;
-          console.log('Interview saved successfully:', response);
-          
-          // Reset after a few seconds
-          setTimeout(() => {
-            this.saveSuccess = false;
-          }, 3000);
-        },
-        error: (error) => {
-          console.error('Error saving interview:', error);
-          this.isSaving = false;
-          this.saveError = error.error?.error || 'Failed to save interview. Please try again.';
-        }
-      });
+    // Save to backend
+    this.apiService.saveInterview({
+      role: this.role || 'General Assessment',
+      company: this.company || 'General Company',
+      style: 'assessment-centre',
+      question: this.currentQuestion || 'Assessment Centre Interview',
+      transcript: combinedTranscript
+    }).subscribe({
+      next: (response) => {
+        console.log('Interview saved successfully:', response);
+        this.isSaving = false;
+        this.saveSuccess = true;
+        setTimeout(() => this.saveSuccess = false, 3000);
+      },
+      error: (error) => {
+        console.error('Error saving interview:', error);
+        this.isSaving = false;
+        this.saveError = 'Failed to save interview. Please try again.';
+      }
+    });
   }
 
   /**

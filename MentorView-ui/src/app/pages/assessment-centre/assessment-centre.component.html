@@ -5,6 +5,9 @@
       <button class="btn" (click)="toggleQuestionsPanel()">
         {{ showQuestionsPanel ? 'Hide Questions' : 'Show Questions' }}
       </button>
+      <button id="join-btn" class="btn">Join Stream</button>
+      <button id="start-interview-btn" class="btn primary" (click)="startInterview()" [disabled]="isRecording">Start Interview</button>
+      <button id="stop-interview-btn" class="btn danger" (click)="stopInterview()" [disabled]="!isRecording">Stop Interview</button>
     </div>
   </div>
 
@@ -124,9 +127,6 @@
         <div id="video-streams">
           <!-- Video streams will be added here by the component -->
         </div>
-        
-        <!-- Join Button -->
-        <button id="join-btn">Join Stream</button>
         
         <!-- Stream Controls - Fixed position at the bottom of the screen -->
         <div id="stream-controls">
