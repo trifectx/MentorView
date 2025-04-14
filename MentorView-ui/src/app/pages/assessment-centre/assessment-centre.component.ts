@@ -119,17 +119,26 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   isChannelJoined = false;
   speechRecognition: any = null;
   transcriptionActive = false;
-  participantTranscripts: { [key: number]: string } = {};
+  participantTranscripts: { [participantIndex: number]: string } = {};
+  participantInterimTranscripts: { [participantIndex: number]: string } = {};
+  participantAudioDurations: { [participantIndex: number]: number } = {};
   isTranscribing = false;
   audioRecorders: { [key: number]: MediaRecorder } = {};
   audioChunks: { [key: number]: Blob[] } = {};
   audioBlobs: { [key: number]: Blob } = {};
-  participantNames: { [key: number]: string } = {
+  participantNames: { [participantIndex: number]: string } = {
     0: 'Main Participant',
-    1: 'Participant 2',
-    2: 'Participant 3',
-    3: 'Participant 4'
+    1: 'Remote Participant 1',
+    2: 'Remote Participant 2',
+    3: 'Remote Participant 3',
+    4: 'Remote Participant 4'
   };
+
+  // Store recognition instances for each participant
+  speechRecognitionInstances: { [participantIndex: number]: any } = {};
+
+  // Combined transcript from server processing
+  combinedTranscript: Array<{ participantIndex: number, text: string }> = [];
 
   connectionState: 'IDLE' | 'CONNECTING' | 'CONNECTED' = 'IDLE';
   isAudioEnabled = true;
@@ -139,6 +148,8 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   newMessage = '';
 
   activeSlot?: number;
+
+  savedTranscripts: { [participantIndex: number]: string } = {};
 
   constructor(private apiService: ApiService, private agoraService: AgoraService) {
     // Set up debounce for role input - wait 800ms after user stops typing
@@ -535,19 +546,31 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
     
     this.isRecording = true;
     this.transcriptionActive = true;
+    
+    // Reset all transcript data
     this.transcriptEntries = [];
-    console.log('Interview recording started');
+    this.combinedTranscript = [];
+    this.participantTranscripts = {};
+    this.participantInterimTranscripts = {};
+    
+    // Clear saved transcripts to ensure fresh data
+    this.savedTranscripts = {};
+    
+    // Also clear localStorage for clean state
+    this.clearSavedTranscripts();
+    
+    console.log('Interview recording started and transcript data cleared');
 
     // Reset audio recording data
     this.audioRecorders = {};
     this.audioChunks = {};
     this.audioBlobs = {};
 
-    // Get the Agora audio track directly for more accurate recording
+    // Get the Agora audio track directly for more accurate recording of local user
     if (this.agoraService.localTracks.length > 0) {
       const audioTrack = this.agoraService.localTracks[0];
       if (audioTrack) {
-        console.log('Found Agora audio track:', audioTrack);
+        console.log('Found Agora audio track for local user:', audioTrack);
         // Create a stream from the Agora track
         const audioStream = new MediaStream([audioTrack.getMediaStreamTrack()]);
         this.startAudioRecording(0, audioStream);
@@ -561,6 +584,9 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       console.warn('No Agora localTracks available');
     }
 
+    // Process remote users from Agora
+    this.processRemoteAgoraUsers();
+
     // For each active video slot (other participants)
     this.videoSlots.forEach((slot, index) => {
       // Skip the main participant (index 0) as we handled it above
@@ -573,6 +599,104 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
         // Start real-time transcription for this participant
         this.startRealtimeTranscription(index, slot.stream);
       }
+    });
+
+    // Set up remote user tracking
+    this.setupRemoteUserTracking();
+  }
+
+  /**
+   * Process remote users from the Agora service
+   */
+  private processRemoteAgoraUsers(): void {
+    // Get remote users from Agora service
+    const remoteUsers = this.agoraService.remoteUsers;
+    if (!remoteUsers || Object.keys(remoteUsers).length === 0) {
+      console.log('No remote Agora users found');
+      return;
+    }
+
+    console.log('Processing remote Agora users:', remoteUsers);
+    
+    // Process each remote user
+    Object.keys(remoteUsers).forEach((uid, index) => {
+      const remoteUser = remoteUsers[uid];
+      const participantIndex = index + 1; // Remote users start at index 1
+      
+      if (remoteUser && remoteUser.audioTrack) {
+        console.log(`Found audio track for remote user ${uid} (Participant ${participantIndex})`);
+        
+        try {
+          // Get the MediaStreamTrack from the Agora audio track
+          const mediaStreamTrack = remoteUser.audioTrack.getMediaStreamTrack();
+          if (mediaStreamTrack) {
+            // Create a MediaStream from the track
+            const audioStream = new MediaStream([mediaStreamTrack]);
+            
+            // Start recording and transcription for this remote user
+            this.startAudioRecording(participantIndex, audioStream);
+            this.startRealtimeTranscription(participantIndex, audioStream);
+            
+            console.log(`Started recording and transcription for remote user ${uid} (Participant ${participantIndex})`);
+          } else {
+            console.warn(`No MediaStreamTrack available for remote user ${uid}`);
+          }
+        } catch (error) {
+          console.error(`Error processing audio for remote user ${uid}:`, error);
+        }
+      } else {
+        console.warn(`No audio track found for remote user ${uid}`);
+      }
+    });
+  }
+
+  /**
+   * Set up event listeners to track new remote users who join
+   */
+  private setupRemoteUserTracking(): void {
+    // Only set up listeners if we're recording
+    if (!this.isRecording) return;
+    
+    // Set up a listener for new users
+    this.agoraService.client.on('user-published', (user: any, mediaType: string) => {
+      if (!this.isRecording) return;
+      
+      console.log(`New user published during recording: ${user.uid}, mediaType: ${mediaType}`);
+      
+      // If this is audio, add this user to recording
+      if (mediaType === 'audio') {
+        // Find an available participant index
+        let participantIndex = Object.keys(this.audioRecorders).length + 1;
+        if (participantIndex > 4) participantIndex = 4; // Maximum 4 participants
+        
+        // Wait a moment for the track to be available
+        setTimeout(() => {
+          try {
+            // Get the updated user from remote users (should have subscribed by now)
+            const remoteUser = this.agoraService.remoteUsers[user.uid];
+            if (remoteUser && remoteUser.audioTrack) {
+              const mediaStreamTrack = remoteUser.audioTrack.getMediaStreamTrack();
+              if (mediaStreamTrack) {
+                const audioStream = new MediaStream([mediaStreamTrack]);
+                
+                // Start recording and transcription for this new user
+                this.startAudioRecording(participantIndex, audioStream);
+                this.startRealtimeTranscription(participantIndex, audioStream);
+                
+                console.log(`Started recording for new user ${user.uid} (Participant ${participantIndex})`);
+              }
+            }
+          } catch (error) {
+            console.error(`Error setting up recording for new user ${user.uid}:`, error);
+          }
+        }, 2000); // Wait 2 seconds for the track to be ready
+      }
+    });
+    
+    // Set up a listener for users who leave
+    this.agoraService.client.on('user-left', (user: any) => {
+      console.log(`User left during recording: ${user.uid}`);
+      // We don't stop recording when a user leaves, just note it
     });
   }
 
@@ -781,12 +905,6 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       console.log(`Estimated recording duration based on size for participant ${participantIndex}: ${estimatedDuration} seconds`);
     }
     
-    // Check if the duration is reasonable
-    if (estimatedDuration < 1) {
-      this.addParticipantTranscript(participantIndex, "Very short audio detected. Speech may not be audible.");
-      return;
-    }
-    
     // Calculate estimated words based on average speaking rate
     const avgWordsPerSecond = 2.5; // Average speaking rate
     const estimatedWords = Math.round(estimatedDuration * avgWordsPerSecond);
@@ -812,13 +930,35 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
         const label = document.createElement('p');
         label.textContent = `${participantName} Recording:`;
         label.style.margin = '5px 0';
+        label.style.fontWeight = 'bold';
         audioContainer.appendChild(label);
         
         const audioElement = document.createElement('audio');
         audioElement.id = `audio-player-${participantIndex}`;
         audioElement.controls = true;
         audioElement.src = audioUrl;
+        audioElement.style.width = '100%';
         audioContainer.appendChild(audioElement);
+        
+        // Add a download button
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = 'Download Audio';
+        downloadButton.style.marginTop = '5px';
+        downloadButton.style.padding = '5px 10px';
+        downloadButton.style.backgroundColor = '#4CAF50';
+        downloadButton.style.color = 'white';
+        downloadButton.style.border = 'none';
+        downloadButton.style.borderRadius = '4px';
+        downloadButton.style.cursor = 'pointer';
+        downloadButton.onclick = () => {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = audioUrl;
+          downloadLink.download = `participant_${participantIndex}_audio.webm`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        };
+        audioContainer.appendChild(downloadButton);
         
         // Find the transcript container to add the audio player
         const transcriptContainer = document.querySelector('.combined-transcript-section');
@@ -845,6 +985,9 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       slot.loadingTranscript = true;
     });
     
+    // Log participants being processed
+    console.log("Processing transcriptions for participants:", Object.keys(this.audioBlobs));
+    
     // Track completion of all transcription requests
     const participantCount = Object.keys(this.audioBlobs).length;
     let completedCount = 0;
@@ -857,8 +1000,12 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       const audioBlob = this.audioBlobs[participantIndex];
       console.log(`Audio for participant ${participantIndex}:`, {
         size: audioBlob.size,
-        type: audioBlob.type
+        type: audioBlob.type,
+        participantName: this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`
       });
+      
+      // Create an audio element to verify the audio
+      this.createAudioPlayer(participantIndex, audioBlob);
     });
     
     // If no audio blobs were recorded, show a message and stop here
@@ -871,65 +1018,137 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       return;
     }
     
-    // Process each participant's audio
-    Object.keys(this.audioBlobs).forEach(indexStr => {
+    // Process each participant's audio - PRIORITY ORDER
+    // Process participant 2 first, then main participant, then others
+    const processingOrder = Object.keys(this.audioBlobs).sort((a, b) => {
+      // Put participant 2 first
+      if (a === '1') return -1;
+      if (b === '1') return 1;
+      // Put main participant (0) second
+      if (a === '0') return -1;
+      if (b === '0') return 1;
+      // Natural order for others
+      return parseInt(a) - parseInt(b);
+    });
+    
+    console.log("Processing participants in order:", processingOrder);
+    
+    // Process each participant's audio in priority order
+    processingOrder.forEach(indexStr => {
       const participantIndex = parseInt(indexStr);
       const audioBlob = this.audioBlobs[participantIndex];
       
-      console.log(`Processing audio for participant ${participantIndex}, blob size: ${audioBlob.size} bytes`);
+      console.log(`Starting transcription for participant ${participantIndex} (${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`})`);
       
-      // If the audio blob is too small, it's likely empty
-      if (audioBlob.size < 1000) {
-        console.warn(`Audio blob for participant ${participantIndex} is too small (${audioBlob.size} bytes), skipping transcription`);
+      // Skip empty audio
+      if (!audioBlob || audioBlob.size < 1000) {
+        console.warn(`Audio blob for participant ${participantIndex} is too small (${audioBlob?.size || 0} bytes), skipping transcription`);
         this.addParticipantTranscript(participantIndex, "No audible speech detected.");
         completedCount++;
-        return;
-      }
-      
-      // Create a form data object to send the audio
-      const formData = new FormData();
-      formData.append('file', audioBlob, `participant_${participantIndex}_audio.webm`);
-      formData.append('participantIndex', participantIndex.toString());
-      formData.append('participantName', this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`);
-      
-      // Set up timeout to handle long-running transcription
-      const transcriptionTimeout = setTimeout(() => {
-        console.log(`Transcription timeout for participant ${participantIndex}, using fallback method`);
         
-        // Use the participant transcript if we have one from real-time recognition
-        if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
-          this.addParticipantTranscript(
-            participantIndex, 
-            `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`
-          );
-        } else {
-          // Fall back to duration-based message
-          this.addParticipantTranscript(
-            participantIndex, 
-            `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`} spoke for approximately ${Math.round(audioBlob.size / 16000)} seconds (~${Math.round(Math.round(audioBlob.size / 16000) * 2.5)} words). Audio captured successfully but transcription timed out.`
-          );
-        }
-        
-        // Still save the audio for later processing
-        this.saveAudioLocally(participantIndex, audioBlob);
-        
-        // Update completion count
+        // Update completion status
         if (participantIndex in this.videoSlots) {
           this.videoSlots[participantIndex].loadingTranscript = false;
         }
-      }, 30000); // 30 second timeout
+        
+        return;
+      }
       
-      // Send to the server for transcription
-      this.apiService.uploadAudioForTranscription(formData).subscribe({
-        next: (response) => {
-          // Clear timeout since we got a response
-          clearTimeout(transcriptionTimeout);
-          
-          console.log(`Transcription received for participant ${participantIndex}:`, response);
-          
-          if (response && response.transcript) {
-            // Update transcript UI
+      // Display processing state
+      this.addParticipantTranscript(
+        participantIndex, 
+        "Processing audio with OpenAI GPT for high-quality transcription..."
+      );
+      
+      // Process this participant using our transcription service
+      this.processParticipantAudio(participantIndex, audioBlob, () => {
+        completedCount++;
+        
+        // If all participants are processed, mark as complete
+        if (completedCount >= participantCount) {
+          this.videoSlots.forEach(slot => {
+            slot.loadingTranscript = false;
+          });
+        }
+      });
+    });
+  }
+  
+  /**
+   * Process a single participant's audio for transcription
+   * @param participantIndex The index of the participant
+   * @param audioBlob The audio blob to transcribe
+   * @param onComplete Callback when processing is complete
+   */
+  private processParticipantAudio(participantIndex: number, audioBlob: Blob, onComplete: () => void): void {
+    // Set loading state for this participant
+    if (participantIndex in this.videoSlots) {
+      this.videoSlots[participantIndex].loadingTranscript = true;
+    }
+    
+    // Display processing state
+    this.addParticipantTranscript(
+      participantIndex, 
+      "Processing audio with OpenAI GPT for high-quality transcription..."
+    );
+    
+    // Create a form data object to send the audio
+    const formData = new FormData();
+    formData.append('file', audioBlob, `participant_${participantIndex}_audio.webm`);
+    formData.append('participantIndex', participantIndex.toString());
+    formData.append('participantName', this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`);
+    
+    // Set up timeout to handle long-running transcription
+    const transcriptionTimeout = setTimeout(() => {
+      console.log(`Transcription timeout for participant ${participantIndex}, using fallback method`);
+      
+      // Use the participant transcript if we have one from real-time recognition
+      if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
+        this.addParticipantTranscript(
+          participantIndex, 
+          `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`
+        );
+      } else {
+        // Fall back to duration-based message
+        this.addParticipantTranscript(
+          participantIndex, 
+          `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`} spoke for approximately ${Math.round(audioBlob.size / 16000)} seconds (~${Math.round(Math.round(audioBlob.size / 16000) * 2.5)} words). Audio captured successfully but transcription timed out.`
+        );
+      }
+      
+      // Update loading state
+      if (participantIndex in this.videoSlots) {
+        this.videoSlots[participantIndex].loadingTranscript = false;
+      }
+      
+      // Call completion callback
+      onComplete();
+    }, 45000); // Increased timeout for OpenAI processing (45 seconds)
+    
+    // Send to the server for transcription using the direct URL approach
+    this.apiService.uploadAudioForTranscription(formData).subscribe({
+      next: (response) => {
+        // Clear timeout since we got a response
+        clearTimeout(transcriptionTimeout);
+        
+        console.log(`Transcription received for participant ${participantIndex}:`, response);
+        
+        // Update transcript UI - handle enhanced response format
+        if (response) {
+          if (response.transcript) {
+            // Update with the formatted transcript
             this.addParticipantTranscript(participantIndex, response.transcript);
+            
+            // Store raw transcript for later use
+            if (response.rawTranscript) {
+              this.participantTranscripts[participantIndex] = response.rawTranscript;
+            }
+            
+            // Process complete, show success message
+            console.log(`Transcription successfully processed for participant ${participantIndex}`);
+            
+            // Also save the transcript separately
+            this.saveTranscriptLocally(participantIndex, response.transcript);
           } else {
             console.warn(`No transcript data in response for participant ${participantIndex}`);
             
@@ -939,97 +1158,138 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
                 participantIndex, 
                 `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`
               );
+              
+              // Save the transcript locally
+              this.saveTranscriptLocally(participantIndex, this.participantTranscripts[participantIndex]);
             } else {
               this.addParticipantTranscript(participantIndex, "No transcript available from server. Speech was recorded for the interview.");
             }
           }
-          
-          // Mark as completed
-          completedCount++;
-          
-          // Update loading state
-          if (participantIndex in this.videoSlots) {
-            this.videoSlots[participantIndex].loadingTranscript = false;
-          }
-          
-          // If all participants are processed, mark as complete
-          if (completedCount >= participantCount) {
-            this.videoSlots.forEach(slot => {
-              slot.loadingTranscript = false;
-            });
-          }
-        },
-        error: (error) => {
-          // Clear timeout since we got a response (albeit an error)
-          clearTimeout(transcriptionTimeout);
-          
-          console.error(`Error transcribing audio for participant ${participantIndex}:`, error);
-          
-          // Use any real-time transcript we collected as a fallback
-          if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
-            this.addParticipantTranscript(
-              participantIndex, 
-              `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`
-            );
-          } else {
-            // Add error message to transcript
-            this.addParticipantTranscript(participantIndex, "Error generating transcript. Speech was recorded for the interview.");
-          }
-          
-          // Save the audio locally for potential recovery
-          this.saveAudioLocally(participantIndex, audioBlob);
-          
-          // Mark as completed even on error
-          completedCount++;
-          
-          // Update loading state
-          if (participantIndex in this.videoSlots) {
-            this.videoSlots[participantIndex].loadingTranscript = false;
-          }
-          
-          // If all participants are processed, mark as complete
-          if (completedCount >= participantCount) {
-            this.videoSlots.forEach(slot => {
-              slot.loadingTranscript = false;
-            });
-          }
+        } else {
+          // Handle empty response
+          console.error(`Empty response for participant ${participantIndex} transcription`);
+          this.addParticipantTranscript(participantIndex, "Error: Empty response from transcription service.");
         }
-      });
+        
+        // Update loading state
+        if (participantIndex in this.videoSlots) {
+          this.videoSlots[participantIndex].loadingTranscript = false;
+        }
+        
+        // Call completion callback
+        onComplete();
+      },
+      error: (error) => {
+        // Clear timeout since we got a response (albeit an error)
+        clearTimeout(transcriptionTimeout);
+        
+        console.error(`Error transcribing audio for participant ${participantIndex}:`, error);
+        
+        // Use any real-time transcript we collected as a fallback
+        if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
+          const fallbackText = `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`;
+          this.addParticipantTranscript(participantIndex, fallbackText);
+          
+          // Save the fallback transcript locally
+          this.saveTranscriptLocally(participantIndex, fallbackText);
+        } else {
+          // Add error message to transcript
+          this.addParticipantTranscript(
+            participantIndex, 
+            `Error generating transcript: ${error.message || 'Unknown error'}. Speech was recorded for the interview.`
+          );
+        }
+        
+        // Update loading state
+        if (participantIndex in this.videoSlots) {
+          this.videoSlots[participantIndex].loadingTranscript = false;
+        }
+        
+        // Call completion callback
+        onComplete();
+      }
     });
-    
-    // If no audio blobs were processed, show a message
-    if (participantCount === 0) {
-      this.addParticipantTranscript(0, "No audio was recorded during the interview.");
-      this.videoSlots.forEach(slot => {
-        slot.loadingTranscript = false;
-      });
+  }
+  
+  /**
+   * Save transcript locally for future reference
+   * @param participantIndex The index of the participant
+   * @param transcript The transcript text to save
+   */
+  private saveTranscriptLocally(participantIndex: number, transcript: string): void {
+    try {
+      // Save transcript to localStorage for persistence across page reloads
+      const key = `participant_${participantIndex}_transcript`;
+      localStorage.setItem(key, transcript);
+      console.log(`Saved transcript locally for participant ${participantIndex}`);
+      
+      // Also store in memory
+      if (!this.savedTranscripts) {
+        this.savedTranscripts = {};
+      }
+      this.savedTranscripts[participantIndex] = transcript;
+    } catch (error) {
+      console.error(`Error saving transcript locally for participant ${participantIndex}:`, error);
+    }
+  }
+  
+  /**
+   * Load saved transcript for a participant
+   * @param participantIndex The index of the participant
+   */
+  loadSavedTranscript(participantIndex: number): string | null {
+    try {
+      // First check memory cache
+      if (this.savedTranscripts && this.savedTranscripts[participantIndex]) {
+        return this.savedTranscripts[participantIndex];
+      }
+      
+      // Then check localStorage
+      const key = `participant_${participantIndex}_transcript`;
+      const savedTranscript = localStorage.getItem(key);
+      
+      if (savedTranscript) {
+        console.log(`Loaded saved transcript for participant ${participantIndex}`);
+        
+        // Cache in memory
+        if (!this.savedTranscripts) {
+          this.savedTranscripts = {};
+        }
+        this.savedTranscripts[participantIndex] = savedTranscript;
+        
+        return savedTranscript;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Error loading saved transcript for participant ${participantIndex}:`, error);
+      return null;
     }
   }
 
   /**
-   * Saves audio blob locally for potential recovery
+   * Display transcript directly from the saved audio file
    * @param participantIndex The index of the participant
-   * @param audioBlob The audio blob to save
    */
-  private saveAudioLocally(participantIndex: number, audioBlob: Blob): void {
-    try {
-      // Store in local storage (metadata only)
-      const metadata = {
-        participantIndex,
-        timestamp: new Date().toISOString(),
-        blobSize: audioBlob.size
-      };
-      localStorage.setItem(`audio_metadata_${participantIndex}`, JSON.stringify(metadata));
-      
-      // Create an object URL for the blob to allow playback
-      const url = URL.createObjectURL(audioBlob);
-      console.log(`Audio saved locally for participant ${participantIndex}, URL: ${url}`);
-      
-      // Add a note to the transcript about local storage
-      this.addParticipantTranscript(participantIndex, "Note: Audio has been temporarily saved locally for processing. It will be included in the saved interview.");
-    } catch (error) {
-      console.error(`Error saving audio locally for participant ${participantIndex}:`, error);
+  displayTranscriptFromAudio(participantIndex: number): void {
+    // Check if we already have a saved transcript
+    const savedTranscript = this.loadSavedTranscript(participantIndex);
+    if (savedTranscript) {
+      this.addParticipantTranscript(participantIndex, savedTranscript);
+      return;
     }
+    
+    // Check if we have the audio blob
+    if (!this.audioBlobs[participantIndex] || this.audioBlobs[participantIndex].size < 1000) {
+      console.warn(`No valid audio blob for participant ${participantIndex} to transcribe`);
+      this.addParticipantTranscript(participantIndex, "No valid audio recording found to transcribe.");
+      return;
+    }
+    
+    // Process the audio to get the transcript
+    this.processParticipantAudio(participantIndex, this.audioBlobs[participantIndex], () => {
+      console.log(`Audio processing completed for participant ${participantIndex}`);
+    });
   }
 
   /**
@@ -1038,7 +1298,23 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
    * @param transcript The transcript text
    */
   private addParticipantTranscript(participantIndex: number, transcript: string): void {
-    // Add to transcript entries
+    console.log(`Adding transcript for participant ${participantIndex}: ${transcript.substring(0, 50)}...`);
+    
+    // Find existing entry for this participant
+    const existingIndex = this.combinedTranscript.findIndex(entry => entry.participantIndex === participantIndex);
+    
+    if (existingIndex !== -1) {
+      // Update existing entry
+      this.combinedTranscript[existingIndex].text = transcript;
+    } else {
+      // Add new entry
+      this.combinedTranscript.push({
+        participantIndex,
+        text: transcript
+      });
+    }
+    
+    // Also add to transcript entries for compatibility with existing code
     this.transcriptEntries.push({
       participantIndex: participantIndex,
       text: transcript,
@@ -1049,6 +1325,128 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
     this.transcriptEntries.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
     
     console.log('Updated transcript entries:', this.transcriptEntries);
+    console.log('Combined transcript:', this.combinedTranscript);
+  }
+
+  /**
+   * Get the transcript for a specific participant
+   * @param participantIndex The index of the participant
+   */
+  getParticipantTranscript(participantIndex: number): string {
+    // Debug logging
+    console.log(`Getting transcript for participant ${participantIndex}`);
+    console.log(`Combined transcript entries:`, this.combinedTranscript);
+    
+    // Check for participant in combined transcript first (from server transcription)
+    const transcript = this.combinedTranscript.find(entry => entry.participantIndex === participantIndex);
+    if (transcript && transcript.text && transcript.text.trim() !== '') {
+      console.log(`Found transcript in combined transcript: ${transcript.text.substring(0, 50)}...`);
+      return transcript.text;
+    }
+    
+    // Fall back to real-time transcript if available
+    if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
+      console.log(`Using real-time transcript: ${this.participantTranscripts[participantIndex].substring(0, 50)}...`);
+      return this.participantTranscripts[participantIndex];
+    }
+    
+    console.log(`No transcript found for participant ${participantIndex}`);
+    return "No transcript available for this participant.";
+  }
+  
+  /**
+   * Check if any participant has real-time transcripts
+   */
+  hasParticipantTranscripts(): boolean {
+    return Object.keys(this.participantTranscripts).length > 0 && 
+      Object.values(this.participantTranscripts).some(transcript => transcript.trim() !== '');
+  }
+  
+  /**
+   * Get all participant transcript entries for display
+   */
+  getParticipantTranscriptEntries(): Array<{participantIndex: number, text: string, interimText?: string}> {
+    const entries: Array<{participantIndex: number, text: string, interimText?: string}> = [];
+    
+    Object.keys(this.participantTranscripts).forEach(indexStr => {
+      const participantIndex = parseInt(indexStr);
+      const text = this.participantTranscripts[participantIndex] || '';
+      const interimText = this.participantInterimTranscripts[participantIndex] || '';
+      
+      if (text.trim() !== '' || interimText.trim() !== '') {
+        entries.push({
+          participantIndex,
+          text,
+          interimText: interimText.trim() !== '' ? interimText : undefined
+        });
+      }
+    });
+    
+    // Sort by participant index (main participant first)
+    return entries.sort((a, b) => a.participantIndex - b.participantIndex);
+  }
+  
+  /**
+   * Get the participant's name
+   * @param participantIndex The index of the participant
+   */
+  getParticipantName(participantIndex: number): string {
+    return this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`;
+  }
+  
+  /**
+   * Get the IDs of participants who have audio recordings
+   */
+  getActiveParticipantIds(): number[] {
+    return Object.keys(this.audioBlobs)
+      .map(id => parseInt(id))
+      .filter(id => this.audioBlobs[id] && this.audioBlobs[id].size > 0)
+      .sort((a, b) => a - b); // Sort by participant index
+  }
+  
+  /**
+   * Get the audio duration for a participant
+   * @param participantIndex The index of the participant
+   */
+  getParticipantAudioDuration(participantIndex: number): number | null {
+    if (this.participantAudioDurations[participantIndex]) {
+      return this.participantAudioDurations[participantIndex];
+    }
+    
+    // Estimate based on audio blob size if we don't have an exact duration
+    if (this.audioBlobs[participantIndex]) {
+      // Rough estimate: ~16KB per second for 16kHz 16-bit mono audio
+      const estimatedDurationSec = Math.round(this.audioBlobs[participantIndex].size / 16000);
+      this.participantAudioDurations[participantIndex] = estimatedDurationSec;
+      return estimatedDurationSec;
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Stops real-time transcription for all participants
+   */
+  private stopRealtimeTranscription(): void {
+    console.log('Stopping real-time transcription for all participants');
+    
+    // Stop all speech recognition instances
+    Object.keys(this.speechRecognitionInstances).forEach(indexStr => {
+      const participantIndex = parseInt(indexStr);
+      const recognition = this.speechRecognitionInstances[participantIndex];
+      
+      if (recognition) {
+        try {
+          recognition.stop();
+          console.log(`Stopped real-time transcription for participant ${participantIndex}`);
+        } catch (error) {
+          console.error(`Error stopping real-time transcription for participant ${participantIndex}:`, error);
+        }
+      }
+    });
+    
+    // Clear the instances
+    this.speechRecognitionInstances = {};
   }
 
   /**
@@ -1071,107 +1469,88 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       recognition.interimResults = true;
       recognition.lang = 'en-US';
       
-      // Initialize transcript for this participant
+      // Initialize participant transcript if not exists
       if (!this.participantTranscripts[participantIndex]) {
         this.participantTranscripts[participantIndex] = '';
       }
       
-      // Handle results
+      // Store the recognition instance for later stopping
+      this.speechRecognitionInstances[participantIndex] = recognition;
+      
+      // Handle results event - fired when speech is recognized
       recognition.onresult = (event: any) => {
-        if (!this.transcriptionActive) return;
-        
         let interimTranscript = '';
         let finalTranscript = '';
         
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+        // Process results
+        for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-            
-            // Add to transcript entries with timestamp
-            this.addParticipantTranscript(participantIndex, transcript);
+            finalTranscript += transcript + ' ';
           } else {
             interimTranscript += transcript;
           }
         }
         
-        // Update real-time display for interim results
-        if (interimTranscript) {
-          this.updateInterimTranscript(participantIndex, interimTranscript);
+        // Update participant transcripts
+        if (finalTranscript.trim() !== '') {
+          this.participantTranscripts[participantIndex] = 
+            (this.participantTranscripts[participantIndex] || '') + finalTranscript;
+          
+          // Only log meaningful transcripts (more than just spaces)
+          console.log(`Transcribed text for participant ${participantIndex}:`, finalTranscript);
         }
+        
+        // Update interim transcript
+        this.participantInterimTranscripts[participantIndex] = interimTranscript;
       };
       
       // Handle errors
       recognition.onerror = (event: any) => {
         console.error(`Speech recognition error for participant ${participantIndex}:`, event.error);
+        // Try to restart if there's a non-fatal error
+        if (event.error !== 'no-speech' && event.error !== 'aborted' && this.isRecording) {
+          setTimeout(() => {
+            if (this.isRecording) {
+              console.log(`Restarting speech recognition for participant ${participantIndex} after error`);
+              this.startRealtimeTranscription(participantIndex, stream);
+            }
+          }, 1000);
+        }
+      };
+      
+      // Handle end event - may fire after errors or completion
+      recognition.onend = () => {
+        console.log(`Speech recognition ended for participant ${participantIndex}`);
+        // Try to restart if recording is still active
+        if (this.isRecording) {
+          setTimeout(() => {
+            if (this.isRecording) {
+              console.log(`Restarting speech recognition for participant ${participantIndex}`);
+              this.startRealtimeTranscription(participantIndex, stream);
+            }
+          }, 1000);
+        }
       };
       
       // Start recognition
-      recognition.start();
-      console.log(`Real-time transcription started for participant ${participantIndex}`);
-      
-      // Store the recognition instance so we can stop it later
-      (this as any)[`recognition_${participantIndex}`] = recognition;
+      try {
+        recognition.start();
+        console.log(`Started real-time transcription for participant ${participantIndex}`);
+      } catch (error) {
+        console.error(`Error starting speech recognition for participant ${participantIndex}:`, error);
+      }
     } catch (error) {
       console.error(`Error starting real-time transcription for participant ${participantIndex}:`, error);
     }
   }
 
   /**
-   * Stops real-time transcription for all participants
+   * Retry transcription for a specific participant
+   * @param participantIndex The index of the participant to retry transcription for
    */
-  private stopRealtimeTranscription(): void {
-    // Find all recognition instances and stop them
-    for (const key in this) {
-      if (key.startsWith('recognition_')) {
-        try {
-          const recognition = (this as any)[key];
-          if (recognition) {
-            recognition.stop();
-            console.log(`Stopped real-time transcription for ${key}`);
-          }
-        } catch (error) {
-          console.error(`Error stopping real-time transcription for ${key}:`, error);
-        }
-      }
-    }
-  }
 
-  /**
-   * Updates the interim (in-progress) transcript for a participant
-   * @param participantIndex The index of the participant
-   * @param interimText The interim transcript text
-   */
-  private updateInterimTranscript(participantIndex: number, interimText: string): void {
-    const participantName = this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`;
-    
-    // Find or create an interim element for this participant
-    let interimElement = document.getElementById(`interim-transcript-${participantIndex}`);
-    if (!interimElement) {
-      interimElement = document.createElement('div');
-      interimElement.id = `interim-transcript-${participantIndex}`;
-      interimElement.className = 'interim-transcript';
-      interimElement.style.color = '#888';
-      interimElement.style.fontStyle = 'italic';
-      interimElement.style.margin = '10px 0';
-      
-      // Find the transcript container to add the interim element
-      const transcriptContainer = document.querySelector('.combined-transcript');
-      if (transcriptContainer) {
-        transcriptContainer.appendChild(interimElement);
-      } else {
-        // Find a more general container if the specific one isn't available
-        const generalContainer = document.querySelector('.transcript-content') || 
-                                document.querySelector('.combined-transcript-section');
-        if (generalContainer) {
-          generalContainer.appendChild(interimElement);
-        }
-      }
-    }
-    
-    // Update the interim transcript
-    interimElement.textContent = `${participantName} (typing...): ${interimText}`;
-  }
+  
 
   /**
    * Processes all transcripts and prepares the final combined transcript
@@ -1515,6 +1894,240 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       }
     } catch (error) {
       console.error('Error toggling camera:', error);
+    }
+  }
+
+  /**
+   * Create a visible audio player for a participant's audio
+   * @param participantIndex The index of the participant
+   * @param audioBlob The audio blob to play
+   */
+  private createAudioPlayer(participantIndex: number, audioBlob: Blob): void {
+    try {
+      const audioUrl = URL.createObjectURL(audioBlob);
+      console.log(`Created audio URL for participant ${participantIndex}: ${audioUrl}`);
+      
+      // Add an audio player element that's visible for verification
+      const containerId = `audio-container-${participantIndex}`;
+      const container = document.getElementById(containerId);
+      
+      if (container) {
+        // Clear existing content
+        container.innerHTML = '';
+        
+        // Create audio element
+        const audioElement = document.createElement('audio');
+        audioElement.id = `audio-player-${participantIndex}`;
+        audioElement.controls = true;
+        audioElement.src = audioUrl;
+        audioElement.style.width = '100%';
+        container.appendChild(audioElement);
+        
+        // Add a download button
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = 'Download Audio';
+        downloadButton.style.marginTop = '5px';
+        downloadButton.style.padding = '5px 10px';
+        downloadButton.style.backgroundColor = '#4CAF50';
+        downloadButton.style.color = 'white';
+        downloadButton.style.border = 'none';
+        downloadButton.style.borderRadius = '4px';
+        downloadButton.style.cursor = 'pointer';
+        downloadButton.onclick = () => {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = audioUrl;
+          downloadLink.download = `participant_${participantIndex}_audio.webm`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        };
+        container.appendChild(downloadButton);
+        
+        // Find the transcript container to add the audio player
+        const transcriptContainer = document.querySelector('.combined-transcript-section');
+        if (transcriptContainer) {
+          transcriptContainer.appendChild(container);
+        } else {
+          // Fallback to body if transcript container not found
+          document.body.appendChild(container);
+        }
+        
+        console.log(`Added audio player to existing container for participant ${participantIndex}`);
+      } else {
+        console.warn(`Container #${containerId} not found in the DOM - will create it when page refreshes`);
+        // Create a container dynamically if it doesn't exist
+        const audioContainer = document.createElement('div');
+        audioContainer.id = containerId;
+        audioContainer.style.margin = '10px 0';
+        audioContainer.style.padding = '10px';
+        audioContainer.style.border = '1px solid #ddd';
+        audioContainer.style.borderRadius = '5px';
+        
+        const label = document.createElement('p');
+        label.textContent = `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`} Recording:`;
+        label.style.margin = '5px 0';
+        label.style.fontWeight = 'bold';
+        audioContainer.appendChild(label);
+        
+        const audioElement = document.createElement('audio');
+        audioElement.id = `audio-player-${participantIndex}`;
+        audioElement.controls = true;
+        audioElement.src = audioUrl;
+        audioElement.style.width = '100%';
+        audioContainer.appendChild(audioElement);
+        
+        // Add a download button
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = 'Download Audio';
+        downloadButton.className = 'download-audio-btn';
+        downloadButton.onclick = () => {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = audioUrl;
+          downloadLink.download = `participant_${participantIndex}_audio.webm`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        };
+        audioContainer.appendChild(downloadButton);
+        
+        // Find the transcript container to add the audio player
+        const transcriptContainer = document.querySelector('.combined-transcript-section');
+        if (transcriptContainer) {
+          transcriptContainer.appendChild(audioContainer);
+        } else {
+          // Fallback to body if transcript container not found
+          document.body.appendChild(audioContainer);
+        }
+      }
+    } catch (error) {
+      console.error(`Error creating audio player for participant ${participantIndex}:`, error);
+    }
+  }
+
+  /**
+   * Checks if there are any recorded audio files for transcription
+   */
+  hasRecordedAudio(): boolean {
+    return Object.keys(this.audioBlobs).length > 0;
+  }
+  
+  /**
+   * Display transcripts for all participants that have recorded audio
+   */
+  displayAllTranscripts(): void {
+    // Find all participants with audio recordings
+    const participantIds = Object.keys(this.audioBlobs).map(id => parseInt(id));
+    
+    if (participantIds.length === 0) {
+      console.warn('No recorded audio found for any participant');
+      return;
+    }
+    
+    console.log(`Processing transcripts for ${participantIds.length} participants`);
+    
+    // Counter to track progress
+    let completedCount = 0;
+    
+    // Process each participant one by one
+    participantIds.forEach(participantId => {
+      // Check if we already have a saved transcript
+      const savedTranscript = this.loadSavedTranscript(participantId);
+      
+      if (savedTranscript) {
+        // Display existing transcript
+        this.addParticipantTranscript(participantId, savedTranscript);
+        completedCount++;
+        
+        // If all participants are processed, show completion message
+        if (completedCount === participantIds.length) {
+          console.log('All transcripts displayed successfully');
+        }
+      } else if (this.audioBlobs[participantId] && this.audioBlobs[participantId].size >= 1000) {
+        // Set loading state
+        if (participantId in this.videoSlots) {
+          this.videoSlots[participantId].loadingTranscript = true;
+        }
+        
+        // Display processing message
+        this.addParticipantTranscript(
+          participantId,
+          `Processing audio for ${this.getParticipantName(participantId)}...`
+        );
+        
+        // Process audio for transcription
+        this.processParticipantAudio(participantId, this.audioBlobs[participantId], () => {
+          completedCount++;
+          console.log(`Processed participant ${participantId}, ${completedCount} of ${participantIds.length} complete`);
+          
+          // If all participants are processed, show completion message
+          if (completedCount === participantIds.length) {
+            console.log('All transcripts processed successfully');
+          }
+        });
+      } else {
+        // No valid audio for this participant
+        this.addParticipantTranscript(
+          participantId,
+          `No valid audio recording found for ${this.getParticipantName(participantId)}`
+        );
+        completedCount++;
+        
+        // If all participants are processed, show completion message
+        if (completedCount === participantIds.length) {
+          console.log('All transcripts displayed successfully');
+        }
+      }
+    });
+  }
+  
+  /**
+   * Retry the transcription for a specific participant
+   * @param participantIndex The index of the participant
+   */
+  retryTranscription(participantIndex: number): void {
+    console.log(`Retrying transcription for participant ${participantIndex}`);
+    
+    // Check if we have the audio blob
+    if (!this.audioBlobs[participantIndex]) {
+      console.error(`No audio blob available for participant ${participantIndex}`);
+      this.addParticipantTranscript(participantIndex, `Error: No audio recording found for ${this.getParticipantName(participantIndex)}`);
+      return;
+    }
+    
+    // Clear any existing transcript for this participant
+    const existingIndex = this.combinedTranscript.findIndex(entry => entry.participantIndex === participantIndex);
+    if (existingIndex !== -1) {
+      this.combinedTranscript.splice(existingIndex, 1);
+    }
+    
+    // Show loading message
+    this.addParticipantTranscript(participantIndex, `Retrying transcription for ${this.getParticipantName(participantIndex)}...`);
+    
+    // Set loading state
+    if (participantIndex in this.videoSlots) {
+      this.videoSlots[participantIndex].loadingTranscript = true;
+    }
+    
+    // Process the audio again
+    this.processParticipantAudio(participantIndex, this.audioBlobs[participantIndex], () => {
+      console.log(`Transcription retry completed for participant ${participantIndex}`);
+    });
+  }
+
+  /**
+   * Clears saved transcripts from localStorage
+   */
+  private clearSavedTranscripts(): void {
+    try {
+      // Clear all saved transcripts from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('participant_') && key.endsWith('_transcript')) {
+          localStorage.removeItem(key);
+        }
+      });
+      console.log('Cleared saved transcripts from localStorage');
+    } catch (error) {
+      console.error('Error clearing saved transcripts:', error);
     }
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, Subject, catchError, of } from 'rxjs';
+import { Observable, Subject, catchError, of, tap, throwError } from 'rxjs';
 
 type Questions = { questions: string[] };
 type Transcript = { transcript: string };
@@ -150,17 +150,46 @@ export class ApiService {
     }
 
     /**
-     * Uploads audio recording for transcription with GPT
-     * @param formData FormData with audio file and participant info
-     * @returns Observable with transcript response
+     * Send audio file to backend for transcription
+     * @param formData FormData containing audio file and participant info
+     * @returns Observable with transcription response
      */
-    uploadAudioForTranscription(formData: FormData): Observable<{transcript: string}> {
-        return this.http.post<{transcript: string}>(this.endpoints.transcribeAudio, formData, {
-            headers: {
-                // No Content-Type header as it's set automatically for FormData
-                'Accept': 'application/json'
-            }
-        });
+    uploadAudioForTranscription(formData: FormData): Observable<any> {
+        const url = 'http://localhost:5000/transcribe_audio';
+        
+        // Add detailed logging
+        console.log('Uploading audio for transcription...');
+        
+        return this.http.post<any>(url, formData).pipe(
+          tap(response => {
+            console.log('Transcription response:', response);
+          }),
+          catchError(error => {
+            console.error('Error during audio transcription:', error);
+            return throwError(() => new Error(`Transcription failed: ${error.message || 'Unknown error'}`));
+          })
+        );
+    }
+    
+    /**
+     * Simpler method to transcribe an audio file directly
+     * @param audioBlob The audio blob to transcribe
+     * @returns Observable with transcription response
+     */
+    transcribeAudioFile(audioBlob: Blob): Observable<Transcript> {
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'audio_recording.webm');
+        
+        // Send directly to the transcribeAudio endpoint
+        return this.http.post<Transcript>(this.endpoints.transcribeAudio, formData).pipe(
+          tap(response => {
+            console.log('Direct transcription response:', response);
+          }),
+          catchError(error => {
+            console.error('Error during direct audio transcription:', error);
+            return throwError(() => new Error(`Direct transcription failed: ${error.message || 'Unknown error'}`));
+          })
+        );
     }
 
     /**

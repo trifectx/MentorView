@@ -279,16 +279,25 @@ def transcribe_audio():
         print(f"Saved audio file for {participant_name} to {temp_audio_path}")
         
         try:
-            # First try to transcribe with OpenAI Whisper
+            # Enhanced OpenAI Whisper configuration for better quality transcription
+            print(f"Starting OpenAI transcription for {participant_name}...")
             with open(temp_audio_path, "rb") as audio:
                 transcription = client.audio.transcriptions.create(
                     model="whisper-1", 
                     file=audio, 
-                    response_format="text"
+                    response_format="verbose_json",  # Get more detailed response with timestamps
+                    language="en",  # Specify language for better accuracy
+                    prompt="This is a professional interview conversation with multiple speakers."  # Context helps accuracy
                 )
                 
-            transcript_text = transcription
+            # Extract detailed transcription information
+            if hasattr(transcription, 'text'):
+                transcript_text = transcription.text
+            else:
+                transcript_text = transcription.get('text', '')
+                
             print(f"OpenAI Whisper transcription completed for {participant_name}")
+            print(f"Transcript sample: {transcript_text[:100]}...")
             
         except Exception as whisper_error:
             print(f"Error with OpenAI Whisper: {str(whisper_error)}. Trying Deepgram...")
@@ -304,6 +313,7 @@ def transcribe_audio():
                         model="nova-2", 
                         language="en-US",
                         filler_words=True,
+                        diarize=True  # Enable speaker identification
                     )
                     
                     response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
@@ -322,7 +332,12 @@ def transcribe_audio():
         # Format the transcript with the participant name
         formatted_transcript = f"{participant_name}: {transcript_text}"
         
-        return jsonify({"transcript": formatted_transcript}), 200
+        return jsonify({
+            "transcript": formatted_transcript,
+            "rawTranscript": transcript_text,
+            "participantName": participant_name,
+            "participantIndex": participant_index
+        }), 200
         
     except Exception as e:
         return jsonify({"error": f"Error processing audio for transcription: {str(e)}"}), 500

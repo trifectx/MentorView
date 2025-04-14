@@ -152,14 +152,66 @@
               <span>Recording in Progress</span>
             </div>
             <p class="recording-transcript-note">Transcripts will be available after recording is completed.</p>
-          </div>
-          
-          <div class="combined-transcript" *ngIf="isAnyTranscriptAvailable()">
-            <div class="transcript-entry" *ngFor="let entry of getCombinedTranscript()">
-              <div class="participant-label">Participant {{ entry.participantIndex + 1 }}</div>
-              <div class="transcript-text">{{ entry.text }}</div>
+            
+            <!-- Real-time transcription display while recording -->
+            <div class="realtime-transcripts" *ngIf="isRecording && hasParticipantTranscripts()">
+              <h3>Real-time Speech Recognition</h3>
+              <div class="participant-transcript-containers">
+                <div class="participant-transcript" *ngFor="let entry of getParticipantTranscriptEntries()">
+                  <div class="participant-header">
+                    <div class="participant-name">{{ getParticipantName(entry.participantIndex) }}</div>
+                    <div class="recording-indicator-small" *ngIf="isRecording"></div>
+                  </div>
+                  <div class="interim-transcript" *ngIf="entry.interimText">{{ entry.interimText }}</div>
+                  <div class="transcript-text">{{ entry.text }}</div>
+                </div>
+              </div>
             </div>
           </div>
+          
+          <!-- Individual participant transcripts after recording -->
+          <div class="participant-transcripts" *ngIf="!isRecording && isAnyTranscriptAvailable()">
+            <div class="participant-transcript-container" *ngFor="let participantId of getActiveParticipantIds()">
+              <div class="participant-transcript-card">
+                <div class="participant-header">
+                  <h3>{{ getParticipantName(participantId) }}</h3>
+                  <span class="participant-duration" *ngIf="getParticipantAudioDuration(participantId)">
+                    {{ getParticipantAudioDuration(participantId) }} seconds
+                  </span>
+                </div>
+                <div class="audio-player-container">
+                  <!-- Audio player will be injected here via code -->
+                  <div id="audio-container-{{participantId}}"></div>
+                </div>
+                <div class="participant-transcript-text">
+                  <div *ngIf="combinedTranscript && combinedTranscript.length > 0">
+                    <p>{{ getParticipantTranscript(participantId) }}</p>
+                  </div>
+                  <div *ngIf="!combinedTranscript || combinedTranscript.length === 0" class="no-transcript-message">
+                    Waiting for transcript from OpenAI GPT... Audio saved successfully. 
+                    <div class="transcript-action-buttons">
+                      <button class="retry-transcription-btn" (click)="retryTranscription(participantId)">
+                        <span class="material-icons">refresh</span>
+                        Retry Transcription
+                      </button>
+                      <button class="display-transcript-btn" (click)="displayTranscriptFromAudio(participantId)">
+                        <span class="material-icons">record_voice_over</span>
+                        Display Transcript
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Direct transcription button after interview ends -->
+        <div class="post-interview-actions" *ngIf="!isRecording && hasRecordedAudio()">
+          <button class="display-all-transcripts-btn" (click)="displayAllTranscripts()">
+            <span class="material-icons">description</span>
+            Display All Transcripts
+          </button>
         </div>
         
         <button class="save-btn" (click)="saveAllInterviews()" [disabled]="isSaving || !isAnyTranscriptAvailable()">
