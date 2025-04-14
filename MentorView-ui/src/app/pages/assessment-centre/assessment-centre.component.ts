@@ -551,6 +551,9 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
         // Create a stream from the Agora track
         const audioStream = new MediaStream([audioTrack.getMediaStreamTrack()]);
         this.startAudioRecording(0, audioStream);
+        
+        // Start real-time transcription for main participant
+        this.startRealtimeTranscription(0, audioStream);
       } else {
         console.warn('No Agora audio track found in localTracks');
       }
@@ -566,6 +569,9 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       if (slot.active && slot.stream) {
         this.startRecordingForSlot(index);
         this.startAudioRecording(index, slot.stream);
+        
+        // Start real-time transcription for this participant
+        this.startRealtimeTranscription(index, slot.stream);
       }
     });
   }
@@ -593,15 +599,20 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       this.stopAudioRecording(index);
     });
 
+    // Stop any real-time transcription
+    this.stopRealtimeTranscription();
+
     // Add immediate placeholder transcript while waiting for API processing
     if (Object.keys(this.audioBlobs).length > 0) {
       Object.keys(this.audioBlobs).forEach(indexStr => {
         const index = parseInt(indexStr);
         const blobSize = this.audioBlobs[index].size;
-        this.addParticipantTranscript(
-          index, 
-          `[Processing ${(blobSize / 1024).toFixed(1)}KB of audio... This may take a moment.]`
-        );
+        if (!this.participantTranscripts[index] || this.participantTranscripts[index].trim() === '') {
+          this.addParticipantTranscript(
+            index, 
+            `[Processing ${(blobSize / 1024).toFixed(1)}KB of audio... This may take a moment.]`
+          );
+        }
       });
     } else {
       this.addParticipantTranscript(0, "No audio data was recorded. Please ensure your microphone is enabled and try again.");
@@ -884,11 +895,20 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       // Set up timeout to handle long-running transcription
       const transcriptionTimeout = setTimeout(() => {
         console.log(`Transcription timeout for participant ${participantIndex}, using fallback method`);
-        // Use fallback transcription method
-        this.addParticipantTranscript(
-          participantIndex, 
-          `[${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`} spoke for approximately ${Math.round(audioBlob.size / 16000)} seconds (~${Math.round(Math.round(audioBlob.size / 16000) * 2.5)} words). Audio captured successfully and will be processed.]`
-        );
+        
+        // Use the participant transcript if we have one from real-time recognition
+        if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
+          this.addParticipantTranscript(
+            participantIndex, 
+            `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`
+          );
+        } else {
+          // Fall back to duration-based message
+          this.addParticipantTranscript(
+            participantIndex, 
+            `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`} spoke for approximately ${Math.round(audioBlob.size / 16000)} seconds (~${Math.round(Math.round(audioBlob.size / 16000) * 2.5)} words). Audio captured successfully but transcription timed out.`
+          );
+        }
         
         // Still save the audio for later processing
         this.saveAudioLocally(participantIndex, audioBlob);
@@ -912,7 +932,16 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
             this.addParticipantTranscript(participantIndex, response.transcript);
           } else {
             console.warn(`No transcript data in response for participant ${participantIndex}`);
-            this.addParticipantTranscript(participantIndex, "No transcript available from server. Speech was recorded for the interview.");
+            
+            // Use any real-time transcript we collected as a fallback
+            if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
+              this.addParticipantTranscript(
+                participantIndex, 
+                `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`
+              );
+            } else {
+              this.addParticipantTranscript(participantIndex, "No transcript available from server. Speech was recorded for the interview.");
+            }
           }
           
           // Mark as completed
@@ -936,8 +965,16 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
           
           console.error(`Error transcribing audio for participant ${participantIndex}:`, error);
           
-          // Add error message to transcript
-          this.addParticipantTranscript(participantIndex, "Error generating transcript. Speech was recorded for the interview.");
+          // Use any real-time transcript we collected as a fallback
+          if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
+            this.addParticipantTranscript(
+              participantIndex, 
+              `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`
+            );
+          } else {
+            // Add error message to transcript
+            this.addParticipantTranscript(participantIndex, "Error generating transcript. Speech was recorded for the interview.");
+          }
           
           // Save the audio locally for potential recovery
           this.saveAudioLocally(participantIndex, audioBlob);
@@ -1015,166 +1052,125 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   /**
-   * Starts transcription for a specific participant slot
-   * @param slotIndex The index of the slot to start transcription
+   * Starts real-time transcription for a participant
+   * @param participantIndex The index of the participant
+   * @param stream The media stream to transcribe
    */
-  private startTranscriptionForSlot(slotIndex: number): void {
-    const slot = this.videoSlots[slotIndex];
-    if (!slot.active || !slot.stream) return;
-
-    // Initialize participant's transcript
-    this.participantTranscripts[slotIndex] = '';
-
-    // Create audio context to get audio track for transcription
-    try {
-      // Extract audio track from the slot's stream
-      const audioTrack = slot.stream.getAudioTracks()[0];
-      if (!audioTrack) {
-        console.warn(`No audio track available for slot ${slotIndex + 1}`);
-        return;
-      }
-
-      // Create a new speech recognition instance for this participant
-      if ('webkitSpeechRecognition' in window) {
-        const SpeechRecognition = (window as any).webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
-        
-        // Configure speech recognition
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-        
-        // Handle results
-        recognition.onresult = (event: any) => {
-          if (!this.transcriptionActive) return;
-          
-          let interimTranscript = '';
-          let finalTranscript = '';
-          
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              finalTranscript += transcript;
-              
-              // Add to transcript entries with timestamp
-              this.transcriptEntries.push({
-                participantIndex: slotIndex,
-                text: transcript,
-                timestamp: new Date()
-              });
-            } else {
-              interimTranscript += transcript;
-            }
-          }
-          
-          // Update the participant's transcript
-          if (finalTranscript) {
-            this.participantTranscripts[slotIndex] += finalTranscript + ' ';
-          }
-          
-          // For debugging
-          console.log(`Participant ${slotIndex + 1} transcript:`, this.participantTranscripts[slotIndex]);
-        };
-        
-        // Handle errors
-        recognition.onerror = (event: any) => {
-          console.error(`Speech recognition error for slot ${slotIndex + 1}:`, event.error);
-        };
-        
-        // Start recognition
-        recognition.start();
-        console.log(`Transcription started for slot ${slotIndex + 1}`);
-        
-        // Store the recognition instance so we can stop it later
-        // Use separate property for each participant
-        (slot as any).recognition = recognition;
-      } else {
-        console.warn('Speech Recognition API not supported on this browser');
-      }
-    } catch (error) {
-      console.error(`Error starting transcription for slot ${slotIndex + 1}:`, error);
-    }
-  }
-
-  /**
-   * Starts speech recognition for all Agora participants
-   */
-  private startSpeechRecognition(): void {
+  private startRealtimeTranscription(participantIndex: number, stream: MediaStream): void {
     if (!('webkitSpeechRecognition' in window)) {
-      console.warn('Speech Recognition API not supported on this browser');
+      console.warn('Speech Recognition API not supported in this browser');
       return;
     }
 
-    const SpeechRecognition = (window as any).webkitSpeechRecognition;
-    this.speechRecognition = new SpeechRecognition();
-    
-    // Configure speech recognition
-    this.speechRecognition.continuous = true;
-    this.speechRecognition.interimResults = true;
-    this.speechRecognition.lang = 'en-US';
-    
-    // Handle results
-    this.speechRecognition.onresult = (event: any) => {
-      if (!this.transcriptionActive) return;
+    try {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
       
-      let interimTranscript = '';
-      let finalTranscript = '';
+      // Configure speech recognition
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
       
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-          
-          // Add to transcript entries with timestamp for the local user (index 0)
-          this.transcriptEntries.push({
-            participantIndex: 0,  // Main participant (local user)
-            text: transcript,
-            timestamp: new Date()
-          });
-        } else {
-          interimTranscript += transcript;
+      // Initialize transcript for this participant
+      if (!this.participantTranscripts[participantIndex]) {
+        this.participantTranscripts[participantIndex] = '';
+      }
+      
+      // Handle results
+      recognition.onresult = (event: any) => {
+        if (!this.transcriptionActive) return;
+        
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+            
+            // Add to transcript entries with timestamp
+            this.addParticipantTranscript(participantIndex, transcript);
+          } else {
+            interimTranscript += transcript;
+          }
         }
-      }
+        
+        // Update real-time display for interim results
+        if (interimTranscript) {
+          this.updateInterimTranscript(participantIndex, interimTranscript);
+        }
+      };
       
-      // For debugging
-      if (finalTranscript) {
-        console.log('Final transcript:', finalTranscript);
-      }
-    };
-    
-    // Handle errors
-    this.speechRecognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-    };
-    
-    // Start recognition
-    this.speechRecognition.start();
-    this.isTranscribing = true;
-    console.log('Speech recognition started for main participant');
+      // Handle errors
+      recognition.onerror = (event: any) => {
+        console.error(`Speech recognition error for participant ${participantIndex}:`, event.error);
+      };
+      
+      // Start recognition
+      recognition.start();
+      console.log(`Real-time transcription started for participant ${participantIndex}`);
+      
+      // Store the recognition instance so we can stop it later
+      (this as any)[`recognition_${participantIndex}`] = recognition;
+    } catch (error) {
+      console.error(`Error starting real-time transcription for participant ${participantIndex}:`, error);
+    }
   }
 
   /**
-   * Stops speech recognition for all participants
+   * Stops real-time transcription for all participants
    */
-  private stopSpeechRecognition(): void {
-    // Stop main speech recognition
-    if (this.speechRecognition) {
-      this.speechRecognition.stop();
-      this.isTranscribing = false;
-      console.log('Speech recognition stopped for main participant');
-    }
-    
-    // Stop recognition for each video slot
-    this.videoSlots.forEach((slot, index) => {
-      if ((slot as any).recognition) {
+  private stopRealtimeTranscription(): void {
+    // Find all recognition instances and stop them
+    for (const key in this) {
+      if (key.startsWith('recognition_')) {
         try {
-          (slot as any).recognition.stop();
-          console.log(`Speech recognition stopped for slot ${index + 1}`);
+          const recognition = (this as any)[key];
+          if (recognition) {
+            recognition.stop();
+            console.log(`Stopped real-time transcription for ${key}`);
+          }
         } catch (error) {
-          console.error(`Error stopping speech recognition for slot ${index + 1}:`, error);
+          console.error(`Error stopping real-time transcription for ${key}:`, error);
         }
       }
-    });
+    }
+  }
+
+  /**
+   * Updates the interim (in-progress) transcript for a participant
+   * @param participantIndex The index of the participant
+   * @param interimText The interim transcript text
+   */
+  private updateInterimTranscript(participantIndex: number, interimText: string): void {
+    const participantName = this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`;
+    
+    // Find or create an interim element for this participant
+    let interimElement = document.getElementById(`interim-transcript-${participantIndex}`);
+    if (!interimElement) {
+      interimElement = document.createElement('div');
+      interimElement.id = `interim-transcript-${participantIndex}`;
+      interimElement.className = 'interim-transcript';
+      interimElement.style.color = '#888';
+      interimElement.style.fontStyle = 'italic';
+      interimElement.style.margin = '10px 0';
+      
+      // Find the transcript container to add the interim element
+      const transcriptContainer = document.querySelector('.combined-transcript');
+      if (transcriptContainer) {
+        transcriptContainer.appendChild(interimElement);
+      } else {
+        // Find a more general container if the specific one isn't available
+        const generalContainer = document.querySelector('.transcript-content') || 
+                                document.querySelector('.combined-transcript-section');
+        if (generalContainer) {
+          generalContainer.appendChild(interimElement);
+        }
+      }
+    }
+    
+    // Update the interim transcript
+    interimElement.textContent = `${participantName} (typing...): ${interimText}`;
   }
 
   /**
