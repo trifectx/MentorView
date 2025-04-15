@@ -204,4 +204,60 @@ export class ApiService {
             })
         );
     }
+
+    /**
+     * Rates the response of a participant in an assessment centre session
+     * @param data Participant data including transcript and question
+     * @returns Observable with feedback for the participant
+     */
+    rateParticipantResponse(data: {
+        role: string;
+        company: string;
+        participantName: string;
+        transcript: string;
+        question: string;
+    }): Observable<Rating> {
+        // Use exactly the same structure as the normal rateAnswer method
+        // but include a special note in the transcript to indicate this is for assessment centre
+        const cleanTranscript = data.transcript.trim();
+        
+        // Format the transcript to include participant name and context
+        const formattedTranscript = `[Assessment Centre Participant: ${data.participantName}] ${cleanTranscript}`;
+        
+        // Create the exact same payload structure as the interview component uses
+        const payload = {
+            role: data.role,
+            company: data.company,
+            style: 'assessment-centre',
+            transcript: formattedTranscript,
+            question: data.question,
+            // Include optional fields with default values
+            wpm: 0,
+            fillerWords: {},
+            totalFillerWords: 0
+        };
+        
+        console.log('Sending participant feedback request with payload:', payload);
+        
+        // Use a more detailed error handler to help diagnose the issue
+        return this.http.post<Rating>(this.endpoints.rateAnswer, payload).pipe(
+            tap(response => {
+                console.log('Successfully received feedback response:', response);
+            }),
+            catchError(error => {
+                console.error('Error rating participant response:', error);
+                
+                // Log detailed information about the error
+                if (error.error) {
+                    console.error('Error details:', error.error);
+                }
+                
+                if (error.status === 400) {
+                    console.error('Bad request details:', error.error);
+                }
+                
+                return throwError(() => new Error(`Feedback generation failed: ${error.message || 'Unknown error'}`));
+            })
+        );
+    }
 }

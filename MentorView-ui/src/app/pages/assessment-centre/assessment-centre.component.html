@@ -184,7 +184,66 @@
                 <div class="participant-transcript-text">
                   <div *ngIf="getParticipantTranscript(participantId) && getParticipantTranscript(participantId) !== 'No transcript available for this participant.'">
                     <p>{{ getParticipantTranscript(participantId) }}</p>
+                    
+                    <!-- Feedback section when transcript is available -->
+                    <div class="feedback-section">
+                      <div *ngIf="!getParticipantFeedback(participantId) && !isParticipantFeedbackLoading(participantId) && !getParticipantFeedbackError(participantId)" class="feedback-actions">
+                        <button class="generate-feedback-btn" (click)="generateParticipantFeedback(participantId)">
+                          <span class="material-icons">psychology</span>
+                          Generate Assessment Feedback
+                        </button>
+                        <p class="feedback-hint">Get detailed AI feedback on how well this response addressed the assessment question "{{ currentQuestion }}"</p>
+                      </div>
+                      
+                      <div *ngIf="isParticipantFeedbackLoading(participantId)" class="feedback-loading">
+                        <div class="loading-spinner"></div>
+                        <p>Analyzing response to generate feedback...</p>
+                      </div>
+                      
+                      <div *ngIf="getParticipantFeedback(participantId)" class="feedback-content">
+                        <h4>Assessment Feedback</h4>
+                        <div class="feedback-text">
+                          <p [innerHTML]="getParticipantFeedback(participantId) | safeHtml"></p>
+                        </div>
+                        
+                        <!-- Display strengths if available -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.strengths && getParticipantFeedbackObject(participantId)?.strengths.length > 0" class="feedback-strengths">
+                          <h5>Key Strengths</h5>
+                          <ul>
+                            <li *ngFor="let strength of getParticipantFeedbackObject(participantId)?.strengths">
+                              {{ strength }}
+                            </li>
+                          </ul>
+                        </div>
+                        
+                        <!-- Display areas for improvement if available -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.improvements && getParticipantFeedbackObject(participantId)?.improvements.length > 0" class="feedback-improvements">
+                          <h5>Areas for Improvement</h5>
+                          <ul>
+                            <li *ngFor="let improvement of getParticipantFeedbackObject(participantId)?.improvements">
+                              {{ improvement }}
+                            </li>
+                          </ul>
+                        </div>
+                        
+                        <!-- Display score if available -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.score !== undefined" class="feedback-score">
+                          <div class="score-label">Assessment Score:</div>
+                          <div class="score-value">{{ getParticipantFeedbackObject(participantId)?.score }}/10</div>
+                        </div>
+                      </div>
+                      
+                      <div *ngIf="getParticipantFeedbackError(participantId)" class="feedback-error">
+                        <h4>Error Generating Feedback</h4>
+                        <p>{{ getParticipantFeedbackError(participantId) }}</p>
+                        <button class="retry-btn" (click)="generateParticipantFeedback(participantId)">
+                          <span class="material-icons">refresh</span>
+                          Retry
+                        </button>
+                      </div>
+                    </div>
                   </div>
+                  
                   <div *ngIf="!getParticipantTranscript(participantId) || getParticipantTranscript(participantId) === 'No transcript available for this participant.'" class="no-transcript-message">
                     Waiting for transcript from OpenAI GPT... Audio saved successfully. 
                     <div class="transcript-action-buttons">

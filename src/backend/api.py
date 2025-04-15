@@ -5,6 +5,7 @@ import time
 import random
 import string
 import tempfile
+import os
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_file
@@ -41,6 +42,9 @@ if not os.path.exists(saved_interviews_dir):
 app = Flask(__name__)
 transcript = ""
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Initialize the model
+model = Model()
 
 
 @app.after_request
@@ -144,13 +148,19 @@ def query():
     role = data.get('role', '')
     company = data.get('company', '')
     question = data.get('question', '')
+    transcript_data = data.get('transcript', '')
+    style = data.get('style', '')
     wpm = data.get('wpm', 0)
     filler_words = data.get('fillerWords', {})
     total_filler_words = data.get('totalFillerWords', 0)
     
+    # Check if this is an assessment centre request
+    if style == 'assessment-centre' or data.get('isAssessmentCentre', False):
+        return assessment_centre_feedback(data)
+    
     # Check if required fields are present
-    if not all([role, company, question, transcript]):
-        return jsonify({"error": "All fields (role, company, question, answer) are required"}), 400
+    if not all([role, company, question, transcript_data]):
+        return jsonify({"error": "All fields (role, company, question, transcript) are required"}), 400
 
     # Send the input data to the model
     try:
@@ -158,7 +168,7 @@ def query():
             role=role, 
             company=company, 
             question=question, 
-            answer=transcript, 
+            answer=transcript_data, 
             wpm=wpm, 
             filler_words=filler_words, 
             total_filler_words=total_filler_words
@@ -166,6 +176,97 @@ def query():
         return jsonify({"feedback": feedback}), 200
     except Exception as e:
         return jsonify({"error": f"Error during query: {str(e)}"}), 500
+
+
+# Dedicated endpoint for assessment centre feedback
+@app.route('/assessment_centre_feedback', methods=['POST'])
+def assessment_centre_feedback(data=None):
+    # If data is not provided, get it from the request
+    if data is None:
+        data = request.get_json()
+        print("Assessment Centre Feedback Request:", data)
+    
+    # Extract data
+    role = data.get('role', 'Candidate')
+    company = data.get('company', 'Assessment Centre')
+    question = data.get('question', '')
+    transcript_data = data.get('transcript', '')
+    participant_name = data.get('participantName', 'Participant')
+    
+    # Check if required fields are present
+    if not all([question, transcript_data]):
+        return jsonify({"error": "Question and transcript are required"}), 400
+
+    try:
+        # Format the response with structured feedback
+        # This is a more detailed feedback format specifically for assessment centres
+        feedback_text = model.query_model_for_feedback(
+            role=role, 
+            company=company, 
+            question=question, 
+            answer=transcript_data,
+            context="assessment centre evaluation"
+        )
+        
+        # Parse the feedback to extract strengths, improvements, and score
+        # This is a simple parsing approach - in a production system you might want
+        # to use a more structured approach with the model API
+        strengths = []
+        improvements = []
+        score = None
+        
+        # Extract a score if present (looking for patterns like "Score: 7/10" or "Rating: 8")
+        import re
+        score_match = re.search(r'(?:score|rating)\s*(?::|is)?\s*(\d+)(?:\s*\/\s*10)?', feedback_text.lower())
+        if score_match:
+            try:
+                score = int(score_match.group(1))
+                # Ensure score is between 1-10
+                score = max(1, min(10, score))
+            except:
+                score = None
+        
+        # Look for strengths section
+        strengths_section = re.search(r'(?:strengths|strong points|positives)\s*:(.+?)(?:improvements|areas for improvement|weaknesses|areas to improve|overall|conclusion|summary|$)', 
+                                     feedback_text.lower(), re.DOTALL)
+        if strengths_section:
+            # Extract bullet points or numbered items
+            strength_items = re.findall(r'(?:^|\n)\s*(?:\-|\*|\d+\.)\s*(.+?)(?=\n\s*(?:\-|\*|\d+\.)|$)', 
+                                       strengths_section.group(1), re.DOTALL)
+            if strength_items:
+                strengths = [item.strip() for item in strength_items if item.strip()]
+            else:
+                # If no bullet points, split by sentences
+                strength_text = strengths_section.group(1).strip()
+                strengths = [s.strip() for s in re.split(r'(?<=[.!?])\s+', strength_text) if s.strip()]
+        
+        # Look for improvements section
+        improvements_section = re.search(r'(?:improvements|areas for improvement|weaknesses|areas to improve)\s*:(.+?)(?:overall|conclusion|summary|$)', 
+                                       feedback_text.lower(), re.DOTALL)
+        if improvements_section:
+            # Extract bullet points or numbered items
+            improvement_items = re.findall(r'(?:^|\n)\s*(?:\-|\*|\d+\.)\s*(.+?)(?=\n\s*(?:\-|\*|\d+\.)|$)', 
+                                         improvements_section.group(1), re.DOTALL)
+            if improvement_items:
+                improvements = [item.strip() for item in improvement_items if item.strip()]
+            else:
+                # If no bullet points, split by sentences
+                improvement_text = improvements_section.group(1).strip()
+                improvements = [s.strip() for s in re.split(r'(?<=[.!?])\s+', improvement_text) if s.strip()]
+        
+        # Prepare the response
+        response = {
+            "feedback": feedback_text,
+            "strengths": strengths,
+            "improvements": improvements,
+            "score": score,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        return jsonify(response), 200
+    except Exception as e:
+        print(f"Error generating assessment centre feedback: {str(e)}")
+        return jsonify({"error": f"Error generating feedback: {str(e)}"}), 500
     
 
 # Save interview

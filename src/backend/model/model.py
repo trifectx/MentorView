@@ -2,6 +2,7 @@ from openai import OpenAI
 import re
 import os
 from dotenv import load_dotenv
+from openai import OpenAI
 
 class Model:
 
@@ -199,11 +200,17 @@ class Model:
             }
         ]
 
-    def query_model_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0):
+    def query_model_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0, context=None):
         try:
+            # If context is provided, use a modified prompt construction
+            if context and context == "assessment centre evaluation":
+                messages = self.construct_assessment_centre_prompt(role, company, question, answer)
+            else:
+                messages = self.construct_prompt_for_feedback(role, company, question, answer, wpm, filler_words, total_filler_words)
+                
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self.construct_prompt_for_feedback(role, company, question, answer, wpm, filler_words, total_filler_words), 
+                messages=messages, 
                 max_tokens=2000,  
                 temperature=0.7,   
                 stream=False
@@ -213,3 +220,22 @@ class Model:
         except Exception as e:
             print(f"Error in query_model_for_feedback: {str(e)}")
             return "Error evaluating answer. Please try again."
+            
+    def construct_assessment_centre_prompt(self, role, company, question, answer):
+        """Constructs a specialized prompt for assessment centre evaluations"""
+        prompt = [
+            {"role": "system", "content": f"You are an expert assessment centre evaluator for {company}. "
+                                       f"Your task is to evaluate a candidate's response to an assessment question. "
+                                       f"Provide detailed, constructive feedback in a structured format with clear sections."},
+            {"role": "user", "content": f"I am applying for a {role} position at {company}. "
+                                     f"In an assessment centre exercise, I was asked the following question: "
+                                     f"\"{question}\" "
+                                     f"Here is my response: \"{answer}\""},
+            {"role": "user", "content": f"Please evaluate my response with the following structure:\n"
+                                     f"1. Overall Feedback: A paragraph with general evaluation\n"
+                                     f"2. Strengths: Bullet points listing what I did well\n"
+                                     f"3. Areas for Improvement: Bullet points with specific suggestions\n"
+                                     f"4. Score: A rating out of 10\n"
+                                     f"Be specific, constructive, and actionable in your feedback."}
+        ]
+        return prompt

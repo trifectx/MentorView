@@ -1194,14 +1194,41 @@
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
-  max-width: 240px !important;
-  max-height: 180px !important;
 }
 
-.agora_video_player {
-  width: 240px !important;
-  height: 180px !important;
-  object-fit: cover !important;
+.feedback-improvements ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.feedback-improvements li {
+  color: #e9ecef;
+  margin-bottom: 6px;
+}
+
+/* Score display */
+.feedback-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 10px 16px;
+  background: rgba(0, 123, 255, 0.1);
+  border-radius: 4px;
+}
+
+.score-label {
+  font-weight: bold;
+  color: #e9ecef;
+}
+
+.score-value {
+  font-size: 18px;
+  font-weight: bold;
+  color: #007bff;
+  background: rgba(0, 123, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
 }
 
 [class*="agora-"] {

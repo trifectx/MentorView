@@ -13,6 +13,7 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
 import { SafeHtmlPipe } from '../../pipes/safe-html.pipe';
 import { ApiService } from '../../services/api.service';
 import { AgoraService } from '../../services/agora.service';
+import { AssessmentCentreService, AssessmentCentreFeedback } from '../../services/assessment-centre.service';
 import { COMPANIES, ROLES } from '../../components/interview-details/interview-details.constants';
 
 interface VideoSlot {
@@ -50,7 +51,7 @@ interface TranscriptEntry {
     SafeHtmlPipe
   ],
   templateUrl: './assessment-centre.component.html',
-  styleUrls: ['./assessment-centre.component.css'],
+  styleUrls: ['./assessment-centre.component.css', './assessment-centre.component-feedback.css'],
   animations: [
     trigger('slideInOut', [
       state('void', style({
@@ -131,6 +132,12 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   audioRecorders: { [key: number]: MediaRecorder } = {};
   audioChunks: { [key: number]: Blob[] } = {};
   audioBlobs: { [key: number]: Blob } = {};
+
+  // Participant feedback related properties
+  participantFeedback: { [participantIndex: number]: AssessmentCentreFeedback } = {};
+  isGeneratingFeedback: { [participantIndex: number]: boolean } = {};
+  feedbackGenerationError: { [participantIndex: number]: string } = {};
+  
   participantNames: { [participantIndex: number]: string } = {
     0: 'Main Participant',
     1: 'Remote Participant 1',
@@ -156,7 +163,11 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
 
   savedTranscripts: { [participantIndex: number]: string } = {};
 
-  constructor(private apiService: ApiService, private agoraService: AgoraService) {
+  constructor(
+    private apiService: ApiService, 
+    private agoraService: AgoraService,
+    private assessmentCentreService: AssessmentCentreService
+  ) {
     // Set up debounce for role input - wait 800ms after user stops typing
     this.roleInputSubject.pipe(
       debounceTime(800),
@@ -1349,6 +1360,116 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
    */
   getParticipantName(participantIndex: number): string {
     return this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`;
+  }
+  
+  /**
+   * Generates feedback for a participant's response
+   * @param participantIndex The index of the participant
+   */
+  generateParticipantFeedback(participantIndex: number): void {
+    // Get the participant's transcript
+    const transcript = this.getParticipantTranscript(participantIndex);
+    
+    // If there's no transcript, show an error
+    if (!transcript || transcript.trim().length === 0) {
+      this.feedbackGenerationError[participantIndex] = 'No transcript available. Record a response first.';
+      return;
+    }
+    
+    // If there's no question, show an error
+    if (!this.currentQuestion || this.currentQuestion.trim().length === 0) {
+      this.feedbackGenerationError[participantIndex] = 'No question available. Please add a question first.';
+      return;
+    }
+    
+    // Set loading state
+    this.isGeneratingFeedback[participantIndex] = true;
+    this.feedbackGenerationError[participantIndex] = '';
+    this.participantFeedback[participantIndex] = null; // Clear any previous feedback
+    
+    // Get participant name if available
+    const participantName = this.getParticipantName(participantIndex);
+    
+    // Ensure transcript is properly formatted for API
+    const formattedTranscript = transcript.trim();
+    
+    // Prepare data for API call
+    const data = {
+      role: this.role || 'Candidate',
+      company: this.company || 'Assessment Centre',
+      participantName: participantName,
+      transcript: formattedTranscript,
+      question: this.currentQuestion
+    };
+    
+    console.log(`Generating feedback for ${participantName} with data:`, data);
+    
+    // Use the dedicated assessment centre service for feedback
+    this.assessmentCentreService.generateParticipantFeedback(data).subscribe({
+      next: (response) => {
+        console.log(`Feedback received for ${participantName}:`, response);
+        if (response && response.feedback) {
+          this.participantFeedback[participantIndex] = response;
+          
+          // Scroll to the feedback section
+          setTimeout(() => {
+            const feedbackElement = document.querySelector(`.participant-${participantIndex} .feedback-content`);
+            if (feedbackElement) {
+              feedbackElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 100);
+        } else {
+          console.warn(`Empty feedback received for ${participantName}`);
+          this.feedbackGenerationError[participantIndex] = 'Received empty feedback from the server.';
+        }
+        this.isGeneratingFeedback[participantIndex] = false;
+      },
+      error: (error) => {
+        console.error(`Error generating feedback for ${participantName}:`, error);
+        // Provide more specific error message based on HTTP status
+        if (error.status === 400) {
+          this.feedbackGenerationError[participantIndex] = 'The server couldn\'t process this request. Please ensure the transcript and question are valid.';
+        } else if (error.status === 0) {
+          this.feedbackGenerationError[participantIndex] = 'Cannot connect to the server. Please check your internet connection.';
+        } else {
+          this.feedbackGenerationError[participantIndex] = `Error: ${error.message || 'Unknown error'}`;
+        }
+        this.isGeneratingFeedback[participantIndex] = false;
+      }
+    });
+  }
+  
+  /**
+   * Gets feedback for a participant if available
+   * @param participantIndex The index of the participant
+   */
+  getParticipantFeedback(participantIndex: number): string {
+    const feedback = this.participantFeedback[participantIndex];
+    return feedback ? feedback.feedback : '';
+  }
+  
+  /**
+   * Gets the full feedback object for a participant if available
+   * @param participantIndex The index of the participant
+   */
+  getParticipantFeedbackObject(participantIndex: number): AssessmentCentreFeedback | null {
+    return this.participantFeedback[participantIndex] || null;
+  }
+  
+  /**
+   * Checks if feedback is being generated for a participant
+   * @param participantIndex The index of the participant
+   */
+  isParticipantFeedbackLoading(participantIndex: number): boolean {
+    return this.isGeneratingFeedback[participantIndex] || false;
+  }
+  
+  /**
+   * Gets any error that occurred while generating feedback
+   * @param participantIndex The index of the participant
+   */
+  getParticipantFeedbackError(participantIndex: number): string {
+    return this.feedbackGenerationError[participantIndex] || '';
   }
   
   /**
