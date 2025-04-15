@@ -398,11 +398,23 @@
   color: white;
 }
 
-.scenario-title {
-  display: block;
+.section-title {
+  font-size: 24px;
   font-weight: 600;
-  margin-bottom: 8px;
-  color: rgb(41, 121, 255);
+  color: #ffffff;
+  margin-bottom: 20px;
+  text-align: center;
+  position: relative;
+}
+
+.section-title:after {
+  content: '';
+  display: block;
+  width: 50px;
+  height: 3px;
+  background-color: rgb(41, 121, 255);
+  margin: 8px auto 0;
+  border-radius: 2px;
 }
 
 .instructions-title {
@@ -552,10 +564,11 @@
 /* Combined Transcript Section */
 .combined-transcript-section {
   margin-top: 30px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  padding: 20px;
+  background-color: rgba(26, 26, 26, 0.9);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .transcript-content {
@@ -573,7 +586,7 @@
 }
 
 .participant-transcript-card {
-  background-color: #f9f9f9;
+  background-color: #1f1f1f;
   border-radius: 8px;
   padding: 15px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
@@ -584,13 +597,13 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #333;
   padding-bottom: 8px;
 }
 
 .participant-header h3 {
   margin: 0;
-  color: #333;
+  color: #ffffff;
   font-size: 18px;
 }
 
@@ -602,19 +615,24 @@
 .participant-transcript-text {
   margin-top: 10px;
   font-size: 16px;
-  color: #333;
+  color: #ffffff;
   line-height: 1.6;
   white-space: pre-wrap;
 }
 
 .audio-player-container {
-  margin: 10px 0;
+  margin: 15px 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Real-time transcription during recording */
 .realtime-transcripts {
   margin-top: 20px;
-  background-color: #f0f7ff;
+  background-color: #1f1f1f;
   border-radius: 8px;
   padding: 15px;
 }
@@ -633,7 +651,7 @@
 }
 
 .participant-transcript {
-  background-color: white;
+  background-color: #1f1f1f;
   border-radius: 6px;
   padding: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -643,6 +661,7 @@
   font-weight: 600;
   font-size: 16px;
   margin-bottom: 5px;
+  color: #ffffff;
 }
 
 .recording-indicator-small {
@@ -659,7 +678,7 @@
   font-style: italic;
   color: #666;
   margin-bottom: 5px;
-  background-color: #f5f5f5;
+  background-color: #333;
   padding: 5px;
   border-radius: 4px;
 }
@@ -683,44 +702,65 @@
 .recording-indicator-large {
   display: flex;
   align-items: center;
-  margin-bottom: 15px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .recording-pulse {
   width: 16px;
   height: 16px;
-  background-color: #ff3b30;
+  background-color: rgba(255, 59, 48, 0.9);
   border-radius: 50%;
-  margin-right: 10px;
   animation: pulse 1.5s infinite;
 }
 
+.recording-indicator-large span {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 18px;
+}
+
 .recording-transcript-note {
-  color: #666;
+  color: #b3b3b3;
   font-size: 14px;
-  margin-top: 5px;
+  margin-top: 8px;
 }
 
 /* Save button styling */
 .save-btn {
-  background-color: #4CAF50;
+  background-color: rgba(48, 209, 88, 0.2);
   color: white;
-  border: none;
+  border: 1px solid rgba(48, 209, 88, 0.4);
   padding: 10px 20px;
-  border-radius: 4px;
-  margin-top: 15px;
+  border-radius: 6px;
+  margin-top: 20px;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color 0.3s;
+  transition: all 0.3s;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.save-btn:hover {
-  background-color: #45a049;
+.save-btn:hover:not([disabled]) {
+  background-color: rgba(48, 209, 88, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.save-btn:active:not([disabled]) {
+  transform: translateY(0);
 }
 
 .save-btn:disabled {
-  background-color: #a5d6a7;
+  background-color: rgba(48, 209, 88, 0.05);
+  border: 1px solid rgba(48, 209, 88, 0.1);
+  color: rgba(255, 255, 255, 0.4);
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .error-message {
@@ -1667,48 +1707,68 @@ video {
   margin-top: 10px;
 }
 
-/* Transcript display styling */
+/* Transcript display styling - matching the interview component */
 .participant-transcript-card {
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background-color: rgba(26, 26, 26, 0.9);
+  border-radius: 10px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.participant-transcript-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
 .participant-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
 }
 
 .participant-header h3 {
   margin: 0;
   font-size: 1.2rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: #ffffff;
 }
 
 .participant-duration {
   font-size: 0.9rem;
-  color: #666;
+  color: #b3b3b3;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 .participant-transcript-text {
-  font-size: 1rem;
-  line-height: 1.5;
-  color: #333;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #b3b3b3;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  max-height: 400px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .no-transcript-message {
-  color: #666;
+  color: #b3b3b3;
   font-style: italic;
   margin-top: 10px;
-  padding: 10px;
-  background-color: #f1f1f1;
-  border-radius: 4px;
+  padding: 15px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .transcript-action-buttons {

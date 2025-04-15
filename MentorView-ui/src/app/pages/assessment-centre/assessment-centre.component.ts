@@ -119,10 +119,15 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   isChannelJoined = false;
   speechRecognition: any = null;
   transcriptionActive = false;
+  
+  // Client-side transcripts
   participantTranscripts: { [participantIndex: number]: string } = {};
   participantInterimTranscripts: { [participantIndex: number]: string } = {};
   participantAudioDurations: { [participantIndex: number]: number } = {};
   isTranscribing = false;
+  
+  // Audio URL storage (without creating DOM elements)
+  audioUrls: { [participantIndex: number]: string } = {};
   audioRecorders: { [key: number]: MediaRecorder } = {};
   audioChunks: { [key: number]: Blob[] } = {};
   audioBlobs: { [key: number]: Blob } = {};
@@ -868,7 +873,12 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
           
           console.log(`Audio blob created for participant ${participantIndex}, size: ${audioBlob.size} bytes`);
           
-          // Immediately create a simple transcript from the audio for immediate feedback
+          // Store audio URL for functionality but don't create visible DOM elements
+          const audioUrl = URL.createObjectURL(audioBlob);
+          this.audioUrls = this.audioUrls || {};
+          this.audioUrls[participantIndex] = audioUrl;
+          
+          // Process the audio for transcription
           this.createSimpleTranscript(participantIndex, audioBlob);
         } else {
           console.warn(`No audio chunks available for participant ${participantIndex}`);
@@ -913,66 +923,63 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
     const participantName = this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`;
     this.addParticipantTranscript(
       participantIndex, 
-      `[${participantName} spoke for approximately ${estimatedDuration} seconds (~${estimatedWords} words). Audio captured successfully.]`
+      `[${participantName} spoke for approximately ${estimatedDuration} seconds (~${estimatedWords} words). Processing audio...]`
     );
     
-    // Try to create an audio player for review
+    // Create audio URL without creating visible DOM elements
     try {
+      // Just store the URL in memory for audio processing
       const audioUrl = URL.createObjectURL(audioBlob);
-      console.log(`Created audio URL for participant ${participantIndex}: ${audioUrl}`);
+      this.audioUrls = this.audioUrls || {};
+      this.audioUrls[participantIndex] = audioUrl;
       
-      // Add an audio player element that's visible for verification
-      if (!document.getElementById(`audio-player-${participantIndex}`)) {
-        const audioContainer = document.createElement('div');
-        audioContainer.id = `audio-container-${participantIndex}`;
-        audioContainer.style.margin = '10px 0';
-        
-        const label = document.createElement('p');
-        label.textContent = `${participantName} Recording:`;
-        label.style.margin = '5px 0';
-        label.style.fontWeight = 'bold';
-        audioContainer.appendChild(label);
-        
-        const audioElement = document.createElement('audio');
-        audioElement.id = `audio-player-${participantIndex}`;
-        audioElement.controls = true;
-        audioElement.src = audioUrl;
-        audioElement.style.width = '100%';
-        audioContainer.appendChild(audioElement);
-        
-        // Add a download button
-        const downloadButton = document.createElement('button');
-        downloadButton.textContent = 'Download Audio';
-        downloadButton.style.marginTop = '5px';
-        downloadButton.style.padding = '5px 10px';
-        downloadButton.style.backgroundColor = '#4CAF50';
-        downloadButton.style.color = 'white';
-        downloadButton.style.border = 'none';
-        downloadButton.style.borderRadius = '4px';
-        downloadButton.style.cursor = 'pointer';
-        downloadButton.onclick = () => {
-          const downloadLink = document.createElement('a');
-          downloadLink.href = audioUrl;
-          downloadLink.download = `participant_${participantIndex}_audio.webm`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-        };
-        audioContainer.appendChild(downloadButton);
-        
-        // Find the transcript container to add the audio player
-        const transcriptContainer = document.querySelector('.combined-transcript-section');
-        if (transcriptContainer) {
-          transcriptContainer.appendChild(audioContainer);
-        } else {
-          // Fallback to body if transcript container not found
-          document.body.appendChild(audioContainer);
-        }
-        
-        console.log(`Added audio player for participant ${participantIndex}`);
-      }
+      // Ensure the audio blob is available for server-side transcription
+      console.log(`Audio ready for transcription for participant ${participantIndex}`);
     } catch (error) {
-      console.error(`Error creating audio player for participant ${participantIndex}:`, error);
+      console.error(`Error processing audio for participant ${participantIndex}:`, error);
+    }
+  }
+  
+  /**
+   * Creates a hidden audio player to facilitate transcription while keeping it invisible
+   * This allows transcript functionality to work without displaying audio players
+   * @param participantIndex The index of the participant
+   * @param audioBlob The audio blob to use
+   */
+  private createHiddenAudioPlayer(participantIndex: number, audioBlob: Blob): void {
+    try {
+      // Create URL for the audio blob
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Store the URL in our map for future reference
+      this.audioUrls = this.audioUrls || {};
+      this.audioUrls[participantIndex] = audioUrl;
+      
+      // Find the container for this participant
+      const containerId = `audio-container-${participantIndex}`;
+      const container = document.getElementById(containerId);
+      
+      // Skip if no container was found
+      if (!container) {
+        console.log(`Audio container ${containerId} not found, skipping player creation`);
+        return;
+      }
+      
+      // Clear any existing content
+      container.innerHTML = '';
+      
+      // Create audio element (but it will be hidden by CSS)
+      const audioElement = document.createElement('audio');
+      audioElement.controls = true;
+      audioElement.src = audioUrl;
+      audioElement.style.display = 'none'; // Hide it completely
+      
+      // Append the audio element to the container
+      container.appendChild(audioElement);
+      
+      console.log(`Hidden audio player created for participant ${participantIndex}`);
+    } catch (error) {
+      console.error(`Error creating hidden audio player for participant ${participantIndex}:`, error);
     }
   }
 
@@ -1004,8 +1011,8 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
         participantName: this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`
       });
       
-      // Create an audio element to verify the audio
-      this.createAudioPlayer(participantIndex, audioBlob);
+      // Create audio players but keep them hidden for transcript functionality
+      this.createHiddenAudioPlayer(participantIndex, audioBlob);
     });
     
     // If no audio blobs were recorded, show a message and stop here
@@ -1848,119 +1855,16 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   /**
-   * Create a visible audio player for a participant's audio
-   * @param participantIndex The index of the participant
-   * @param audioBlob The audio blob to play
-   */
-  private createAudioPlayer(participantIndex: number, audioBlob: Blob): void {
-    try {
-      const audioUrl = URL.createObjectURL(audioBlob);
-      console.log(`Created audio URL for participant ${participantIndex}: ${audioUrl}`);
-      
-      // Add an audio player element that's visible for verification
-      const containerId = `audio-container-${participantIndex}`;
-      const container = document.getElementById(containerId);
-      
-      if (container) {
-        // Clear existing content
-        container.innerHTML = '';
-        
-        // Create audio element
-        const audioElement = document.createElement('audio');
-        audioElement.id = `audio-player-${participantIndex}`;
-        audioElement.controls = true;
-        audioElement.src = audioUrl;
-        audioElement.style.width = '100%';
-        container.appendChild(audioElement);
-        
-        // Add a download button
-        const downloadButton = document.createElement('button');
-        downloadButton.textContent = 'Download Audio';
-        downloadButton.style.marginTop = '5px';
-        downloadButton.style.padding = '5px 10px';
-        downloadButton.style.backgroundColor = '#4CAF50';
-        downloadButton.style.color = 'white';
-        downloadButton.style.border = 'none';
-        downloadButton.style.borderRadius = '4px';
-        downloadButton.style.cursor = 'pointer';
-        downloadButton.onclick = () => {
-          const downloadLink = document.createElement('a');
-          downloadLink.href = audioUrl;
-          downloadLink.download = `participant_${participantIndex}_audio.webm`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-        };
-        container.appendChild(downloadButton);
-        
-        // Find the transcript container to add the audio player
-        const transcriptContainer = document.querySelector('.combined-transcript-section');
-        if (transcriptContainer) {
-          transcriptContainer.appendChild(container);
-        } else {
-          // Fallback to body if transcript container not found
-          document.body.appendChild(container);
-        }
-        
-        console.log(`Added audio player to existing container for participant ${participantIndex}`);
-      } else {
-        console.warn(`Container #${containerId} not found in the DOM - will create it when page refreshes`);
-        // Create a container dynamically if it doesn't exist
-        const audioContainer = document.createElement('div');
-        audioContainer.id = containerId;
-        audioContainer.style.margin = '10px 0';
-        audioContainer.style.padding = '10px';
-        audioContainer.style.border = '1px solid #ddd';
-        audioContainer.style.borderRadius = '5px';
-        
-        const label = document.createElement('p');
-        label.textContent = `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`} Recording:`;
-        label.style.margin = '5px 0';
-        label.style.fontWeight = 'bold';
-        audioContainer.appendChild(label);
-        
-        const audioElement = document.createElement('audio');
-        audioElement.id = `audio-player-${participantIndex}`;
-        audioElement.controls = true;
-        audioElement.src = audioUrl;
-        audioElement.style.width = '100%';
-        audioContainer.appendChild(audioElement);
-        
-        // Add a download button
-        const downloadButton = document.createElement('button');
-        downloadButton.textContent = 'Download Audio';
-        downloadButton.className = 'download-audio-btn';
-        downloadButton.onclick = () => {
-          const downloadLink = document.createElement('a');
-          downloadLink.href = audioUrl;
-          downloadLink.download = `participant_${participantIndex}_audio.webm`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-        };
-        audioContainer.appendChild(downloadButton);
-        
-        // Find the transcript container to add the audio player
-        const transcriptContainer = document.querySelector('.combined-transcript-section');
-        if (transcriptContainer) {
-          transcriptContainer.appendChild(audioContainer);
-        } else {
-          // Fallback to body if transcript container not found
-          document.body.appendChild(audioContainer);
-        }
-      }
-    } catch (error) {
-      console.error(`Error creating audio player for participant ${participantIndex}:`, error);
-    }
+    return Object.keys(this.audioBlobs).length > 0;
   }
-
+  
   /**
    * Checks if there are any recorded audio files for transcription
    */
   hasRecordedAudio(): boolean {
     return Object.keys(this.audioBlobs).length > 0;
   }
-  
+
   /**
    * Display transcripts for all participants that have recorded audio
    */

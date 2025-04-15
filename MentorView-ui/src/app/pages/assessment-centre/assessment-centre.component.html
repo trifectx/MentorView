@@ -179,15 +179,13 @@
                     {{ getParticipantAudioDuration(participantId) }} seconds
                   </span>
                 </div>
-                <div class="audio-player-container">
-                  <!-- Audio player will be injected here via code -->
-                  <div id="audio-container-{{participantId}}"></div>
-                </div>
+                <!-- Audio player container hidden but functionality maintained -->
+                <div id="audio-container-{{participantId}}" style="display: none;"></div>
                 <div class="participant-transcript-text">
-                  <div *ngIf="combinedTranscript && combinedTranscript.length > 0">
+                  <div *ngIf="getParticipantTranscript(participantId) && getParticipantTranscript(participantId) !== 'No transcript available for this participant.'">
                     <p>{{ getParticipantTranscript(participantId) }}</p>
                   </div>
-                  <div *ngIf="!combinedTranscript || combinedTranscript.length === 0" class="no-transcript-message">
+                  <div *ngIf="!getParticipantTranscript(participantId) || getParticipantTranscript(participantId) === 'No transcript available for this participant.'" class="no-transcript-message">
                     Waiting for transcript from OpenAI GPT... Audio saved successfully. 
                     <div class="transcript-action-buttons">
                       <button class="retry-transcription-btn" (click)="retryTranscription(participantId)">
@@ -206,7 +204,7 @@
           </div>
         </div>
         
-        <!-- Direct transcription button after interview ends -->
+        <!-- Display All Transcripts button -->
         <div class="post-interview-actions" *ngIf="!isRecording && hasRecordedAudio()">
           <button class="display-all-transcripts-btn" (click)="displayAllTranscripts()">
             <span class="material-icons">description</span>
