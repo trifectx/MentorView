@@ -1092,83 +1092,36 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       "Processing audio with OpenAI GPT for high-quality transcription..."
     );
     
-    // Create a form data object to send the audio
-    const formData = new FormData();
-    formData.append('file', audioBlob, `participant_${participantIndex}_audio.webm`);
-    formData.append('participantIndex', participantIndex.toString());
-    formData.append('participantName', this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`);
-    
-    // Set up timeout to handle long-running transcription
-    const transcriptionTimeout = setTimeout(() => {
-      console.log(`Transcription timeout for participant ${participantIndex}, using fallback method`);
-      
-      // Use the participant transcript if we have one from real-time recognition
-      if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
-        this.addParticipantTranscript(
-          participantIndex, 
-          `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`
-        );
-      } else {
-        // Fall back to duration-based message
-        this.addParticipantTranscript(
-          participantIndex, 
-          `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`} spoke for approximately ${Math.round(audioBlob.size / 16000)} seconds (~${Math.round(Math.round(audioBlob.size / 16000) * 2.5)} words). Audio captured successfully but transcription timed out.`
-        );
-      }
-      
-      // Update loading state
-      if (participantIndex in this.videoSlots) {
-        this.videoSlots[participantIndex].loadingTranscript = false;
-      }
-      
-      // Call completion callback
-      onComplete();
-    }, 45000); // Increased timeout for OpenAI processing (45 seconds)
-    
-    // Send to the server for transcription using the direct URL approach
-    this.apiService.uploadAudioForTranscription(formData).subscribe({
+    // Use the simpler direct transcription method similar to interview component
+    this.apiService.transcribeAudioFile(audioBlob).subscribe({
       next: (response) => {
-        // Clear timeout since we got a response
-        clearTimeout(transcriptionTimeout);
-        
         console.log(`Transcription received for participant ${participantIndex}:`, response);
         
-        // Update transcript UI - handle enhanced response format
-        if (response) {
-          if (response.transcript) {
-            // Update with the formatted transcript
-            this.addParticipantTranscript(participantIndex, response.transcript);
-            
-            // Store raw transcript for later use
-            if (response.rawTranscript) {
-              this.participantTranscripts[participantIndex] = response.rawTranscript;
-            }
-            
-            // Process complete, show success message
-            console.log(`Transcription successfully processed for participant ${participantIndex}`);
-            
-            // Also save the transcript separately
-            this.saveTranscriptLocally(participantIndex, response.transcript);
-          } else {
-            console.warn(`No transcript data in response for participant ${participantIndex}`);
-            
-            // Use any real-time transcript we collected as a fallback
-            if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
-              this.addParticipantTranscript(
-                participantIndex, 
-                `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`
-              );
-              
-              // Save the transcript locally
-              this.saveTranscriptLocally(participantIndex, this.participantTranscripts[participantIndex]);
-            } else {
-              this.addParticipantTranscript(participantIndex, "No transcript available from server. Speech was recorded for the interview.");
-            }
-          }
+        // Update transcript UI if we have a valid response
+        if (response && response.transcript) {
+          const formattedTranscript = `${this.getParticipantName(participantIndex)}: ${response.transcript}`;
+          this.addParticipantTranscript(participantIndex, formattedTranscript);
+          
+          // Store the raw transcript for potential reuse
+          this.participantTranscripts[participantIndex] = response.transcript;
+          
+          // Also save the transcript separately for persistence
+          this.saveTranscriptLocally(participantIndex, formattedTranscript);
+          
+          console.log(`Transcription successfully processed for participant ${participantIndex}`);
         } else {
-          // Handle empty response
-          console.error(`Empty response for participant ${participantIndex} transcription`);
-          this.addParticipantTranscript(participantIndex, "Error: Empty response from transcription service.");
+          console.warn(`No transcript data in response for participant ${participantIndex}`);
+          
+          // Use any real-time transcript we collected as a fallback
+          if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
+            const fallbackText = `${this.getParticipantName(participantIndex)}: ${this.participantTranscripts[participantIndex]}`;
+            this.addParticipantTranscript(participantIndex, fallbackText);
+            
+            // Save the transcript locally
+            this.saveTranscriptLocally(participantIndex, fallbackText);
+          } else {
+            this.addParticipantTranscript(participantIndex, "No transcript available from server. Speech was recorded for the interview.");
+          }
         }
         
         // Update loading state
@@ -1180,14 +1133,11 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
         onComplete();
       },
       error: (error) => {
-        // Clear timeout since we got a response (albeit an error)
-        clearTimeout(transcriptionTimeout);
-        
         console.error(`Error transcribing audio for participant ${participantIndex}:`, error);
         
         // Use any real-time transcript we collected as a fallback
         if (this.participantTranscripts[participantIndex] && this.participantTranscripts[participantIndex].trim() !== '') {
-          const fallbackText = `${this.participantNames[participantIndex] || `Participant ${participantIndex + 1}`}: ${this.participantTranscripts[participantIndex]}`;
+          const fallbackText = `${this.getParticipantName(participantIndex)}: ${this.participantTranscripts[participantIndex]}`;
           this.addParticipantTranscript(participantIndex, fallbackText);
           
           // Save the fallback transcript locally
@@ -2108,9 +2058,47 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       this.videoSlots[participantIndex].loadingTranscript = true;
     }
     
-    // Process the audio again
-    this.processParticipantAudio(participantIndex, this.audioBlobs[participantIndex], () => {
-      console.log(`Transcription retry completed for participant ${participantIndex}`);
+    // Use the simplified transcription approach directly
+    this.apiService.transcribeAudioFile(this.audioBlobs[participantIndex]).subscribe({
+      next: (response) => {
+        console.log(`Retry transcription received for participant ${participantIndex}:`, response);
+        
+        if (response && response.transcript) {
+          const formattedTranscript = `${this.getParticipantName(participantIndex)}: ${response.transcript}`;
+          this.addParticipantTranscript(participantIndex, formattedTranscript);
+          
+          // Store the raw transcript
+          this.participantTranscripts[participantIndex] = response.transcript;
+          
+          // Save locally for persistence
+          this.saveTranscriptLocally(participantIndex, formattedTranscript);
+          
+          console.log(`Retry transcription successfully processed for participant ${participantIndex}`);
+        } else {
+          console.warn(`No transcript data in retry response for participant ${participantIndex}`);
+          this.addParticipantTranscript(
+            participantIndex, 
+            "Transcription retry failed. Please try again or use manual transcription."
+          );
+        }
+        
+        // Update loading state
+        if (participantIndex in this.videoSlots) {
+          this.videoSlots[participantIndex].loadingTranscript = false;
+        }
+      },
+      error: (error) => {
+        console.error(`Error retrying transcription for participant ${participantIndex}:`, error);
+        this.addParticipantTranscript(
+          participantIndex, 
+          `Error during transcription retry: ${error.message || 'Unknown error'}. Please try again.`
+        );
+        
+        // Update loading state
+        if (participantIndex in this.videoSlots) {
+          this.videoSlots[participantIndex].loadingTranscript = false;
+        }
+      }
     });
   }
 
