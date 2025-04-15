@@ -12,7 +12,7 @@ declare global {
 export class AgoraService {
   // Agora credentials
   private APP_ID = 'befd2ffdc25840beafaaea7d193ace93';
-  private TOKEN = '007eJxTYFix4LVK/sR21c8G+h0Jbae0tOfPcve7dIzh3Jp3s1LaudkUGJJS01KM0tJSko1MLUwMklIT0xITUxPNUwwtjROTUy2NmyP+pjcEMjKkP1nGyMgAgSA+C0NuYmYeAwMAmWshRQ==';
+  private TOKEN = '007eJxTYJiWvq9aXbjTPKptU+aZs95yXavUNvCYJAQdUrwpd2ea31UFhqTUtBSjtLSUZCNTCxODpNTEtMTE1ETzFENL48TkVEtj6cP/0hsCGRlu5+xkZWSAQBCfhSE3MTOPgQEAU98grg==';
   private CHANNEL = 'main';
 
   public client: any = null;
