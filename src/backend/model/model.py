@@ -222,20 +222,31 @@ class Model:
             return "Error evaluating answer. Please try again."
             
     def construct_assessment_centre_prompt(self, role, company, question, answer):
-        """Constructs a specialized prompt for assessment centre evaluations"""
+        """Constructs a specialized prompt for assessment centre evaluations with focus on team interactions"""
         prompt = [
             {"role": "system", "content": f"You are an expert assessment centre evaluator for {company}. "
-                                       f"Your task is to evaluate a candidate's response to an assessment question. "
-                                       f"Provide detailed, constructive feedback in a structured format with clear sections."},
-            {"role": "user", "content": f"I am applying for a {role} position at {company}. "
-                                     f"In an assessment centre exercise, I was asked the following question: "
-                                     f"\"{question}\" "
-                                     f"Here is my response: \"{answer}\""},
-            {"role": "user", "content": f"Please evaluate my response with the following structure:\n"
-                                     f"1. Overall Feedback: A paragraph with general evaluation\n"
-                                     f"2. Strengths: Bullet points listing what I did well\n"
-                                     f"3. Areas for Improvement: Bullet points with specific suggestions\n"
-                                     f"4. Score: A rating out of 10\n"
-                                     f"Be specific, constructive, and actionable in your feedback."}
+                                       f"Your task is to evaluate a participant's contribution in a team exercise. "
+                                       f"Focus specifically on how well they interact with the team, involve other members, "
+                                       f"and contribute to the group discussion. Pay special attention to whether they refer to "
+                                       f"others by name and how they balance speaking time with listening. "
+                                       f"The transcript will be provided in chronological order with timestamps and speaker names."},
+            
+            {"role": "user", "content": f"This is a chronological transcript from an assessment centre group exercise for a {role} position at {company}. "
+                                     f"The group was discussing the following question/task: \"{question}\" "
+                                     f"Here is the transcript of the discussion with timestamps and speaker names:\n\n{answer}"},
+            
+            {"role": "user", "content": f"Please analyze the conversation flow and evaluate the participants' contributions with the following structure:\n"
+                                     f"1. Overall Team Contribution: Evaluate how effectively each participant contributed to the team discussion. "
+                                     f"Note who took leadership roles and who was more passive.\n"
+                                     f"2. Team Interaction: Assess how well participants engaged with each other, referenced team members by name, "
+                                     f"and encouraged participation from quieter members. Note specific examples from the transcript.\n"
+                                     f"3. Strengths: Bullet points highlighting positive aspects of the team collaboration\n"
+                                     f"4. Areas for Improvement: Bullet points with specific suggestions for better team interaction\n"
+                                     f"5. Participation Balance: Analyze the balance of speaking time among participants. Who dominated the conversation? "
+                                     f"Who was too quiet? Was there a good balance of contributions?\n"
+                                     f"6. Individual Assessments: Brief assessment of each participant's contribution, noting their strengths and areas for improvement\n"
+                                     f"7. Score: A rating out of 10 for the overall team collaboration\n"
+                                     f"Be specific, constructive, and actionable in your feedback. Reference specific timestamps and quotes from the "
+                                     f"transcript to support your evaluation. Pay attention to how the conversation evolved over time."}
         ]
         return prompt

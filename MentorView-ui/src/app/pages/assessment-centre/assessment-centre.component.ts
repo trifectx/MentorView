@@ -1363,7 +1363,65 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   }
   
   /**
-   * Generates feedback for a participant's response
+   * Format transcripts chronologically with speaker indicators
+   * This combines all participant transcripts into a single chronological conversation
+   * @returns Formatted transcript string with speaker indicators and timestamps
+   */
+  formatChronologicalTranscript(): string {
+    // Create a combined array of transcript entries with participant info
+    const allTranscriptEntries: Array<{
+      participantIndex: number,
+      participantName: string,
+      text: string,
+      timestamp: Date
+    }> = [];
+    
+    // Process each participant's transcript
+    Object.entries(this.participantTranscripts).forEach(([participantIndexStr, transcript]) => {
+      if (!transcript) return;
+      
+      const participantIndex = parseInt(participantIndexStr);
+      const participantName = this.getParticipantName(participantIndex);
+      
+      // Split transcript into sentences and add them as separate entries
+      // This is a simple approach - in a real system we might have more precise timestamps
+      const sentences = transcript.split(/(?<=[.!?])\s+/);
+      
+      // Create a timestamp for each sentence (for demo purposes, we'll space them 5 seconds apart)
+      const baseTime = new Date();
+      baseTime.setMinutes(baseTime.getMinutes() - sentences.length); // Start from minutes ago
+      
+      sentences.forEach((sentence, index) => {
+        if (!sentence.trim()) return;
+        
+        const entryTime = new Date(baseTime);
+        entryTime.setSeconds(entryTime.getSeconds() + (index * 5)); // Add 5 seconds per sentence
+        
+        allTranscriptEntries.push({
+          participantIndex,
+          participantName,
+          text: sentence.trim(),
+          timestamp: entryTime
+        });
+      });
+    });
+    
+    // Sort all entries chronologically
+    allTranscriptEntries.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    
+    // Format the combined transcript with speaker indicators and timestamps
+    let formattedTranscript = '';
+    
+    allTranscriptEntries.forEach(entry => {
+      const timeString = entry.timestamp.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+      formattedTranscript += `[${timeString}] ${entry.participantName}: ${entry.text}\n`;
+    });
+    
+    return formattedTranscript.trim();
+  }
+
+  /**
+   * Generate feedback for a participant's response
    * @param participantIndex The index of the participant
    */
   generateParticipantFeedback(participantIndex: number): void {
@@ -1382,30 +1440,41 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
       return;
     }
     
-    // Set loading state
+    // Mark as loading
     this.isGeneratingFeedback[participantIndex] = true;
-    this.feedbackGenerationError[participantIndex] = '';
-    this.participantFeedback[participantIndex] = null; // Clear any previous feedback
+    this.feedbackGenerationError[participantIndex] = null;
     
-    // Get participant name if available
+    // Get the participant name
     const participantName = this.getParticipantName(participantIndex);
     
-    // Ensure transcript is properly formatted for API
-    const formattedTranscript = transcript.trim();
+    // Format the transcript chronologically with all participant contributions
+    // This gives better context for the AI to evaluate team interactions
+    const chronologicalTranscript = this.formatChronologicalTranscript();
     
-    // Prepare data for API call
+    // Get names of other participants for team interaction analysis
+    const otherParticipants: string[] = [];
+    
+    // Extract names of other participants from the participantNames object
+    Object.entries(this.participantNames).forEach(([idx, name]) => {
+      if (parseInt(idx) !== participantIndex && name) {
+        otherParticipants.push(name);
+      }
+    });
+    
+    // Prepare data for the feedback request
     const data = {
       role: this.role || 'Candidate',
       company: this.company || 'Assessment Centre',
       participantName: participantName,
-      transcript: formattedTranscript,
-      question: this.currentQuestion
+      transcript: chronologicalTranscript,
+      question: this.currentQuestion,
+      otherParticipants: otherParticipants
     };
     
-    console.log(`Generating feedback for ${participantName} with data:`, data);
+    console.log(`Generating feedback for ${participantName} with chronological transcript:`, data);
     
     // Use the dedicated assessment centre service for feedback
-    this.assessmentCentreService.generateParticipantFeedback(data).subscribe({
+    this.assessmentCentreService.generateFeedback(data).subscribe({
       next: (response) => {
         console.log(`Feedback received for ${participantName}:`, response);
         if (response && response.feedback) {
@@ -1449,11 +1518,30 @@ export class AssessmentCentreComponent implements OnInit, OnDestroy, AfterViewIn
   }
   
   /**
-   * Gets the full feedback object for a participant if available
-   * @param participantIndex The index of the participant
+   * Get the feedback object for a participant
+   * @param participantIndex Index of the participant
+   * @returns The feedback object or undefined
    */
-  getParticipantFeedbackObject(participantIndex: number): AssessmentCentreFeedback | null {
-    return this.participantFeedback[participantIndex] || null;
+  getParticipantFeedbackObject(participantIndex: number): AssessmentCentreFeedback | undefined {
+    return this.participantFeedback[participantIndex];
+  }
+  
+  /**
+   * Helper method to get object keys for use in templates
+   * @param obj The object to get keys from
+   * @returns Array of keys
+   */
+  objectKeys(obj: any): string[] {
+    return obj ? Object.keys(obj) : [];
+  }
+  
+  /**
+   * Helper method to get object entries for use in templates
+   * @param obj The object to get entries from
+   * @returns Array of key-value pairs
+   */
+  objectEntries(obj: any): [string, any][] {
+    return obj ? Object.entries(obj) : [];
   }
   
   /**

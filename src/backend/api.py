@@ -192,6 +192,7 @@ def assessment_centre_feedback(data=None):
     question = data.get('question', '')
     transcript_data = data.get('transcript', '')
     participant_name = data.get('participantName', 'Participant')
+    other_participants = data.get('otherParticipants', [])
     
     # Check if required fields are present
     if not all([question, transcript_data]):
@@ -208,15 +209,20 @@ def assessment_centre_feedback(data=None):
             context="assessment centre evaluation"
         )
         
-        # Parse the feedback to extract strengths, improvements, and score
-        # This is a simple parsing approach - in a production system you might want
-        # to use a more structured approach with the model API
+        # Parse the feedback to extract various sections
+        import re
+        
+        # Initialize response sections
         strengths = []
         improvements = []
+        team_contribution = ""
+        team_interaction = ""
+        participation_balance = ""
+        individual_assessments = {}
         score = None
+        name_references = {}
         
         # Extract a score if present (looking for patterns like "Score: 7/10" or "Rating: 8")
-        import re
         score_match = re.search(r'(?:score|rating)\s*(?::|is)?\s*(\d+)(?:\s*\/\s*10)?', feedback_text.lower())
         if score_match:
             try:
@@ -226,8 +232,26 @@ def assessment_centre_feedback(data=None):
             except:
                 score = None
         
+        # Extract team contribution section
+        team_contribution_section = re.search(r'(?:overall team contribution|team contribution)\s*:(.+?)(?:team interaction|strengths|improvements|areas for improvement|participation balance|score|$)', 
+                                            feedback_text.lower(), re.DOTALL)
+        if team_contribution_section:
+            team_contribution = team_contribution_section.group(1).strip()
+        
+        # Extract team interaction section
+        team_interaction_section = re.search(r'(?:team interaction)\s*:(.+?)(?:strengths|improvements|areas for improvement|participation balance|score|$)', 
+                                           feedback_text.lower(), re.DOTALL)
+        if team_interaction_section:
+            team_interaction = team_interaction_section.group(1).strip()
+        
+        # Extract participation balance section
+        participation_section = re.search(r'(?:participation balance)\s*:(.+?)(?:score|conclusion|summary|$)', 
+                                        feedback_text.lower(), re.DOTALL)
+        if participation_section:
+            participation_balance = participation_section.group(1).strip()
+        
         # Look for strengths section
-        strengths_section = re.search(r'(?:strengths|strong points|positives)\s*:(.+?)(?:improvements|areas for improvement|weaknesses|areas to improve|overall|conclusion|summary|$)', 
+        strengths_section = re.search(r'(?:strengths)\s*:(.+?)(?:improvements|areas for improvement|weaknesses|areas to improve|participation balance|score|overall|conclusion|summary|$)', 
                                      feedback_text.lower(), re.DOTALL)
         if strengths_section:
             # Extract bullet points or numbered items
@@ -241,7 +265,7 @@ def assessment_centre_feedback(data=None):
                 strengths = [s.strip() for s in re.split(r'(?<=[.!?])\s+', strength_text) if s.strip()]
         
         # Look for improvements section
-        improvements_section = re.search(r'(?:improvements|areas for improvement|weaknesses|areas to improve)\s*:(.+?)(?:overall|conclusion|summary|$)', 
+        improvements_section = re.search(r'(?:improvements|areas for improvement|weaknesses|areas to improve)\s*:(.+?)(?:participation balance|score|overall|conclusion|summary|$)', 
                                        feedback_text.lower(), re.DOTALL)
         if improvements_section:
             # Extract bullet points or numbered items
@@ -254,11 +278,34 @@ def assessment_centre_feedback(data=None):
                 improvement_text = improvements_section.group(1).strip()
                 improvements = [s.strip() for s in re.split(r'(?<=[.!?])\s+', improvement_text) if s.strip()]
         
+        # Count name references if other participants are provided
+        if other_participants and isinstance(other_participants, list):
+            for participant in other_participants:
+                if isinstance(participant, str) and participant.strip():
+                    # Count occurrences of the participant's name in the transcript
+                    name_count = len(re.findall(r'\b' + re.escape(participant.strip()) + r'\b', transcript_data, re.IGNORECASE))
+                    name_references[participant.strip()] = name_count
+        
+        # Extract individual assessments section
+        individual_assessments_section = re.search(r'(?:individual assessments)\s*:(.+?)(?:score|conclusion|summary|$)', 
+                                                 feedback_text.lower(), re.DOTALL)
+        if individual_assessments_section:
+            # Try to extract assessments for each participant
+            participant_assessments = re.findall(r'([^:\n]+)\s*:\s*(.+?)(?=\n\s*[^:\n]+\s*:|$)', 
+                                               individual_assessments_section.group(1), re.DOTALL)
+            for name, assessment in participant_assessments:
+                individual_assessments[name.strip()] = assessment.strip()
+        
         # Prepare the response
         response = {
             "feedback": feedback_text,
+            "teamContribution": team_contribution,
+            "teamInteraction": team_interaction,
+            "participationBalance": participation_balance,
             "strengths": strengths,
             "improvements": improvements,
+            "individualAssessments": individual_assessments,
+            "nameReferences": name_references,
             "score": score,
             "timestamp": datetime.now().isoformat()
         }

@@ -201,18 +201,25 @@
                       </div>
                       
                       <div *ngIf="getParticipantFeedback(participantId)" class="feedback-content">
-                        <h4>Assessment Feedback</h4>
-                        <div class="feedback-text">
-                          <p [innerHTML]="getParticipantFeedback(participantId) | safeHtml"></p>
+                        <h4>Team Assessment Feedback</h4>
+                        
+                        <!-- Team Contribution Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.teamContribution" class="feedback-team-contribution">
+                          <h5>Overall Team Contribution</h5>
+                          <p [innerHTML]="getParticipantFeedbackObject(participantId)?.teamContribution | safeHtml"></p>
+                        </div>
+                        
+                        <!-- Team Interaction Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.teamInteraction" class="feedback-team-interaction">
+                          <h5>Team Interaction</h5>
+                          <p [innerHTML]="getParticipantFeedbackObject(participantId)?.teamInteraction | safeHtml"></p>
                         </div>
                         
                         <!-- Display strengths if available -->
                         <div *ngIf="getParticipantFeedbackObject(participantId)?.strengths && getParticipantFeedbackObject(participantId)?.strengths.length > 0" class="feedback-strengths">
                           <h5>Key Strengths</h5>
                           <ul>
-                            <li *ngFor="let strength of getParticipantFeedbackObject(participantId)?.strengths">
-                              {{ strength }}
-                            </li>
+                            <li *ngFor="let strength of getParticipantFeedbackObject(participantId)?.strengths">{{ strength }}</li>
                           </ul>
                         </div>
                         
@@ -220,16 +227,45 @@
                         <div *ngIf="getParticipantFeedbackObject(participantId)?.improvements && getParticipantFeedbackObject(participantId)?.improvements.length > 0" class="feedback-improvements">
                           <h5>Areas for Improvement</h5>
                           <ul>
-                            <li *ngFor="let improvement of getParticipantFeedbackObject(participantId)?.improvements">
-                              {{ improvement }}
-                            </li>
+                            <li *ngFor="let improvement of getParticipantFeedbackObject(participantId)?.improvements">{{ improvement }}</li>
                           </ul>
                         </div>
                         
+                        <!-- Participation Balance Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.participationBalance" class="feedback-participation-balance">
+                          <h5>Participation Balance</h5>
+                          <p [innerHTML]="getParticipantFeedbackObject(participantId)?.participationBalance | safeHtml"></p>
+                        </div>
+                        
+                        <!-- Individual Assessments Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.individualAssessments && objectKeys(getParticipantFeedbackObject(participantId)?.individualAssessments).length > 0" class="feedback-individual-assessments">
+                          <h5>Individual Participant Assessments</h5>
+                          <div class="individual-assessments-list">
+                            <div *ngFor="let assessment of objectEntries(getParticipantFeedbackObject(participantId)?.individualAssessments)" class="individual-assessment-item">
+                              <h6 class="participant-name">{{ assessment[0] }}</h6>
+                              <p class="assessment-text" [innerHTML]="assessment[1] | safeHtml"></p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- Name References Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.nameReferences && objectKeys(getParticipantFeedbackObject(participantId)?.nameReferences).length > 0" class="feedback-name-references">
+                          <h5>Name References</h5>
+                          <div class="name-references-grid">
+                            <div *ngFor="let nameRef of objectEntries(getParticipantFeedbackObject(participantId)?.nameReferences)" class="name-reference-item">
+                              <span class="name-ref-name">{{ nameRef[0] }}:</span>
+                              <span class="name-ref-count">{{ nameRef[1] }} mentions</span>
+                            </div>
+                          </div>
+                        </div>
+                        
                         <!-- Display score if available -->
-                        <div *ngIf="getParticipantFeedbackObject(participantId)?.score !== undefined" class="feedback-score">
-                          <div class="score-label">Assessment Score:</div>
-                          <div class="score-value">{{ getParticipantFeedbackObject(participantId)?.score }}/10</div>
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.score" class="feedback-score">
+                          <h5>Team Collaboration Score</h5>
+                          <div class="score-display">
+                            <span class="score-value">{{ getParticipantFeedbackObject(participantId)?.score }}</span>
+                            <span class="score-max">/10</span>
+                          </div>
                         </div>
                       </div>
                       

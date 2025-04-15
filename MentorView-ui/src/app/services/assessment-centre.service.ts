@@ -11,7 +11,9 @@ export interface AssessmentCentreFeedbackRequest {
   transcript: string;
   question: string;
   role?: string;
-  context?: string;
+  company?: string;
+  participantName?: string;
+  otherParticipants?: string[];
 }
 
 /**
@@ -19,10 +21,16 @@ export interface AssessmentCentreFeedbackRequest {
  */
 export interface AssessmentCentreFeedback {
   feedback: string;
+  teamContribution?: string;
+  teamInteraction?: string;
+  participationBalance?: string;
   strengths?: string[];
   improvements?: string[];
+  individualAssessments?: {[key: string]: string};
+  nameReferences?: {[key: string]: number};
   score?: number;
-  timestamp?: Date;
+  timestamp?: string;
+  error?: string;
 }
 
 /**
@@ -81,19 +89,15 @@ export class AssessmentCentreService {
    * @param data Assessment centre participant data
    * @returns Observable with feedback
    */
-  generateParticipantFeedback(data: {
-    role: string;
-    company: string;
-    participantName: string;
-    transcript: string;
-    question: string;
-  }): Observable<AssessmentCentreFeedback> {
-    // Validate input data
-    if (!data.transcript || data.transcript.trim().length === 0) {
+  generateFeedback(data: AssessmentCentreFeedbackRequest): Observable<AssessmentCentreFeedback> {
+    // Validate input
+    if (!data.transcript || data.transcript.trim() === '') {
+      console.error('Transcript is required for feedback generation');
       return throwError(() => new Error('Transcript is required and cannot be empty'));
     }
     
-    if (!data.question || data.question.trim().length === 0) {
+    if (!data.question || data.question.trim() === '') {
+      console.error('Question is required for feedback generation');
       return throwError(() => new Error('Question is required and cannot be empty'));
     }
     
@@ -103,7 +107,8 @@ export class AssessmentCentreService {
       company: data.company || 'Assessment Centre',
       transcript: data.transcript,
       question: data.question,
-      participantName: data.participantName || 'Participant'
+      participantName: data.participantName || 'Participant',
+      otherParticipants: data.otherParticipants || []
     };
     
     console.log('Sending assessment centre feedback request:', payload);
@@ -118,20 +123,19 @@ export class AssessmentCentreService {
       timeout(this.timeoutDuration),
       retry({ count: 1, delay: 1000 }), // Retry once after 1 second
       map(response => {
-        // Process the response to ensure it matches our interface
+        // Transform the response to match our interface
         const feedback: AssessmentCentreFeedback = {
-          feedback: response.feedback || 'No feedback provided',
-          timestamp: new Date()
+          feedback: response.feedback || '',
+          teamContribution: response.teamContribution || '',
+          teamInteraction: response.teamInteraction || '',
+          participationBalance: response.participationBalance || '',
+          strengths: response.strengths || [],
+          improvements: response.improvements || [],
+          individualAssessments: response.individualAssessments || {},
+          nameReferences: response.nameReferences || {},
+          score: response.score || null,
+          timestamp: response.timestamp || new Date().toISOString()
         };
-        
-        // Add optional fields if they exist
-        if (response.strengths && Array.isArray(response.strengths)) {
-          feedback.strengths = response.strengths;
-        }
-        
-        if (response.improvements && Array.isArray(response.improvements)) {
-          feedback.improvements = response.improvements;
-        }
         
         if (response.score !== undefined && !isNaN(Number(response.score))) {
           feedback.score = Number(response.score);
