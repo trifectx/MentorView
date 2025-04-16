@@ -21,7 +21,16 @@ except ImportError:
         VideoFileClip = None
 
 import torch
-from openai import OpenAI
+
+# Handle different versions of OpenAI API
+try:
+    # Try importing from newer version (>=1.0.0)
+    from openai import OpenAI
+    OPENAI_VERSION = 1
+except ImportError:
+    # Fall back to older version (<1.0.0)
+    import openai
+    OPENAI_VERSION = 0
 
 # Handle different versions of Deepgram SDK
 try:
@@ -65,7 +74,15 @@ if not os.path.exists(saved_interviews_dir):
 
 app = Flask(__name__)
 transcript = ""
-client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Initialize OpenAI client based on version
+if OPENAI_VERSION == 1:
+    # For newer versions (>=1.0.0)
+    client = OpenAI(api_key=OPENAI_API_KEY)
+else:
+    # For older versions (<1.0.0)
+    openai.api_key = OPENAI_API_KEY
+    client = openai
 
 # Initialize the model
 model = Model()
@@ -493,19 +510,31 @@ def transcribe_audio():
             # Enhanced OpenAI Whisper configuration for better quality transcription
             print(f"Starting OpenAI transcription for {participant_name}...")
             with open(temp_audio_path, "rb") as audio:
-                transcription = client.audio.transcriptions.create(
-                    model="whisper-1", 
-                    file=audio, 
-                    response_format="verbose_json",  # Get more detailed response with timestamps
-                    language="en",  # Specify language for better accuracy
-                    prompt="This is a professional interview conversation with multiple speakers."  # Context helps accuracy
-                )
-                
-            # Extract detailed transcription information
-            if hasattr(transcription, 'text'):
-                transcript_text = transcription.text
-            else:
-                transcript_text = transcription.get('text', '')
+                if OPENAI_VERSION == 1:
+                    # For newer versions (>=1.0.0)
+                    transcription = client.audio.transcriptions.create(
+                        model="whisper-1", 
+                        file=audio, 
+                        response_format="verbose_json",  # Get more detailed response with timestamps
+                        language="en",  # Specify language for better accuracy
+                        prompt="This is a professional interview conversation with multiple speakers."  # Context helps accuracy
+                    )
+                    
+                    # Extract detailed transcription information
+                    if hasattr(transcription, 'text'):
+                        transcript_text = transcription.text
+                    else:
+                        transcript_text = transcription.get('text', '')
+                else:
+                    # For older versions (<1.0.0)
+                    transcription = client.Audio.transcribe(
+                        "whisper-1",
+                        audio,
+                        response_format="verbose_json",
+                        language="en",
+                        prompt="This is a professional interview conversation with multiple speakers."
+                    )
+                    transcript_text = transcription.get('text', '')
                 
             print(f"OpenAI Whisper transcription completed for {participant_name}")
             print(f"Transcript sample: {transcript_text[:100]}...")
