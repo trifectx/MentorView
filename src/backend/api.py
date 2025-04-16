@@ -9,7 +9,17 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_file
-from moviepy import VideoFileClip
+
+# Try different moviepy import approaches to ensure compatibility
+try:
+    from moviepy.editor import VideoFileClip
+except ImportError:
+    try:
+        from moviepy import VideoFileClip
+    except ImportError:
+        print("Warning: Could not import VideoFileClip from moviepy. Video processing will be unavailable.")
+        VideoFileClip = None
+
 import torch
 from openai import OpenAI
 from deepgram import DeepgramClient, PrerecordedOptions
@@ -98,6 +108,10 @@ def upload():
 
     # Convert MP4 to MP3 using moviepy
     try:
+        # Check if VideoFileClip is available
+        if VideoFileClip is None:
+            return jsonify({"error": "Video processing is not available on this server"}), 500
+            
         # Load video file using MoviePy
         video = VideoFileClip(video_path)
         audio = video.audio
@@ -110,6 +124,7 @@ def upload():
 
         return jsonify({"message": "File uploaded successfully"}), 200
     except Exception as e:
+        print(f"Error processing video file: {str(e)}")
         return jsonify({"error": f"Error processing file: {str(e)}"}), 500
 
 
