@@ -173,35 +173,68 @@ export class LeaderboardComponent implements OnInit {
       
       // Process each user document
       let rank = 1;
-      for (const doc of docs) {
-        const userData = doc['data']();
+      for (const docData of docs) {
+        const userData = docData['data']();
         
         // Calculate the level based on XP
         const level = this.calculateLevel(userData['totalXP'] || 0);
         
         // Get user profile data
-        let displayName = 'Anonymous User';
+        let displayName = '';
         let photoURL = 'assets/images/default-avatar.png';
         
         try {
-          // Try to get user profile info
-          const userProfileDoc = await getDocs(query(
-            collection(this.firestore, 'userProfiles'),
-            // You'd need to add a where clause here in a real implementation
-          ));
+          // Get the user ID from the document
+          const userId = docData['id'] || userData['uid'];
           
-          if (!userProfileDoc.empty) {
-            const profileData = userProfileDoc.docs[0].data();
-            displayName = profileData['displayName'] || 'Anonymous User';
-            photoURL = profileData['photoURL'] || 'assets/images/default-avatar.png';
+          if (userId) {
+            // Get user profile from the users collection
+            const userDocRef = doc(this.firestore, 'users', userId);
+            const userSnapshot = await getDoc(userDocRef);
+            
+            if (userSnapshot.exists()) {
+              const userData = userSnapshot.data();
+              displayName = userData['displayName'] || '';
+              
+              // If no display name but has email, use email username
+              if (!displayName && userData['email']) {
+                displayName = userData['email'].split('@')[0];
+              }
+              
+              if (userData['photoURL']) {
+                photoURL = userData['photoURL'];
+              }
+            }
+            
+            // If no name found in users collection, try userProfiles
+            if (!displayName) {
+              const profileDocRef = doc(this.firestore, 'userProfiles', userId);
+              const profileSnapshot = await getDoc(profileDocRef);
+              
+              if (profileSnapshot.exists()) {
+                const profileData = profileSnapshot.data();
+                displayName = profileData['displayName'] || '';
+                
+                if (profileData['photoURL']) {
+                  photoURL = profileData['photoURL'];
+                }
+              }
+            }
+            
+            // Last resort: use a shortened version of the user ID
+            if (!displayName) {
+              displayName = 'User_' + userId.substring(0, 6);
+            }
           }
         } catch (profileError) {
           console.error('Error fetching user profile:', profileError);
+          // Use a generic name if all else fails
+          displayName = 'MentorView User';
         }
         
         // Add user to leaderboard
         this.leaderboardUsers.push({
-          uid: typeof doc['id'] === 'string' ? doc['id'] : doc['id'].toString(),
+          uid: typeof docData['id'] === 'string' ? docData['id'] : docData['id'].toString(),
           displayName,
           photoURL,
           totalXP: userData['totalXP'] || 0,
