@@ -13,6 +13,7 @@ import { PostDetailComponent } from './pages/forum/post-detail/post-detail.compo
 import { CommunityListComponent } from './pages/forum/community-list/community-list.component';
 import { CommunityDetailComponent } from './pages/forum/community-detail/community-detail.component';
 import { ForYouComponent } from './pages/forum/for-you/for-you.component';
+import { LeaderboardComponent } from './pages/leaderboard/leaderboard.component';
 
 export const routes: Routes = [
     {
@@ -84,6 +85,11 @@ export const routes: Routes = [
         path: 'forum/post/:id',
         component: PostDetailComponent,
         title: 'Forum Post',
+    },
+    {
+        path: 'leaderboard',
+        component: LeaderboardComponent,
+        title: 'XP Leaderboard',
     },
     {
         path: '**',
