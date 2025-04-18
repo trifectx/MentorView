@@ -66,23 +66,34 @@ export class ApiService {
      * Error handling for unavailable backends is done in the individual API methods.
      */
     public getBackendUrl(): string {
+        // Check for stored manual API URL configuration (used with ngrok)
+        const storedBackendUrl = sessionStorage.getItem('backendApiUrl');
+        if (storedBackendUrl) {
+            console.log('Using stored backend URL:', storedBackendUrl);
+            return storedBackendUrl;
+        }
+
         // If we're running in development mode and the user is on localhost,
         // we can use the local backend URL
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             return 'http://localhost:5000';
         }
         
-        // For all other cases (like ngrok), we need to derive the backend URL
-        // from the current window location, assuming the backend is served from the same domain
+        // For Render deployments, the frontend and backend are served from the same domain
+        // so we just use the current origin
+        if (window.location.hostname.includes('render') || window.location.hostname.includes('onrender.com')) {
+            return window.location.origin;
+        }
         
-        // If the URL contains 'ngrok', we assume it's an ngrok tunnel
+        // For ngrok tunnels
         if (window.location.hostname.includes('ngrok')) {
             // For ngrok, we want to keep the same hostname but change the protocol to https
             return `https://${window.location.hostname}`;
         }
         
-        // Default fallback to localhost
-        return 'http://localhost:5000';
+        // If we're on any other domain (production deployment, etc.)
+        // Use the current origin as both frontend and backend are served from same domain
+        return window.location.origin;
     }
 
     // Method to notify all subscribers that interviews have been updated

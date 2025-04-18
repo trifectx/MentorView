@@ -2,7 +2,6 @@ from openai import OpenAI
 import re
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
 
 class Model:
 
