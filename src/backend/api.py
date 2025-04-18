@@ -754,14 +754,44 @@ def status():
         }), 500
 
 
+# Enable CORS for all routes
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 # Route to serve Angular frontend files
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_frontend(path):
+    # Check if static folder exists
+    if not os.path.exists(app.static_folder):
+        os.makedirs(app.static_folder)
+        # Create a simple fallback HTML page if static folder is empty
+        with open(os.path.join(app.static_folder, 'index.html'), 'w') as f:
+            f.write('<html><body><h1>MentorView</h1><p>Static files not found. Please make sure the Angular build is copied to the static folder.</p></body></html>')
+    
+    # Debug information
+    print(f"Serving path: {path}")
+    print(f"Static folder: {app.static_folder}")
+    print(f"Static folder exists: {os.path.exists(app.static_folder)}")
+    if os.path.exists(app.static_folder):
+        print(f"Static folder contents: {os.listdir(app.static_folder)}")
+    
+    # Try to serve the specific file if it exists
     if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        print(f"Serving specific file: {path}")
         return send_from_directory(app.static_folder, path)
+    # Fallback to index.html for all other routes (Angular routing)
     else:
-        return send_from_directory(app.static_folder, 'index.html')
+        print(f"Serving index.html as fallback for: {path}")
+        # Check if index.html exists
+        if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+            return send_from_directory(app.static_folder, 'index.html')
+        else:
+            return jsonify({"error": "Frontend files not found"}), 404
 
 # Run the app
 if __name__ == '__main__':

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: mentorview
+    env: python
+    plan: free
+    buildCommand: "cd MentorView-ui && npm install && npm run build && cd .. && mkdir -p src/backend/static && cp -r MentorView-ui/dist/mentor-view-ui/browser/* src/backend/static/ && pip install -r requirements.txt"
+    startCommand: "cd src/backend && gunicorn -w 4 -b 0.0.0.0:$PORT wsgi:app"
+    envVars:
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
