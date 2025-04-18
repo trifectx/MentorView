@@ -79,6 +79,8 @@ transcript = ""
 # Initialize OpenAI client based on version
 if OPENAI_VERSION == 1:
     # For newer versions (>=1.0.0)
+    # Create client without any proxy settings that might cause errors
+    # The proxies parameter is not supported in OpenAI SDK v1.12.0+
     client = OpenAI(api_key=OPENAI_API_KEY)
 else:
     # For older versions (<1.0.0)

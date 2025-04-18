@@ -14,9 +14,24 @@ class Model:
     def __init__(self):
         self.load_env()
         
-        self.client = OpenAI(api_key=self.api_key)
-        self.model_name = "gpt-4"
-        print("OpenAI GPT-4 model loaded")
+        # Initialize OpenAI client without any proxy settings that might cause errors
+        # The proxies parameter is not supported in OpenAI SDK v1.12.0+
+        try:
+            self.client = OpenAI(api_key=self.api_key)
+            self.model_name = "gpt-4"
+            print("OpenAI GPT-4 model loaded")
+        except TypeError as e:
+            # If we get an error about unexpected keyword argument 'proxies'
+            if "unexpected keyword argument 'proxies'" in str(e):
+                import httpx
+                # Create a transport without proxies
+                transport = httpx.HTTPTransport()
+                self.client = OpenAI(api_key=self.api_key, http_client=transport)
+                self.model_name = "gpt-4"
+                print("OpenAI GPT-4 model loaded with custom transport")
+            else:
+                # Re-raise other TypeError exceptions
+                raise
     
 
     def construct_prompt_for_questions(self, role, company, style):
