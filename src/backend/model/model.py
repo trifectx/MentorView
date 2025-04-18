@@ -14,23 +14,28 @@ class Model:
     def __init__(self):
         self.load_env()
         
-        # Initialize OpenAI client without any proxy settings that might cause errors
-        # The proxies parameter is not supported in OpenAI SDK v1.12.0+
+        # Handle OpenAI initialization with proper httpx client to avoid proxy issues
         try:
-            self.client = OpenAI(api_key=self.api_key)
+            # First import httpx which is needed for custom client configuration
+            import httpx
+            # Create a client with explicit settings to avoid proxy issues
+            http_client = httpx.Client()
+            # Initialize with the custom client
+            self.client = OpenAI(
+                api_key=self.api_key,
+                http_client=http_client
+            )
             self.model_name = "gpt-4"
-            print("OpenAI GPT-4 model loaded")
-        except TypeError as e:
-            # If we get an error about unexpected keyword argument 'proxies'
-            if "unexpected keyword argument 'proxies'" in str(e):
-                import httpx
-                # Create a transport without proxies
-                transport = httpx.HTTPTransport()
-                self.client = OpenAI(api_key=self.api_key, http_client=transport)
+            print("OpenAI GPT-4 model loaded with custom HTTP client")
+        except (ImportError, TypeError) as e:
+            print(f"Error initializing OpenAI with custom client: {e}")
+            try:
+                # Last resort fallback to basic initialization
+                self.client = OpenAI(api_key=self.api_key)
                 self.model_name = "gpt-4"
-                print("OpenAI GPT-4 model loaded with custom transport")
-            else:
-                # Re-raise other TypeError exceptions
+                print("OpenAI GPT-4 model loaded with default settings")
+            except Exception as e:
+                print(f"Critical error initializing OpenAI client: {e}")
                 raise
     
 

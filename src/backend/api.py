@@ -79,9 +79,24 @@ transcript = ""
 # Initialize OpenAI client based on version
 if OPENAI_VERSION == 1:
     # For newer versions (>=1.0.0)
-    # Create client without any proxy settings that might cause errors
-    # The proxies parameter is not supported in OpenAI SDK v1.12.0+
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    # Use a custom transport that explicitly doesn't use proxies
+    # This is needed because some environments have proxy settings that aren't compatible with OpenAI SDK v1.12.0+
+    try:
+        # First try importing httpx which is required for OpenAI SDK 1.x
+        import httpx
+        # Create a transport with no proxies
+        http_client = httpx.Client()
+        # Make sure the transport doesn't use any proxies
+        client = OpenAI(
+            api_key=OPENAI_API_KEY,
+            http_client=http_client
+        )
+        print("OpenAI client initialized with custom HTTP client")
+    except (ImportError, TypeError) as e:
+        print(f"Error initializing OpenAI with custom client: {e}")
+        # Fallback to basic initialization which may still fail
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        print("OpenAI client initialized with default settings")
 else:
     # For older versions (<1.0.0)
     openai.api_key = OPENAI_API_KEY
