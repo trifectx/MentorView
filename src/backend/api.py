@@ -8,7 +8,7 @@ import tempfile
 import os
 from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, send_from_directory
 
 # Try different moviepy import approaches to ensure compatibility
 try:
@@ -72,13 +72,31 @@ saved_interviews_dir = os.path.join(BASE_DIR, "saved_interviews")
 if not os.path.exists(saved_interviews_dir):
     os.makedirs(saved_interviews_dir)
 
-app = Flask(__name__)
+# Initialize Flask app with static folder support
+app = Flask(__name__, static_folder='static')
 transcript = ""
 
 # Initialize OpenAI client based on version
 if OPENAI_VERSION == 1:
     # For newer versions (>=1.0.0)
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    # Use a custom transport that explicitly doesn't use proxies
+    # This is needed because some environments have proxy settings that aren't compatible with OpenAI SDK v1.12.0+
+    try:
+        # First try importing httpx which is required for OpenAI SDK 1.x
+        import httpx
+        # Create a transport with no proxies
+        http_client = httpx.Client()
+        # Make sure the transport doesn't use any proxies
+        client = OpenAI(
+            api_key=OPENAI_API_KEY,
+            http_client=http_client
+        )
+        print("OpenAI client initialized with custom HTTP client")
+    except (ImportError, TypeError) as e:
+        print(f"Error initializing OpenAI with custom client: {e}")
+        # Fallback to basic initialization which may still fail
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        print("OpenAI client initialized with default settings")
 else:
     # For older versions (<1.0.0)
     openai.api_key = OPENAI_API_KEY
@@ -736,9 +754,49 @@ def status():
         }), 500
 
 
+# Enable CORS for all routes
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
+# Route to serve Angular frontend files
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    # Print debug information to help with troubleshooting
+    print(f"Request path: {path}")
+
+    # Special case for API endpoints
+    if path.startswith('api/') or path == 'status' or path == 'question_suggestions' or path == 'transcribe' or path == 'rate_answer':
+        return jsonify({"error": "Not found"}), 404
+
+    # First, try to serve the exact file if it exists
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
+        print(f"Serving file directly: {path}")
+        return send_from_directory(app.static_folder, path)
+
+    # For CSS, JS, and other assets, try with and without leading slash
+    if path and '.' in path:  # This is likely a file with an extension
+        # Some common file extensions to check
+        if path.endswith('.js') or path.endswith('.css') or path.endswith('.ico') or path.endswith('.svg') or path.endswith('.jpg') or path.endswith('.png'):
+            # Try alternative paths
+            alt_path = path.lstrip('/')
+            if os.path.exists(os.path.join(app.static_folder, alt_path)):
+                print(f"Serving alternative path: {alt_path}")
+                return send_from_directory(app.static_folder, alt_path)
+
+    # For all other routes, serve index.html (Angular routing)
+    print(f"Serving index.html for path: {path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
 # Run the app
 if __name__ == '__main__':
     model = Model()
     # Run the server on 0.0.0.0 to make it accessible from other devices
     # This is important for ngrok to be able to forward requests to the server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # For Render, port will be set by environment variable
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

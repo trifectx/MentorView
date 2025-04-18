@@ -1,4 +1,5 @@
 export const environment = {
-    production: true,
-    apiUrl: 'http://localhost:5000',
-  };
+  production: true,
+  // This will be replaced at runtime by the ApiService
+  apiUrl: '',
+};
