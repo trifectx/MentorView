@@ -4,7 +4,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Auth, User } from '@angular/fire/auth';
 import { Observable, of } from 'rxjs';
-import { ForumService, Post, SortOption } from '../../../services/forum.service';
+import { map, tap } from 'rxjs/operators';
+import { ForumService, Post, SortOption, Community } from '../../../services/forum.service';
 import { TimeAgoPipe } from '../../../pipes/time-ago.pipe';
 import { CommunitySidebarComponent } from '../../../components/community-sidebar/community-sidebar.component';
 import { NavbarComponent } from '../../../components/navbar/navbar.component';
@@ -18,9 +19,15 @@ import { NavbarComponent } from '../../../components/navbar/navbar.component';
 })
 export class ForYouComponent implements OnInit {
   posts$: Observable<Post[]>;
+  communities$: Observable<Community[]>;
+  filteredCommunities$: Observable<Community[]>;
+  allCommunities: Community[] = [];
   currentUser: User | null = null;
   currentSort: SortOption = SortOption.Newest;
   sortOptions = SortOption;
+  searchQuery: string = '';
+  loading: boolean = true;
+  communityMemberships: Map<string, boolean> = new Map();
   
   // Community form state
   showCreateCommunityForm = false;
@@ -36,18 +43,60 @@ export class ForYouComponent implements OnInit {
     private router: Router
   ) {
     this.posts$ = of([]);
+    this.communities$ = of([]);
+    this.filteredCommunities$ = of([]);
   }
 
   ngOnInit(): void {
     // Subscribe to post updates for joined communities
     this.loadPosts();
     
+    // Load communities for search
+    this.loadCommunities();
+    
     // Get current user
     this.currentUser = this.forumService.getCurrentUser();
   }
 
   loadPosts(): void {
-    this.posts$ = this.forumService.getForYouPosts(this.currentSort);
+    this.loading = true;
+    this.posts$ = this.forumService.getForYouPosts(this.currentSort).pipe(
+      tap(() => {
+        this.loading = false;
+      })
+    );
+  }
+  
+  loadCommunities(): void {
+    this.loading = true;
+    this.communities$ = this.forumService.getCommunities().pipe(
+      tap(communities => {
+        this.allCommunities = communities;
+        this.loading = false;
+        
+        // Check membership status for each community
+        if (this.currentUser) {
+          communities.forEach(community => {
+            this.checkMembership(community.id!);
+          });
+        }
+      })
+    );
+    
+    // Initialize filtered communities with all communities
+    this.filteredCommunities$ = this.communities$;
+  }
+  
+  // Check if user is a member of a community
+  async checkMembership(communityId: string): Promise<void> {
+    if (!this.currentUser) return;
+    
+    try {
+      const isMember = await this.forumService.isCommunityMember(communityId);
+      this.communityMemberships.set(communityId, isMember);
+    } catch (error) {
+      console.error('Error checking membership:', error);
+    }
   }
 
   changeSortOption(sort: SortOption): void {
@@ -145,5 +194,73 @@ export class ForYouComponent implements OnInit {
   hasUserUpvotedPost(post: Post): Promise<boolean> {
     if (!this.currentUser || !post.id) return Promise.resolve(false);
     return this.forumService.hasUpvotedPost(post.id);
+  }
+  
+  // Search communities by name or description
+  searchCommunities(): void {
+    if (!this.searchQuery.trim()) {
+      // If search query is empty, show all communities
+      this.filteredCommunities$ = this.communities$;
+      return;
+    }
+    
+    // Use the ForumService to search communities
+    this.loading = true;
+    this.filteredCommunities$ = this.forumService.searchCommunities(this.searchQuery).pipe(
+      tap(() => {
+        this.loading = false;
+      })
+    );
+  }
+  
+  // Clear search
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.filteredCommunities$ = this.communities$;
+  }
+  
+  // View community details
+  viewCommunity(communityId: string): void {
+    this.router.navigate(['/forum/community', communityId]);
+  }
+  
+  // Join a community
+  async joinCommunity(communityId: string, event: Event): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!this.currentUser) {
+      alert('You must be logged in to join a community.');
+      return;
+    }
+    
+    try {
+      await this.forumService.joinCommunity(communityId);
+      this.communityMemberships.set(communityId, true);
+    } catch (error) {
+      console.error('Error joining community:', error);
+      alert('An error occurred while joining the community.');
+    }
+  }
+  
+  // Leave a community
+  async leaveCommunity(communityId: string, event: Event): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!this.currentUser) return;
+    
+    try {
+      await this.forumService.leaveCommunity(communityId);
+      this.communityMemberships.set(communityId, false);
+    } catch (error) {
+      console.error('Error leaving community:', error);
+      alert('An error occurred while leaving the community.');
+    }
+  }
+  
+  // Check if user is a member of a community
+  isMember(community: Community): boolean {
+    return this.communityMemberships.get(community.id!) || false;
   }
 }

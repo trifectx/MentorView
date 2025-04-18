@@ -1161,4 +1161,22 @@ export class ForumService {
   getCurrentUser(): User | null {
     return this.currentUser;
   }
+  
+  // Search communities by name or description
+  searchCommunities(query: string): Observable<Community[]> {
+    if (!query || query.trim() === '') {
+      return this.getCommunities();
+    }
+    
+    const searchTerm = query.toLowerCase().trim();
+    
+    return this.getCommunities().pipe(
+      map(communities => {
+        return communities.filter(community => {
+          return community.name.toLowerCase().includes(searchTerm) || 
+                 community.description.toLowerCase().includes(searchTerm);
+        });
+      })
+    );
+  }
 }
