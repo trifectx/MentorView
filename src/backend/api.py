@@ -72,7 +72,8 @@ saved_interviews_dir = os.path.join(BASE_DIR, "saved_interviews")
 if not os.path.exists(saved_interviews_dir):
     os.makedirs(saved_interviews_dir)
 
-app = Flask(__name__)
+# Initialize Flask app with static folder support
+app = Flask(__name__, static_folder='static')
 transcript = ""
 
 # Initialize OpenAI client based on version
@@ -736,9 +737,20 @@ def status():
         }), 500
 
 
+# Route to serve Angular frontend files
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
 # Run the app
 if __name__ == '__main__':
     model = Model()
     # Run the server on 0.0.0.0 to make it accessible from other devices
     # This is important for ngrok to be able to forward requests to the server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # For Render, port will be set by environment variable
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
