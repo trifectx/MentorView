@@ -48,7 +48,64 @@ export class ApiService {
     private interviewsUpdatedSource = new Subject<void>();
     interviewsUpdated$ = this.interviewsUpdatedSource.asObservable();
 
-    constructor(private http: HttpClient) { }
+    constructor(private http: HttpClient) {
+        this.baseUrl = this.getBackendUrl();
+        
+        // Initialize endpoints after baseUrl is set
+        this.endpoints = {
+            questions: `${this.baseUrl}/question_suggestions`,
+            upload: `${this.baseUrl}/upload`,
+            transcribe: `${this.baseUrl}/transcribe`,
+            rateAnswer: `${this.baseUrl}/rate_answer`,
+            saveInterview: `${this.baseUrl}/save_interview`,
+            savedInterviews: `${this.baseUrl}/saved_interviews`,
+            downloadInterview: `${this.baseUrl}/download_interview`,
+            streamInterview: `${this.baseUrl}/stream_interview`,
+            updateInterview: `${this.baseUrl}/update_interview`,
+            deleteInterview: `${this.baseUrl}/delete_interview`,
+            transcribeAudio: `${this.baseUrl}/transcribe_audio`
+        };
+        
+        console.log('API Service initialized with backend URL:', this.baseUrl);
+    }
+    
+    /**
+     * Dynamically determines the backend URL to use
+     * This allows the app to work with both localhost and ngrok URLs
+     * 
+     * Note: This method only determines the URL to use, it doesn't check if the backend is actually available.
+     * Error handling for unavailable backends is done in the individual API methods.
+     */
+    public getBackendUrl(): string {
+        // Check for stored manual API URL configuration (used with ngrok)
+        const storedBackendUrl = sessionStorage.getItem('backendApiUrl');
+        if (storedBackendUrl) {
+            console.log('Using stored backend URL:', storedBackendUrl);
+            return storedBackendUrl;
+        }
+
+        // If we're running in development mode and the user is on localhost,
+        // we can use the local backend URL
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return 'http://localhost:5000';
+        }
+        
+        // For Render deployments, the frontend and backend are served from the same domain
+        // so we just use the current origin
+        if (window.location.hostname.includes('render') || window.location.hostname.includes('onrender.com')) {
+            return window.location.origin;
+        }
+        
+        // For ngrok tunnels
+        if (window.location.hostname.includes('ngrok')) {
+            // For ngrok, we want to keep the same hostname but change the protocol to https
+            return `https://${window.location.hostname}`;
+        }
+        
+        // If we're on any other domain (production deployment, etc.)
+        // Use the current origin as both frontend and backend are served from same domain
+        return window.location.origin;
+    }
 
     // Method to notify all subscribers that interviews have been updated
     notifyInterviewsUpdated() {
