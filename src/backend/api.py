@@ -22,21 +22,7 @@ except ImportError:
 
 import torch
 from openai import OpenAI
-
-# Handle different versions of Deepgram SDK
-try:
-    # For newer versions (2.x)
-    from deepgram import DeepgramClient, PrerecordedOptions
-    DEEPGRAM_VERSION = 2
-except ImportError:
-    try:
-        # For older versions (0.x)
-        from deepgram import Deepgram
-        DEEPGRAM_VERSION = 0
-    except ImportError:
-        print("Warning: Could not import Deepgram. Transcription will be unavailable.")
-        DEEPGRAM_VERSION = None
-
+from deepgram import DeepgramClient, PrerecordedOptions
 from model.model import Model
 
 # Check and retrieve environment variables
@@ -161,39 +147,20 @@ def transcribe():
     #     return jsonify({"transcript": transcript}), 200
     
     try:
-        # Handle different versions of Deepgram SDK
-        if DEEPGRAM_VERSION == 2:
-            # For newer versions (2.x)
-            deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+        # Initialize deepgram client
+        deepgram = DeepgramClient(DEEPGRAM_API_KEY)
 
-            with open(audio_path, "rb") as audio_file:
-                payload = { 'buffer': audio_file }
-                options = PrerecordedOptions(
-                    punctuate=True,
-                    model="nova-2", 
-                    language="en-US",
-                    filler_words=True,
-                )
+        with open(audio_path, "rb") as audio_file:
+            payload = { 'buffer': audio_file }
+            options = PrerecordedOptions(
+                punctuate=True,
+                model="nova-2", 
+                language="en-US",
+                filler_words=True,
+            )
 
-                response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
-                transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
-        elif DEEPGRAM_VERSION == 0:
-            # For older versions (0.x)
-            deepgram = Deepgram(DEEPGRAM_API_KEY)
-            
-            with open(audio_path, "rb") as audio_file:
-                source = {'buffer': audio_file, 'mimetype': 'audio/mp3'}
-                options = {
-                    'punctuate': True,
-                    'model': 'general',
-                    'language': 'en-US',
-                    'diarize': False
-                }
-                
-                response = deepgram.transcription.sync_prerecorded(source, options)
-                transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
-        else:
-            return jsonify({"error": "Transcription service is not available"}), 500
+            response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
+            transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
 
         return jsonify({"transcript": transcript}), 200
 
@@ -515,43 +482,22 @@ def transcribe_audio():
             
             # Fallback to Deepgram if Whisper fails
             try:
-                # Handle different versions of Deepgram SDK
-                if DEEPGRAM_VERSION == 2:
-                    # For newer versions (2.x)
-                    deepgram = DeepgramClient(DEEPGRAM_API_KEY)
-                    
-                    with open(temp_audio_path, "rb") as audio:
-                        payload = {'buffer': audio}
-                        options = PrerecordedOptions(
-                            punctuate=True,
-                            model="nova-2", 
-                            language="en-US",
-                            filler_words=True,
-                            diarize=True  # Enable speaker identification
-                        )
-                        
-                        response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
-                        transcript_text = response['results']['channels'][0]['alternatives'][0]['transcript']
-                elif DEEPGRAM_VERSION == 0:
-                    # For older versions (0.x)
-                    deepgram = Deepgram(DEEPGRAM_API_KEY)
-                    
-                    with open(temp_audio_path, "rb") as audio:
-                        source = {'buffer': audio, 'mimetype': 'audio/webm'}
-                        options = {
-                            'punctuate': True,
-                            'model': 'general',
-                            'language': 'en-US',
-                            'diarize': True
-                        }
-                        
-                        response = deepgram.transcription.sync_prerecorded(source, options)
-                        transcript_text = response['results']['channels'][0]['alternatives'][0]['transcript']
-                else:
-                    raise Exception("Deepgram is not available")
-                    
-                print(f"Deepgram transcription completed for {participant_name}")
+                deepgram = DeepgramClient(DEEPGRAM_API_KEY)
                 
+                with open(temp_audio_path, "rb") as audio:
+                    payload = {'buffer': audio}
+                    options = PrerecordedOptions(
+                        punctuate=True,
+                        model="nova-2", 
+                        language="en-US",
+                        filler_words=True,
+                        diarize=True  # Enable speaker identification
+                    )
+                    
+                    response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
+                    transcript_text = response['results']['channels'][0]['alternatives'][0]['transcript']
+                    print(f"Deepgram transcription completed for {participant_name}")
+                    
             except Exception as deepgram_error:
                 return jsonify({"error": f"Error transcribing with both services: {str(whisper_error)} and {str(deepgram_error)}"}), 500
         
