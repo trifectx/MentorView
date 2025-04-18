@@ -15,85 +15,24 @@ import { CommunityDetailComponent } from './pages/forum/community-detail/communi
 import { ForYouComponent } from './pages/forum/for-you/for-you.component';
 import { LeaderboardComponent } from './pages/leaderboard/leaderboard.component';
 
+import { requireAuth, redirectIfAuthenticated } from './guards/route.guard';
+
 export const routes: Routes = [
-    {
-        path: '',
-        redirectTo: 'home', 
-        pathMatch: 'full',
-    },
-    {
-        path: 'home',
-        component: HomeComponent,
-        title: 'Home',
-    },
-    {
-        path: 'login',
-        component: LoginComponent,
-        title: 'Login',
-    },
-    {
-        path: 'sign-up',
-        component: SignupComponent,
-        title: 'Sign Up',
-    },
-    {
-        path: 'dashboard',
-        component: DashboardComponent,
-        title: 'Dashboard',
-    },
-    {
-        path: 'interview',
-        component: InterviewComponent,
-        title: 'Your Interview',
-    },
-    {
-        path: 'saved-interviews',
-        component: SavedInterviewsComponent,
-        title: 'Saved Interviews',
-    },
-    {
-        path: 'overview',
-        component: OverviewComponent,
-        title: 'Performance Overview',
-    },
-    {
-        path: 'friends',
-        component: FriendsComponent,
-        title: 'Friends',
-    },
-    {
-        path: 'assessment-centre',
-        component: AssessmentCentreComponent,
-        title: 'Assessment Centre',
-    },
-    {
-        path: 'forum',
-        component: ForYouComponent,
-        title: 'For You',
-    },
-    {
-        path: 'forum/communities',
-        component: ForYouComponent,
-        title: 'Communities',
-    },
-    {
-        path: 'forum/community/:id',
-        component: CommunityDetailComponent,
-        title: 'Community',
-    },
-    {
-        path: 'forum/post/:id',
-        component: PostDetailComponent,
-        title: 'Forum Post',
-    },
-    {
-        path: 'leaderboard',
-        component: LeaderboardComponent,
-        title: 'XP Leaderboard',
-    },
-    {
-        path: '**',
-        component: ErrorComponent,
-        title: 'Error',
-    },
+
+    // 🟢 Public routes
+    { path: '', component: HomeComponent, canActivate: [redirectIfAuthenticated] },
+    { path: 'login', component: LoginComponent, canActivate: [redirectIfAuthenticated] }, 
+    { path: 'sign-up', component: SignupComponent, canActivate: [redirectIfAuthenticated] }, 
+
+    // 🔒 Protected routes
+    { path: 'dashboard', component: DashboardComponent, canActivate: [requireAuth] },
+    { path: 'interview', component: InterviewComponent, canActivate: [requireAuth] },
+    { path: 'saved-interviews', component: SavedInterviewsComponent, canActivate: [requireAuth] },
+    { path: 'overview', component: OverviewComponent, canActivate: [requireAuth] },
+    { path: 'friends', component: FriendsComponent, canActivate: [requireAuth] },
+    { path: 'assessment-centre', component: AssessmentCentreComponent, canActivate: [requireAuth] },
+
+    // 🔴 Non-existant routes
+    { path: '**', component: ErrorComponent },
+
 ];

@@ -1,7 +1,8 @@
-import { inject, Injectable } from '@angular/core';
-import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged } from '@angular/fire/auth';
-import { Firestore, doc, setDoc, getDoc } from '@angular/fire/firestore';
-import { Observable, from, switchMap, of } from 'rxjs';
+import { inject, Injectable, signal, computed, effect } from '@angular/core';
+import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, User as FirebaseUser, onAuthStateChanged } from '@angular/fire/auth';
+import { Firestore, doc, setDoc } from '@angular/fire/firestore';
+import { Observable, from} from 'rxjs';
+import { UserInterface } from '../shared/user.interface';
 
 @Injectable({
     providedIn: 'root',
@@ -10,11 +11,31 @@ export class AuthService {
     firebaseAuth = inject(Auth);
     firestore = inject(Firestore);
 
+    // Add auth initialization tracking
+    authInitialized = signal(false);
+
+    // Lightweight user info object
+    currentUser = signal<UserInterface | null | undefined>(undefined);
+
+    // True if logged in
+    isAuthenticated = computed(() => this.authInitialized() && !!this.currentUser());
+
     constructor() {
-        // Ensure user document exists when auth state changes
+        // Listen for auth state changes
         onAuthStateChanged(this.firebaseAuth, (user) => {
             if (user) {
-                this.ensureUserDocumentExists(user);
+                this.currentUser.set({
+                    displayName: user.displayName!,
+                    email: user.email!,
+                });
+            }
+            else {
+                this.currentUser.set(null);
+            }
+
+            // Mark auth as initialized after user state is resolved
+            if (!this.authInitialized()) {
+                this.authInitialized.set(true);
             }
         });
     }
@@ -31,13 +52,7 @@ export class AuthService {
         ).then(response => {
             return updateProfile(response.user, { displayName: username })
                 .then(() => {
-                    // Create user document in Firestore
-                    return setDoc(doc(this.firestore, 'users', response.user.uid), {
-                        uid: response.user.uid,
-                        email: response.user.email,
-                        displayName: username,
-                        friends: []
-                    });
+                    return this.createUserDocument(response.user);
                 });
         });
 
@@ -53,31 +68,23 @@ export class AuthService {
         return from(promise);
     }
 
+    logout(): Observable<void> {
+        const promise = signOut(this.firebaseAuth);
+        return from(promise);
+    }
+
     /**
-     * Ensures that a user document exists in Firestore
-     * This will create it if it doesn't exist
+     * Create the user document in Firestore after successful registration
+     * @param user - The user object returned from Firebase Auth
+     * @returns a Promise that resolves when the document is created
      */
-    private async ensureUserDocumentExists(user: any): Promise<void> {
-        if (!user || !user.uid) {
-            console.warn('Cannot create user document - no user UID');
-            return;
-        }
-
-        console.log('Checking if user document exists:', user.uid);
+    private createUserDocument(user: FirebaseUser): Promise<void> {
         const userRef = doc(this.firestore, 'users', user.uid);
-        const docSnap = await getDoc(userRef);
-
-        if (!docSnap.exists()) {
-            console.log('User document does not exist, creating it now');
-            await setDoc(userRef, {
-                uid: user.uid,
-                email: user.email || '',
-                displayName: user.displayName || 'User',
-                friends: []
-            });
-            console.log('User document created successfully');
-        } else {
-            console.log('User document already exists');
-        }
+        return setDoc(userRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName ?? 'User',
+            friends: []
+        });
     }
 }
