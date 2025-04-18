@@ -9,50 +9,110 @@
     <h1 class="page-title">For You</h1>
     <p class="description">Posts from communities you've joined</p>
     
-    <!-- Sort Controls -->
-    <div class="sort-controls">
-      <span>Sort by:</span>
-      <button [class.active]="currentSort === sortOptions.Newest" (click)="changeSortOption(sortOptions.Newest)">
-        New
-      </button>
-      <button [class.active]="currentSort === sortOptions.Oldest" (click)="changeSortOption(sortOptions.Oldest)">
-        Old
-      </button>
-      <button [class.active]="currentSort === sortOptions.Best" (click)="changeSortOption(sortOptions.Best)">
-        Best
-      </button>
+    <!-- Sort Controls and Search -->
+    <div class="top-controls">
+      <div class="sort-controls">
+        <span>Sort by:</span>
+        <button [class.active]="currentSort === sortOptions.Newest" (click)="changeSortOption(sortOptions.Newest)">
+          New
+        </button>
+        <button [class.active]="currentSort === sortOptions.Oldest" (click)="changeSortOption(sortOptions.Oldest)">
+          Old
+        </button>
+        <button [class.active]="currentSort === sortOptions.Best" (click)="changeSortOption(sortOptions.Best)">
+          Best
+        </button>
+      </div>
+      
+      <!-- Search Bar -->
+      <div class="search-container">
+        <div class="search-input-wrapper">
+          <i class="fa fa-search search-icon"></i>
+          <input 
+            type="text" 
+            class="search-input" 
+            placeholder="Search communities by name or description..." 
+            [(ngModel)]="searchQuery"
+            (keyup)="searchCommunities()"
+          >
+          <button *ngIf="searchQuery" class="clear-search-btn" (click)="clearSearch()">
+            <i class="fa fa-times"></i>
+          </button>
+        </div>
+      </div>
     </div>
     
     <!-- Posts List -->
     <div class="posts-list">
-      <div *ngIf="(posts$ | async)?.length === 0" class="no-posts">
-        <p *ngIf="currentUser">You haven't joined any communities yet or there are no posts in your joined communities.</p>
-        <p *ngIf="!currentUser">Please log in to see posts from communities you've joined.</p>
-        <button routerLink="/forum" class="browse-communities-btn">Browse Communities</button>
+      <div *ngIf="loading" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>Loading posts...</p>
       </div>
 
-      <div *ngFor="let post of posts$ | async" class="post-card">
-        <div class="vote-area" (click)="$event.stopPropagation()">
-          <button class="upvote-btn" (click)="upvotePost(post, $event)">
-            <i class="fa fa-arrow-up"></i>
-          </button>
-          <span class="score">{{ post.score || 0 }}</span>
-        </div>
+      <div *ngIf="!loading && (filteredCommunities$ | async)?.length === 0" class="no-posts">
+        <p *ngIf="searchQuery">No communities found matching "{{ searchQuery }}". Try a different search term.</p>
+        <p *ngIf="!searchQuery && currentUser">You haven't joined any communities yet.</p>
+        <p *ngIf="!searchQuery && !currentUser">Please log in to see your joined communities.</p>
+        <button routerLink="/forum/communities" class="browse-communities-btn">Browse All Communities</button>
+      </div>
 
-        <div class="post-content" (click)="viewPost(post.id!)">
-          <div class="post-community">
-            <span class="community-name">r/{{ post.communityName }}</span>
+      <!-- Community Cards -->
+      <div *ngFor="let community of filteredCommunities$ | async" class="community-card" (click)="viewCommunity(community.id!)">
+        <div class="community-image">
+          <img *ngIf="community.imageUrl" [src]="community.imageUrl" alt="{{ community.name }}">
+          <div *ngIf="!community.imageUrl" class="default-image">
+            <i class="fa fa-users"></i>
           </div>
-          <h3 class="post-title">{{ post.title }}</h3>
-          <p class="post-info">
-            Posted by {{ post.userName }} • {{ formatDate(post.createdAt) | timeAgo }}
-          </p>
-          <p class="post-excerpt">{{ post.content.length > 200 ? post.content.substring(0, 200) + '...' : post.content }}</p>
-          <div class="post-footer">
-            <span class="replies-count">
-              <i class="fa fa-comment"></i> 
-              {{ post.replyCount }} {{ post.replyCount === 1 ? 'reply' : 'replies' }}
-            </span>
+        </div>
+        
+        <div class="community-content">
+          <h3 class="community-name">{{ community.name }}</h3>
+          <div class="community-info">
+            <span>{{ community.memberCount }} {{ community.memberCount === 1 ? 'member' : 'members' }}</span>
+          </div>
+          <p class="community-description">{{ community.description }}</p>
+          
+          <div class="community-footer">
+            <button class="join-btn" *ngIf="!isMember(community)" (click)="joinCommunity(community.id!, $event)">
+              <i class="fa fa-plus"></i> Join
+            </button>
+            <button class="leave-btn" *ngIf="isMember(community)" (click)="leaveCommunity(community.id!, $event)">
+              <i class="fa fa-minus"></i> Leave
+            </button>
+            
+            <div class="private-badge" *ngIf="community.isPrivate">
+              <i class="fa fa-lock"></i>
+              <span>Private</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Original Posts (Hidden when searching) -->
+      <div *ngIf="!searchQuery && (posts$ | async)?.length > 0">
+        <div *ngFor="let post of posts$ | async" class="post-card">
+          <div class="vote-area" (click)="$event.stopPropagation()">
+            <button class="upvote-btn" (click)="upvotePost(post, $event)">
+              <i class="fa fa-arrow-up"></i>
+            </button>
+            <span class="score">{{ post.score || 0 }}</span>
+          </div>
+
+          <div class="post-content" (click)="viewPost(post.id!)">
+            <div class="post-community">
+              <span class="community-name">r/{{ post.communityName }}</span>
+            </div>
+            <h3 class="post-title">{{ post.title }}</h3>
+            <p class="post-info">
+              Posted by {{ post.userName }} • {{ formatDate(post.createdAt) | timeAgo }}
+            </p>
+            <p class="post-excerpt">{{ post.content.length > 200 ? post.content.substring(0, 200) + '...' : post.content }}</p>
+            <div class="post-footer">
+              <span class="replies-count">
+                <i class="fa fa-comment"></i> 
+                {{ post.replyCount }} {{ post.replyCount === 1 ? 'reply' : 'replies' }}
+              </span>
+            </div>
           </div>
         </div>
       </div>

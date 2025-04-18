@@ -1,6 +1,5 @@
 <header class="dashboard-header">
   <div class="header-left">
-    <button class="back-button" routerLink="/login">←</button>
     <nav class="main-nav">
       <a class="nav-item" routerLink="/dashboard">Explore</a>
       <a class="nav-item" routerLink="/overview">Overview</a>
@@ -37,7 +36,7 @@
             <i class="fas fa-cog"></i>
             Settings
           </a>
-          <a routerLink="/login" class="dropdown-item" (click)="$event.stopPropagation()">
+          <a routerLink="/" class="dropdown-item" (click)="logout(); $event.stopPropagation()">
             <i class="fas fa-sign-out-alt"></i>
             Logout
           </a>

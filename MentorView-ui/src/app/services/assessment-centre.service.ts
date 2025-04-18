@@ -3,7 +3,6 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Observable, throwError, of } from 'rxjs';
 import { catchError, timeout, retry, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { ApiService } from './api.service';
 
 /**
  * Interface for the assessment centre feedback request payload
@@ -41,13 +40,10 @@ export interface AssessmentCentreFeedback {
   providedIn: 'root'
 })
 export class AssessmentCentreService {
-  private baseUrl: string;
+  private baseUrl = 'http://localhost:5000';
   private timeoutDuration = 30000; // 30 seconds timeout
 
-  constructor(private http: HttpClient, private apiService: ApiService) {
-    this.baseUrl = this.apiService.getBackendUrl();
-    console.log('Assessment Centre Service initialized with backend URL:', this.baseUrl);
-  }
+  constructor(private http: HttpClient) { }
 
   /**
    * Handles HTTP errors from API requests
