@@ -25,14 +25,18 @@ export const routes: Routes = [
     { path: 'sign-up', component: SignupComponent, canActivate: [redirectIfAuthenticated] }, 
 
     // 🔒 Protected routes
-    { path: 'dashboard', component: DashboardComponent, canActivate: [requireAuth] },
-    { path: 'interview', component: InterviewComponent, canActivate: [requireAuth] },
-    { path: 'saved-interviews', component: SavedInterviewsComponent, canActivate: [requireAuth] },
-    { path: 'overview', component: OverviewComponent, canActivate: [requireAuth] },
-    { path: 'friends', component: FriendsComponent, canActivate: [requireAuth] },
-    { path: 'assessment-centre', component: AssessmentCentreComponent, canActivate: [requireAuth] },
+    { path: 'dashboard', component: DashboardComponent, canActivate: [requireAuth], title: 'Dashboard' },
+    { path: 'interview', component: InterviewComponent, canActivate: [requireAuth], title: 'Online Interview' },
+    { path: 'saved-interviews', component: SavedInterviewsComponent, canActivate: [requireAuth], title: 'Saved Interviews' },
+    { path: 'overview', component: OverviewComponent, canActivate: [requireAuth], title: 'Overview' },
+    { path: 'friends', component: FriendsComponent, canActivate: [requireAuth], title: 'Friends' },
+    { path: 'assessment-centre', component: AssessmentCentreComponent, canActivate: [requireAuth], title: 'Assessment Centre' },
+    { path: 'forum', component: ForYouComponent, canActivate: [requireAuth], title: 'For You' },
+    { path: 'forum/communities', component: ForYouComponent, canActivate: [requireAuth], title: 'Communities' },
+    { path: 'forum/community/:id', component: CommunityDetailComponent, canActivate: [requireAuth], title: 'Community' },
+    { path: 'forum/post/:id', component: PostDetailComponent, canActivate: [requireAuth], title: 'Forum Post' },
+    { path: 'leaderboard', component: LeaderboardComponent, canActivate: [requireAuth], title: 'XP Leaderboard' },
 
     // 🔴 Non-existant routes
     { path: '**', component: ErrorComponent },
-
 ];
