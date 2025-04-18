@@ -766,32 +766,31 @@ def after_request(response):
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_frontend(path):
-    # Check if static folder exists
-    if not os.path.exists(app.static_folder):
-        os.makedirs(app.static_folder)
-        # Create a simple fallback HTML page if static folder is empty
-        with open(os.path.join(app.static_folder, 'index.html'), 'w') as f:
-            f.write('<html><body><h1>MentorView</h1><p>Static files not found. Please make sure the Angular build is copied to the static folder.</p></body></html>')
-    
-    # Debug information
-    print(f"Serving path: {path}")
-    print(f"Static folder: {app.static_folder}")
-    print(f"Static folder exists: {os.path.exists(app.static_folder)}")
-    if os.path.exists(app.static_folder):
-        print(f"Static folder contents: {os.listdir(app.static_folder)}")
-    
-    # Try to serve the specific file if it exists
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        print(f"Serving specific file: {path}")
+    # Print debug information to help with troubleshooting
+    print(f"Request path: {path}")
+
+    # Special case for API endpoints
+    if path.startswith('api/') or path == 'status' or path == 'question_suggestions' or path == 'transcribe' or path == 'rate_answer':
+        return jsonify({"error": "Not found"}), 404
+
+    # First, try to serve the exact file if it exists
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
+        print(f"Serving file directly: {path}")
         return send_from_directory(app.static_folder, path)
-    # Fallback to index.html for all other routes (Angular routing)
-    else:
-        print(f"Serving index.html as fallback for: {path}")
-        # Check if index.html exists
-        if os.path.exists(os.path.join(app.static_folder, 'index.html')):
-            return send_from_directory(app.static_folder, 'index.html')
-        else:
-            return jsonify({"error": "Frontend files not found"}), 404
+
+    # For CSS, JS, and other assets, try with and without leading slash
+    if path and '.' in path:  # This is likely a file with an extension
+        # Some common file extensions to check
+        if path.endswith('.js') or path.endswith('.css') or path.endswith('.ico') or path.endswith('.svg') or path.endswith('.jpg') or path.endswith('.png'):
+            # Try alternative paths
+            alt_path = path.lstrip('/')
+            if os.path.exists(os.path.join(app.static_folder, alt_path)):
+                print(f"Serving alternative path: {alt_path}")
+                return send_from_directory(app.static_folder, alt_path)
+
+    # For all other routes, serve index.html (Angular routing)
+    print(f"Serving index.html for path: {path}")
+    return send_from_directory(app.static_folder, 'index.html')
 
 # Run the app
 if __name__ == '__main__':
