@@ -8,7 +8,7 @@ import tempfile
 import os
 from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, send_from_directory
 
 # Try different moviepy import approaches to ensure compatibility
 try:
