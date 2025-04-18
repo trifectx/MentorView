@@ -35,10 +35,10 @@
           <div class="active-indicator" [class.active]="activeTab === 'global'"></div>
         </div>
         
-        <div class="leaderboard-table-container" *ngIf="activeTab === 'global'">
+        <div class="leaderboard-table-container">
           <table class="leaderboard-table">
             <tbody>
-              <tr *ngFor="let user of leaderboardUsers; let i = index" [class.top-rank]="user.rank <= 3" [class.odd-row]="i % 2 !== 0">
+              <tr *ngFor="let user of globalLeaderboardUsers; let i = index" [class.top-rank]="user.rank <= 3" [class.odd-row]="i % 2 !== 0">
                 <td class="rank-cell">
                   <div class="rank-badge" [class.gold]="user.rank === 1" [class.silver]="user.rank === 2" [class.bronze]="user.rank === 3">
                     {{ user.rank }}
@@ -59,7 +59,7 @@
             </tbody>
           </table>
           
-          <div *ngIf="leaderboardUsers.length === 0" class="empty-state">
+          <div *ngIf="globalLeaderboardUsers.length === 0" class="empty-state">
             <p>No users found on the global leaderboard yet.</p>
           </div>
         </div>
@@ -71,11 +71,11 @@
           <h2>TOP <span class="highlight">FRIENDS</span> BY XP VOLUME</h2>
           <div class="active-indicator" [class.active]="activeTab === 'local'"></div>
         </div>
-        
-        <div class="leaderboard-table-container" *ngIf="activeTab === 'local'">
+
+        <div class="leaderboard-table-container">
           <table class="leaderboard-table">
             <tbody>
-              <tr *ngFor="let user of leaderboardUsers; let i = index" [class.top-rank]="user.rank <= 3" [class.odd-row]="i % 2 !== 0">
+              <tr *ngFor="let user of friendsLeaderboardUsers; let i = index" [class.top-rank]="user.rank <= 3" [class.odd-row]="i % 2 !== 0">
                 <td class="rank-cell">
                   <div class="rank-badge" [class.gold]="user.rank === 1" [class.silver]="user.rank === 2" [class.bronze]="user.rank === 3">
                     {{ user.rank }}
@@ -96,7 +96,7 @@
             </tbody>
           </table>
           
-          <div *ngIf="leaderboardUsers.length === 0" class="empty-state">
+          <div *ngIf="friendsLeaderboardUsers.length === 0" class="empty-state">
             <p>No friends found on the leaderboard yet.</p>
           </div>
         </div>
