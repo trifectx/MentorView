@@ -49,24 +49,9 @@ model = Model()
 
 @app.after_request
 def add_cors_headers(response):
-    # Get the request origin
-    origin = request.headers.get('Origin')
-    
-    # Allow requests from localhost and ngrok
-    if origin and (origin.startswith('http://localhost') or 
-                  origin.startswith('https://localhost') or
-                  '.ngrok.io' in origin or
-                  '.ngrok-free.app' in origin or
-                  '.ngrok.app' in origin):
-        response.headers['Access-Control-Allow-Origin'] = origin
-    else:
-        # Fallback to wildcard for development
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS, POST, PUT, DELETE'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
-    
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,HEAD,OPTIONS,POST,PUT'
     return response
 
 
@@ -641,6 +626,4 @@ def status():
 # Run the app
 if __name__ == '__main__':
     model = Model()
-    # Run the server on 0.0.0.0 to make it accessible from other devices
-    # This is important for ngrok to be able to forward requests to the server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True)

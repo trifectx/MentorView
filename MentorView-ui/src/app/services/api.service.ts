@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable, Subject, catchError, of, tap, throwError } from 'rxjs';
 
 type Questions = { questions: string[] };
@@ -29,61 +29,26 @@ export interface SavedInterview {
     providedIn: 'root'
 })
 export class ApiService {
-    // Backend URL that works with both localhost and ngrok
-    private baseUrl: string;
-    private endpoints: any;
+    private baseUrl = 'http://localhost:5000';
+    private endpoints = {
+        questions: `${this.baseUrl}/question_suggestions`,
+        upload: `${this.baseUrl}/upload`,
+        transcribe: `${this.baseUrl}/transcribe`,
+        rateAnswer: `${this.baseUrl}/rate_answer`,
+        saveInterview: `${this.baseUrl}/save_interview`,
+        savedInterviews: `${this.baseUrl}/saved_interviews`,
+        downloadInterview: `${this.baseUrl}/download_interview`,
+        streamInterview: `${this.baseUrl}/stream_interview`,
+        updateInterview: `${this.baseUrl}/update_interview`,
+        deleteInterview: `${this.baseUrl}/delete_interview`,
+        transcribeAudio: `${this.baseUrl}/transcribe_audio`
+    };
 
     // Subject to notify components when interviews are updated
     private interviewsUpdatedSource = new Subject<void>();
     interviewsUpdated$ = this.interviewsUpdatedSource.asObservable();
 
-    constructor(private http: HttpClient) {
-        this.baseUrl = this.getBackendUrl();
-        
-        // Initialize endpoints after baseUrl is set
-        this.endpoints = {
-            questions: `${this.baseUrl}/question_suggestions`,
-            upload: `${this.baseUrl}/upload`,
-            transcribe: `${this.baseUrl}/transcribe`,
-            rateAnswer: `${this.baseUrl}/rate_answer`,
-            saveInterview: `${this.baseUrl}/save_interview`,
-            savedInterviews: `${this.baseUrl}/saved_interviews`,
-            downloadInterview: `${this.baseUrl}/download_interview`,
-            streamInterview: `${this.baseUrl}/stream_interview`,
-            updateInterview: `${this.baseUrl}/update_interview`,
-            deleteInterview: `${this.baseUrl}/delete_interview`,
-            transcribeAudio: `${this.baseUrl}/transcribe_audio`
-        };
-        
-        console.log('API Service initialized with backend URL:', this.baseUrl);
-    }
-    
-    /**
-     * Dynamically determines the backend URL to use
-     * This allows the app to work with both localhost and ngrok URLs
-     * 
-     * Note: This method only determines the URL to use, it doesn't check if the backend is actually available.
-     * Error handling for unavailable backends is done in the individual API methods.
-     */
-    public getBackendUrl(): string {
-        // If we're running in development mode and the user is on localhost,
-        // we can use the local backend URL
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            return 'http://localhost:5000';
-        }
-        
-        // For all other cases (like ngrok), we need to derive the backend URL
-        // from the current window location, assuming the backend is served from the same domain
-        
-        // If the URL contains 'ngrok', we assume it's an ngrok tunnel
-        if (window.location.hostname.includes('ngrok')) {
-            // For ngrok, we want to keep the same hostname but change the protocol to https
-            return `https://${window.location.hostname}`;
-        }
-        
-        // Default fallback to localhost
-        return 'http://localhost:5000';
-    }
+    constructor(private http: HttpClient) { }
 
     // Method to notify all subscribers that interviews have been updated
     notifyInterviewsUpdated() {
@@ -93,41 +58,11 @@ export class ApiService {
     uploadVideo(videoBlob: Blob): Observable<void> {
         const formData = new FormData();
         formData.append('file', videoBlob);
-        return this.http.post<void>(this.endpoints.upload, formData).pipe(
-            catchError(error => {
-                // Check if the response is HTML instead of JSON (backend not available)
-                if (error.error instanceof ProgressEvent) {
-                    console.error('Backend server is not available');
-                    return throwError(() => new Error('Backend server is not available. Please ensure the API server is running.'));
-                }
-                
-                if (typeof error.error === 'string' && error.error.includes('<!DOCTYPE html>')) {
-                    console.error('Received HTML response instead of JSON. Backend server might be unavailable or misconfigured.');
-                    return throwError(() => new Error('Backend server returned an invalid response. Please ensure the API server is running correctly.'));
-                }
-                
-                return throwError(() => error);
-            })
-        );
+        return this.http.post<void>(this.endpoints.upload, formData);
     }
 
     transcribeVideo(): Observable<Transcript> {
-        return this.http.get<Transcript>(this.endpoints.transcribe).pipe(
-            catchError(error => {
-                // Check if the response is HTML instead of JSON (backend not available)
-                if (error.error instanceof ProgressEvent) {
-                    console.error('Backend server is not available');
-                    return throwError(() => new Error('Backend server is not available. Please ensure the API server is running.'));
-                }
-                
-                if (typeof error.error === 'string' && error.error.includes('<!DOCTYPE html>')) {
-                    console.error('Received HTML response instead of JSON. Backend server might be unavailable or misconfigured.');
-                    return throwError(() => new Error('Backend server returned an invalid response. Please ensure the API server is running correctly.'));
-                }
-                
-                return throwError(() => error);
-            })
-        );
+        return this.http.get<Transcript>(this.endpoints.transcribe);
     }
 
     rateAnswer(data: {
@@ -140,22 +75,7 @@ export class ApiService {
         fillerWords?: { [key: string]: number };
         totalFillerWords?: number;
     }): Observable<Rating> {
-        return this.http.post<Rating>(this.endpoints.rateAnswer, data).pipe(
-            catchError(error => {
-                // Check if the response is HTML instead of JSON (backend not available)
-                if (error.error instanceof ProgressEvent) {
-                    console.error('Backend server is not available');
-                    return throwError(() => new Error('Backend server is not available. Please ensure the API server is running.'));
-                }
-                
-                if (typeof error.error === 'string' && error.error.includes('<!DOCTYPE html>')) {
-                    console.error('Received HTML response instead of JSON. Backend server might be unavailable or misconfigured.');
-                    return throwError(() => new Error('Backend server returned an invalid response. Please ensure the API server is running correctly.'));
-                }
-                
-                return throwError(() => error);
-            })
-        );
+        return this.http.post<Rating>(this.endpoints.rateAnswer, data);
     }
 
     getQuestions(data: {
@@ -163,22 +83,7 @@ export class ApiService {
         company: string,
         style: string
     }): Observable<Questions> {
-        return this.http.post<Questions>(this.endpoints.questions, data).pipe(
-            catchError(error => {
-                // Check if the response is HTML instead of JSON (backend not available)
-                if (error.error instanceof ProgressEvent) {
-                    console.error('Backend server is not available');
-                    return throwError(() => new Error('Backend server is not available. Please ensure the API server is running.'));
-                }
-                
-                if (typeof error.error === 'string' && error.error.includes('<!DOCTYPE html>')) {
-                    console.error('Received HTML response instead of JSON. Backend server might be unavailable or misconfigured.');
-                    return throwError(() => new Error('Backend server returned an invalid response. Please ensure the API server is running correctly.'));
-                }
-                
-                return throwError(() => error);
-            })
-        );
+        return this.http.post<Questions>(this.endpoints.questions, data);
     }
 
     saveInterview(data: {
@@ -250,8 +155,7 @@ export class ApiService {
      * @returns Observable with transcription response
      */
     uploadAudioForTranscription(formData: FormData): Observable<any> {
-        // Use the dynamic endpoint from the endpoints object
-        const url = this.endpoints.transcribeAudio;
+        const url = 'http://localhost:5000/transcribe_audio';
         
         // Add detailed logging
         console.log('Uploading audio for transcription...');
