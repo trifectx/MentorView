@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, Subject, catchError, of } from 'rxjs';
+import { Observable, Subject, catchError, of, tap, throwError } from 'rxjs';
 
 type Questions = { questions: string[] };
 type Transcript = { transcript: string };
@@ -40,7 +40,8 @@ export class ApiService {
         downloadInterview: `${this.baseUrl}/download_interview`,
         streamInterview: `${this.baseUrl}/stream_interview`,
         updateInterview: `${this.baseUrl}/update_interview`,
-        deleteInterview: `${this.baseUrl}/delete_interview`
+        deleteInterview: `${this.baseUrl}/delete_interview`,
+        transcribeAudio: `${this.baseUrl}/transcribe_audio`
     };
 
     // Subject to notify components when interviews are updated
@@ -149,6 +150,49 @@ export class ApiService {
     }
 
     /**
+     * Send audio file to backend for transcription
+     * @param formData FormData containing audio file and participant info
+     * @returns Observable with transcription response
+     */
+    uploadAudioForTranscription(formData: FormData): Observable<any> {
+        const url = 'http://localhost:5000/transcribe_audio';
+        
+        // Add detailed logging
+        console.log('Uploading audio for transcription...');
+        
+        return this.http.post<any>(url, formData).pipe(
+          tap(response => {
+            console.log('Transcription response:', response);
+          }),
+          catchError(error => {
+            console.error('Error during audio transcription:', error);
+            return throwError(() => new Error(`Transcription failed: ${error.message || 'Unknown error'}`));
+          })
+        );
+    }
+    
+    /**
+     * Simpler method to transcribe an audio file directly
+     * @param audioBlob The audio blob to transcribe
+     * @returns Observable with transcription response
+     */
+    transcribeAudioFile(audioBlob: Blob): Observable<Transcript> {
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'audio_recording.webm');
+        
+        // Send directly to the transcribeAudio endpoint
+        return this.http.post<Transcript>(this.endpoints.transcribeAudio, formData).pipe(
+          tap(response => {
+            console.log('Direct transcription response:', response);
+          }),
+          catchError(error => {
+            console.error('Error during direct audio transcription:', error);
+            return throwError(() => new Error(`Direct transcription failed: ${error.message || 'Unknown error'}`));
+          })
+        );
+    }
+
+    /**
      * Checks the status of the API
      * @returns Observable with API status
      */
@@ -157,6 +201,62 @@ export class ApiService {
             catchError(error => {
                 console.error('API status check failed:', error);
                 return of({ status: 'error', message: error.message });
+            })
+        );
+    }
+
+    /**
+     * Rates the response of a participant in an assessment centre session
+     * @param data Participant data including transcript and question
+     * @returns Observable with feedback for the participant
+     */
+    rateParticipantResponse(data: {
+        role: string;
+        company: string;
+        participantName: string;
+        transcript: string;
+        question: string;
+    }): Observable<Rating> {
+        // Use exactly the same structure as the normal rateAnswer method
+        // but include a special note in the transcript to indicate this is for assessment centre
+        const cleanTranscript = data.transcript.trim();
+        
+        // Format the transcript to include participant name and context
+        const formattedTranscript = `[Assessment Centre Participant: ${data.participantName}] ${cleanTranscript}`;
+        
+        // Create the exact same payload structure as the interview component uses
+        const payload = {
+            role: data.role,
+            company: data.company,
+            style: 'assessment-centre',
+            transcript: formattedTranscript,
+            question: data.question,
+            // Include optional fields with default values
+            wpm: 0,
+            fillerWords: {},
+            totalFillerWords: 0
+        };
+        
+        console.log('Sending participant feedback request with payload:', payload);
+        
+        // Use a more detailed error handler to help diagnose the issue
+        return this.http.post<Rating>(this.endpoints.rateAnswer, payload).pipe(
+            tap(response => {
+                console.log('Successfully received feedback response:', response);
+            }),
+            catchError(error => {
+                console.error('Error rating participant response:', error);
+                
+                // Log detailed information about the error
+                if (error.error) {
+                    console.error('Error details:', error.error);
+                }
+                
+                if (error.status === 400) {
+                    console.error('Bad request details:', error.error);
+                }
+                
+                return throwError(() => new Error(`Feedback generation failed: ${error.message || 'Unknown error'}`));
             })
         );
     }

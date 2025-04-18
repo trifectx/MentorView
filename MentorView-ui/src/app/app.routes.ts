@@ -9,6 +9,11 @@ import { SavedInterviewsComponent } from './pages/saved-interviews/saved-intervi
 import { OverviewComponent } from './pages/overview/overview.component';
 import { FriendsComponent } from './pages/friends/friends.component';
 import { AssessmentCentreComponent } from './pages/assessment-centre/assessment-centre.component';
+import { PostDetailComponent } from './pages/forum/post-detail/post-detail.component';
+import { CommunityListComponent } from './pages/forum/community-list/community-list.component';
+import { CommunityDetailComponent } from './pages/forum/community-detail/community-detail.component';
+import { ForYouComponent } from './pages/forum/for-you/for-you.component';
+import { LeaderboardComponent } from './pages/leaderboard/leaderboard.component';
 
 import { requireAuth, redirectIfAuthenticated } from './guards/route.guard';
 
@@ -29,4 +34,5 @@ export const routes: Routes = [
 
     // 🔴 Non-existant routes
     { path: '**', component: ErrorComponent },
+
 ];

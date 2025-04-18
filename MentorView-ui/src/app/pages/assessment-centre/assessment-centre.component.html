@@ -5,6 +5,9 @@
       <button class="btn" (click)="toggleQuestionsPanel()">
         {{ showQuestionsPanel ? 'Hide Questions' : 'Show Questions' }}
       </button>
+      <button id="join-btn" class="btn">Join Stream</button>
+      <button id="start-interview-btn" class="btn primary" (click)="startInterview()" [disabled]="isRecording">Start Interview</button>
+      <button id="stop-interview-btn" class="btn danger" (click)="stopInterview()" [disabled]="!isRecording">Stop Interview</button>
     </div>
   </div>
 
@@ -102,207 +105,215 @@
             <div class="question-card" *ngFor="let question of selectedQuestions" 
                  [class.selected]="question === currentQuestion"
                  (click)="selectQuestion(question)">
-              <p>{{ question.split('\n')[0] }}</p>
+              <p *ngIf="question.includes('Scenario:')">{{ (question.split('Scenario:')[1] || '').split('\n')[0] | slice:0:60 }}...</p>
+              <p *ngIf="!question.includes('Scenario:')">{{ question.split('\n')[0] | slice:0:60 }}...</p>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Main content area -->
     <div class="main-content">
-      <!-- Current Question Display -->
-      <div class="current-question-container" *ngIf="currentQuestion">
-        <div class="question-card current" [innerHTML]="currentQuestion | safeHtml"></div>
-      </div>
-
-      <!-- Interview Controls -->
-      <div class="interview-controls">
-        <button class="control-btn record-btn" (click)="startInterview()" [disabled]="isRecording">
-          <i class="material-icons">videocam</i>
-          <span>Start Interview</span>
-        </button>
-        <button class="control-btn stop-btn" (click)="stopInterview()" [disabled]="!isRecording">
-          <i class="material-icons">stop</i>
-          <span>Stop Interview</span>
-        </button>
-      </div>
-
-      <!-- Participant Grid -->
-      <div class="participant-grid">
-        <div class="participant-container" *ngFor="let slot of videoSlots; let i = index">
-          <div class="participant-video" [ngClass]="{'active': slot.active}">
-            <video 
-              #videoElement1 
-              *ngIf="i === 0" 
-              autoplay 
-              [muted]="true" 
-              [ngClass]="{'video-off': !slot.camActive}">
-            </video>
-            <video 
-              #videoElement2 
-              *ngIf="i === 1" 
-              autoplay 
-              [muted]="true" 
-              [ngClass]="{'video-off': !slot.camActive}">
-            </video>
-            <video 
-              #videoElement3 
-              *ngIf="i === 2" 
-              autoplay 
-              [muted]="true" 
-              [ngClass]="{'video-off': !slot.camActive}">
-            </video>
-            <video 
-              #videoElement4 
-              *ngIf="i === 3" 
-              autoplay 
-              [muted]="true" 
-              [ngClass]="{'video-off': !slot.camActive}">
-            </video>
-            <div class="participant-info">
-              <span class="participant-name">Participant {{ i + 1 }}</span>
-              <div class="participant-controls" *ngIf="slot.active">
-                <button class="control-btn" [ngClass]="{'active': !slot.micMuted}" (click)="toggleMic(i)" [disabled]="i === 1 && slot.videoBlob">
-                  <span class="material-icons">{{ slot.micMuted ? 'mic_off' : 'mic' }}</span>
-                </button>
-                <button class="control-btn" [ngClass]="{'active': slot.camActive}" (click)="toggleCam(i)" [disabled]="i === 1 && slot.videoBlob">
-                  <span class="material-icons">{{ slot.camActive ? 'videocam' : 'videocam_off' }}</span>
-                </button>
-              </div>
-            </div>
-            <button class="join-btn" (click)="joinParticipantSlot(i)">
-              {{ slot.active ? 'Leave' : 'Join' }}
-            </button>
-            <!-- Special button for participant 2 (index 1) to load test video -->
-            <button class="test-video-btn" *ngIf="i === 1" (click)="loadTestVideo()">
-              {{ selectedVideoFile ? 'Change Video' : 'Select Video' }}
-            </button>
-            <!-- Recording status indicator -->
-            <div class="recording-status" *ngIf="slot.isRecording">
-              <span class="recording-indicator"></span>
-              <span class="recording-text">Recording</span>
-            </div>
-            <!-- Prerecorded video indicator for participant 2 -->
-            <div class="prerecorded-indicator" *ngIf="i === 1 && slot.active && slot.videoBlob">
-              <span class="material-icons">movie</span>
-              <span>Prerecorded</span>
-            </div>
-            <!-- Transcribing indicator -->
-            <div class="transcribing-indicator" *ngIf="slot.loadingTranscript && !slot.isRecording">
-              <span class="material-icons">subtitles</span>
-              <span>Transcribing...</span>
-            </div>
-          </div>
+      <!-- Current Assessment Task Display -->
+      <div class="current-task-container" *ngIf="currentQuestion">
+        <h2 class="section-title">Current Assessment Task</h2>
+        <div class="task-content">
+          <div [innerHTML]="formatAssessmentTask(currentQuestion)" class="formatted-task"></div>
         </div>
       </div>
 
-      <!-- Global Controls -->
-      <div class="global-controls">
-        <button class="control-btn" [ngClass]="{'active': !globalMicMuted}" (click)="toggleGlobalMic()">
-          <span class="material-icons">{{ globalMicMuted ? 'mic_off' : 'mic' }}</span>
-          <span>{{ globalMicMuted ? 'All Muted' : 'All Unmuted' }}</span>
-        </button>
-        <button class="control-btn" [ngClass]="{'active': globalCamActive}" (click)="toggleGlobalCam()">
-          <span class="material-icons">{{ globalCamActive ? 'videocam' : 'videocam_off' }}</span>
-          <span>{{ globalCamActive ? 'All Cameras On' : 'All Cameras Off' }}</span>
-        </button>
+      <!-- Video Call Section - Simplified to match the exact layout in the screenshots -->
+      <div id="video-call-wrapper">
+        <div id="video-streams">
+          <!-- Video streams will be added here by the component -->
+        </div>
+        
+        <!-- Stream Controls - Fixed position at the bottom of the screen -->
+        <div id="stream-controls">
+          <button id="mic-btn" class="control-btn">Mic on</button>
+          <button id="camera-btn" class="control-btn">Camera on</button>
+          <button id="leave-btn" class="control-btn">Leave Call</button>
+        </div>
       </div>
-
+      
       <!-- Combined Transcript Section -->
-      <div class="combined-transcript-section" *ngIf="isAnyTranscriptAvailable() || isLoadingAnyTranscript() || isRecording">
-        <h3 class="section-title">Interview Transcript</h3>
+      <div class="combined-transcript-section" *ngIf="isAnyTranscriptAvailable() || isLoadingAnyTranscript()">
+        <h2 class="section-title">Interview Transcript</h2>
         
         <div class="transcript-content">
-          <div class="loading-container" *ngIf="isLoadingAnyTranscript() && !isRecording">
-            <mat-spinner [diameter]="30" color="accent"></mat-spinner>
-            <p>Generating transcript from interview recording...</p>
+          <div class="loading-container" *ngIf="isLoadingAnyTranscript() && !isAnyTranscriptAvailable()">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p>Generating transcripts...</p>
           </div>
           
           <div class="recording-transcript-container" *ngIf="isRecording">
             <div class="recording-indicator-large">
               <div class="recording-pulse"></div>
-              <span>Recording in progress</span>
+              <span>Recording in Progress</span>
             </div>
-            <p class="recording-transcript-note">Transcripts will be finalized when recording stops</p>
-          </div>
-          
-          <div *ngIf="!isLoadingAnyTranscript() && getCombinedTranscript().length > 0" class="combined-transcript">
-            <div *ngFor="let entry of getCombinedTranscript()" class="transcript-entry">
-              <div class="participant-label">Participant {{ entry.participantIndex + 1 }}</div>
-              <div class="transcript-text">{{ entry.text }}</div>
-            </div>
-          </div>
-          
-          <div *ngIf="!isLoadingAnyTranscript() && !isRecording && getCombinedTranscript().length === 0" class="empty-state">
-            No transcript available yet. Start recording to generate a transcript.
-          </div>
-        </div>
-        
-        <!-- Save Button -->
-        <button class="save-btn" 
-                *ngIf="getCombinedTranscript() && getCombinedTranscript().length > 0 && !isLoadingAnyTranscript()" 
-                (click)="saveAllInterviews()">
-          <i class="material-icons">save</i>
-          <span>Save Interview</span>
-        </button>
-        
-        <!-- Debug Button -->
-        <button class="debug-btn" (click)="debugMode = !debugMode">
-          <i class="material-icons">bug_report</i>
-          <span>Toggle Debug Info</span>
-        </button>
-        
-        <!-- Debug Panel -->
-        <div class="debug-panel" *ngIf="debugMode">
-          <h4>Debug Information</h4>
-          <div class="debug-info">
-            <div class="debug-section">
-              <h5>General State</h5>
-              <p><strong>Transcript Entries:</strong> {{ transcriptEntries.length }}</p>
-              <p><strong>Loading Any Transcript:</strong> {{ isLoadingAnyTranscript() }}</p>
-              <p><strong>Is Recording:</strong> {{ isRecording }}</p>
-              <p><strong>Is Any Transcript Available:</strong> {{ isAnyTranscriptAvailable() }}</p>
-            </div>
+            <p class="recording-transcript-note">Transcripts will be available after recording is completed.</p>
             
-            <div class="debug-section" *ngFor="let slot of videoSlots; let i = index">
-              <h5>Participant {{ i + 1 }}</h5>
-              <p><strong>Active:</strong> {{ slot.active }}</p>
-              <p><strong>Is Recording:</strong> {{ slot.isRecording }}</p>
-              <p><strong>Loading Transcript:</strong> {{ slot.loadingTranscript }}</p>
-              <p><strong>Has Stream:</strong> {{ !!slot.stream }}</p>
-              <p><strong>Has Video Blob:</strong> {{ !!slot.videoBlob }}</p>
-              <p><strong>Has Media Recorder:</strong> {{ !!slot.mediaRecorder }}</p>
-              <p><strong>Has Transcript:</strong> {{ !!slot.transcript }}</p>
-              <div *ngIf="slot.transcript" class="transcript-preview">
-                <p><strong>Transcript Preview:</strong></p>
-                <pre>{{ slot.transcript | slice:0:200 }}...</pre>
-              </div>
-            </div>
-            
-            <div class="debug-section">
-              <h5>Combined Transcript</h5>
-              <div *ngIf="transcriptEntries.length > 0">
-                <div *ngFor="let entry of transcriptEntries" class="debug-transcript-entry">
-                  <p><strong>Participant {{ entry.participantIndex + 1 }}</strong> ({{ entry.timestamp | date:'short' }})</p>
-                  <pre>{{ entry.text | slice:0:100 }}...</pre>
+            <!-- Real-time transcription display while recording -->
+            <div class="realtime-transcripts" *ngIf="isRecording && hasParticipantTranscripts()">
+              <h3>Real-time Speech Recognition</h3>
+              <div class="participant-transcript-containers">
+                <div class="participant-transcript" *ngFor="let entry of getParticipantTranscriptEntries()">
+                  <div class="participant-header">
+                    <div class="participant-name">{{ getParticipantName(entry.participantIndex) }}</div>
+                    <div class="recording-indicator-small" *ngIf="isRecording"></div>
+                  </div>
+                  <div class="interim-transcript" *ngIf="entry.interimText">{{ entry.interimText }}</div>
+                  <div class="transcript-text">{{ entry.text }}</div>
                 </div>
               </div>
-              <p *ngIf="transcriptEntries.length === 0">No transcript entries available</p>
             </div>
-            
-            <div class="debug-actions">
-              <button class="debug-action-btn" (click)="forceRefreshTranscripts()">
-                <i class="material-icons">refresh</i>
-                <span>Force Refresh Transcripts</span>
-              </button>
-              <button class="debug-action-btn" (click)="checkApiStatus()">
-                <i class="material-icons">network_check</i>
-                <span>Check API Status</span>
-              </button>
+          </div>
+          
+          <!-- Individual participant transcripts after recording -->
+          <div class="participant-transcripts" *ngIf="!isRecording && isAnyTranscriptAvailable()">
+            <div class="participant-transcript-container" *ngFor="let participantId of getActiveParticipantIds()">
+              <div class="participant-transcript-card">
+                <div class="participant-header">
+                  <h3>{{ getParticipantName(participantId) }}</h3>
+                  <span class="participant-duration" *ngIf="getParticipantAudioDuration(participantId)">
+                    {{ getParticipantAudioDuration(participantId) }} seconds
+                  </span>
+                </div>
+                <!-- Audio player container hidden but functionality maintained -->
+                <div id="audio-container-{{participantId}}" style="display: none;"></div>
+                <div class="participant-transcript-text">
+                  <div *ngIf="getParticipantTranscript(participantId) && getParticipantTranscript(participantId) !== 'No transcript available for this participant.'">
+                    <p>{{ getParticipantTranscript(participantId) }}</p>
+                    
+                    <!-- Feedback section when transcript is available -->
+                    <div class="feedback-section">
+                      <div *ngIf="!getParticipantFeedback(participantId) && !isParticipantFeedbackLoading(participantId) && !getParticipantFeedbackError(participantId)" class="feedback-actions">
+                        <button class="generate-feedback-btn" (click)="generateParticipantFeedback(participantId)">
+                          <span class="material-icons">psychology</span>
+                          Generate Assessment Feedback
+                        </button>
+                        <p class="feedback-hint">Get detailed AI feedback on how well this response addressed the assessment question "{{ currentQuestion }}"</p>
+                      </div>
+                      
+                      <div *ngIf="isParticipantFeedbackLoading(participantId)" class="feedback-loading">
+                        <div class="loading-spinner"></div>
+                        <p>Analyzing response to generate feedback...</p>
+                      </div>
+                      
+                      <div *ngIf="getParticipantFeedback(participantId)" class="feedback-content">
+                        <h4>Team Assessment Feedback</h4>
+                        
+                        <!-- Team Contribution Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.teamContribution" class="feedback-team-contribution">
+                          <h5>Overall Team Contribution</h5>
+                          <p [innerHTML]="getParticipantFeedbackObject(participantId)?.teamContribution | safeHtml"></p>
+                        </div>
+                        
+                        <!-- Team Interaction Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.teamInteraction" class="feedback-team-interaction">
+                          <h5>Team Interaction</h5>
+                          <p [innerHTML]="getParticipantFeedbackObject(participantId)?.teamInteraction | safeHtml"></p>
+                        </div>
+                        
+                        <!-- Display strengths if available -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.strengths && getParticipantFeedbackObject(participantId)?.strengths.length > 0" class="feedback-strengths">
+                          <h5>Key Strengths</h5>
+                          <ul>
+                            <li *ngFor="let strength of getParticipantFeedbackObject(participantId)?.strengths">{{ strength }}</li>
+                          </ul>
+                        </div>
+                        
+                        <!-- Display areas for improvement if available -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.improvements && getParticipantFeedbackObject(participantId)?.improvements.length > 0" class="feedback-improvements">
+                          <h5>Areas for Improvement</h5>
+                          <ul>
+                            <li *ngFor="let improvement of getParticipantFeedbackObject(participantId)?.improvements">{{ improvement }}</li>
+                          </ul>
+                        </div>
+                        
+                        <!-- Participation Balance Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.participationBalance" class="feedback-participation-balance">
+                          <h5>Participation Balance</h5>
+                          <p [innerHTML]="getParticipantFeedbackObject(participantId)?.participationBalance | safeHtml"></p>
+                        </div>
+                        
+                        <!-- Individual Assessments Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.individualAssessments && objectKeys(getParticipantFeedbackObject(participantId)?.individualAssessments).length > 0" class="feedback-individual-assessments">
+                          <h5>Individual Participant Assessments</h5>
+                          <div class="individual-assessments-list">
+                            <div *ngFor="let assessment of objectEntries(getParticipantFeedbackObject(participantId)?.individualAssessments)" class="individual-assessment-item">
+                              <h6 class="participant-name">{{ assessment[0] }}</h6>
+                              <p class="assessment-text" [innerHTML]="assessment[1] | safeHtml"></p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- Name References Section -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.nameReferences && objectKeys(getParticipantFeedbackObject(participantId)?.nameReferences).length > 0" class="feedback-name-references">
+                          <h5>Name References</h5>
+                          <div class="name-references-grid">
+                            <div *ngFor="let nameRef of objectEntries(getParticipantFeedbackObject(participantId)?.nameReferences)" class="name-reference-item">
+                              <span class="name-ref-name">{{ nameRef[0] }}:</span>
+                              <span class="name-ref-count">{{ nameRef[1] }} mentions</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- Display score if available -->
+                        <div *ngIf="getParticipantFeedbackObject(participantId)?.score" class="feedback-score">
+                          <h5>Team Collaboration Score</h5>
+                          <div class="score-display">
+                            <span class="score-value">{{ getParticipantFeedbackObject(participantId)?.score }}</span>
+                            <span class="score-max">/10</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div *ngIf="getParticipantFeedbackError(participantId)" class="feedback-error">
+                        <h4>Error Generating Feedback</h4>
+                        <p>{{ getParticipantFeedbackError(participantId) }}</p>
+                        <button class="retry-btn" (click)="generateParticipantFeedback(participantId)">
+                          <span class="material-icons">refresh</span>
+                          Retry
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div *ngIf="!getParticipantTranscript(participantId) || getParticipantTranscript(participantId) === 'No transcript available for this participant.'" class="no-transcript-message">
+                    Waiting for transcript from OpenAI GPT... Audio saved successfully. 
+                    <div class="transcript-action-buttons">
+                      <button class="retry-transcription-btn" (click)="retryTranscription(participantId)">
+                        <span class="material-icons">refresh</span>
+                        Retry Transcription
+                      </button>
+                      <button class="display-transcript-btn" (click)="displayTranscriptFromAudio(participantId)">
+                        <span class="material-icons">record_voice_over</span>
+                        Display Transcript
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+        
+        <!-- Display All Transcripts button -->
+        <div class="post-interview-actions" *ngIf="!isRecording && hasRecordedAudio()">
+          <button class="display-all-transcripts-btn" (click)="displayAllTranscripts()">
+            <span class="material-icons">description</span>
+            Display All Transcripts
+          </button>
+        </div>
+        
+        <button class="save-btn" (click)="saveAllInterviews()" [disabled]="isSaving || !isAnyTranscriptAvailable()">
+          <span *ngIf="!isSaving && !saveSuccess">Save Interview</span>
+          <span *ngIf="isSaving">Saving...</span>
+          <span *ngIf="!isSaving && saveSuccess">Saved Successfully!</span>
+        </button>
+        
+        <div *ngIf="saveError" class="error-message">{{ saveError }}</div>
       </div>
     </div>
   </div>

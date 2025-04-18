@@ -1,0 +1,132 @@
+<app-navbar></app-navbar>
+
+<div class="page-container">
+  <div class="leaderboard-header">
+    <div class="header-content">
+      <h1>XP Leaderboard</h1>
+      <p class="leaderboard-description">See how you rank against other users based on experience points.</p>
+    </div>
+    <div class="header-actions">
+      <button class="filter-button">
+        <i class="fas fa-filter"></i> Filter
+      </button>
+      <button class="refresh-button" (click)="loadLeaderboard()">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading leaderboard data...</p>
+  </div>
+
+  <div *ngIf="error" class="error-container">
+    <p>Unable to load leaderboard data. Please try again later.</p>
+    <button (click)="loadLeaderboard()" class="retry-button">Retry</button>
+  </div>
+
+  <div *ngIf="!loading && !error" class="leaderboard-content">
+    <div class="leaderboards-container">
+      <!-- Global Leaderboard Column -->
+      <div class="leaderboard-column">
+        <div class="leaderboard-title" (click)="setActiveTab('global')">
+          <h2>TOP USERS BY <span class="highlight">XP</span> VOLUME</h2>
+          <div class="active-indicator" [class.active]="activeTab === 'global'"></div>
+        </div>
+        
+        <div class="leaderboard-table-container">
+          <table class="leaderboard-table">
+            <tbody>
+              <tr *ngFor="let user of globalLeaderboardUsers; let i = index" [class.top-rank]="user.rank <= 3" [class.odd-row]="i % 2 !== 0">
+                <td class="rank-cell">
+                  <div class="rank-badge" [class.gold]="user.rank === 1" [class.silver]="user.rank === 2" [class.bronze]="user.rank === 3">
+                    {{ user.rank }}
+                  </div>
+                </td>
+                <td class="user-cell">
+                  <div class="user-info">
+                    <span class="user-name">{{ user.displayName }}</span>
+                  </div>
+                </td>
+                <td class="level-cell">
+                  <div class="level-badge">
+                    {{ user.level }}
+                  </div>
+                </td>
+                <td class="xp-cell">{{ user.totalXP.toLocaleString() }} XP</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div *ngIf="globalLeaderboardUsers.length === 0" class="empty-state">
+            <p>No users found on the global leaderboard yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Friends Leaderboard Column -->
+      <div class="leaderboard-column">
+        <div class="leaderboard-title" (click)="setActiveTab('local')">
+          <h2>TOP <span class="highlight">FRIENDS</span> BY XP VOLUME</h2>
+          <div class="active-indicator" [class.active]="activeTab === 'local'"></div>
+        </div>
+
+        <div class="leaderboard-table-container">
+          <table class="leaderboard-table">
+            <tbody>
+              <tr *ngFor="let user of friendsLeaderboardUsers; let i = index" [class.top-rank]="user.rank <= 3" [class.odd-row]="i % 2 !== 0">
+                <td class="rank-cell">
+                  <div class="rank-badge" [class.gold]="user.rank === 1" [class.silver]="user.rank === 2" [class.bronze]="user.rank === 3">
+                    {{ user.rank }}
+                  </div>
+                </td>
+                <td class="user-cell">
+                  <div class="user-info">
+                    <span class="user-name">{{ user.displayName }}</span>
+                  </div>
+                </td>
+                <td class="level-cell">
+                  <div class="level-badge">
+                    {{ user.level }}
+                  </div>
+                </td>
+                <td class="xp-cell">{{ user.totalXP.toLocaleString() }} XP</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div *ngIf="friendsLeaderboardUsers.length === 0" class="empty-state">
+            <p>No friends found on the leaderboard yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Card -->
+      <div class="stats-card">
+        <div class="stats-header">
+          <h3>Your Stats</h3>
+        </div>
+        <div class="stats-content">
+          <div class="stats-illustration">
+            <img src="assets/images/xp-trophy.png" alt="XP Trophy" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2972/2972171.png'">
+          </div>
+          <div class="stats-info">
+            <div class="stat-item">
+              <span class="stat-label">Your Rank</span>
+              <span class="stat-value">#{{ currentUserRank || '?' }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">XP Earned</span>
+              <span class="stat-value">{{ currentUserXP || 0 }} XP</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Current Level</span>
+              <span class="stat-value">{{ currentUserLevel || 0 }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

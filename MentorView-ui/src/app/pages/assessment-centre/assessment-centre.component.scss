@@ -1,0 +1,210 @@
+// Assessment Centre Component Styles
+
+// Basic Page Layout
+.assessment-page {
+  padding: 20px;
+}
+
+// Video Call Styles
+.video-setup {
+  padding: 20px;
+  
+  .card {
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+  }
+}
+
+.video-call-container {
+  position: relative;
+  width: 100%;
+  
+  .room-info {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+  }
+  
+  .video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .video-container {
+    position: relative;
+    background-color: #2d2d2d;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    
+    &.local-video {
+      border: 2px solid #3f51b5;
+    }
+    
+    .video-player {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .video-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(0, 0, 0, 0.7);
+      
+      i {
+        font-size: 48px;
+        color: white;
+      }
+    }
+    
+    .user-label {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+  }
+  
+  .empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    
+    i {
+      font-size: 48px;
+      color: #6c757d;
+      margin-bottom: 15px;
+    }
+  }
+  
+  .call-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    
+    .btn-circle {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        transform: scale(1.1);
+      }
+      
+      i {
+        font-size: 24px;
+      }
+    }
+  }
+  
+  .chat-container {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    
+    h6 {
+      padding: 10px 15px;
+      background-color: #f8f9fa;
+      border-bottom: 1px solid #dee2e6;
+      margin: 0;
+    }
+    
+    .chat-messages {
+      height: 250px;
+      overflow-y: auto;
+      padding: 15px;
+      
+      .message {
+        margin-bottom: 15px;
+        
+        .message-sender {
+          font-weight: 500;
+          margin-bottom: 3px;
+        }
+        
+        .message-content {
+          background-color: #f0f2f5;
+          padding: 8px 12px;
+          border-radius: 18px;
+          display: inline-block;
+          max-width: 80%;
+        }
+        
+        &.system-message {
+          .message-sender {
+            color: #6c757d;
+          }
+          
+          .message-content {
+            background-color: #e9ecef;
+            color: #6c757d;
+            font-style: italic;
+          }
+        }
+      }
+    }
+    
+    .chat-input {
+      padding: 10px 15px;
+      border-top: 1px solid #dee2e6;
+      
+      .btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+// Existing Styles for Assessment Center
+// Add any existing styles below to maintain compatibility
+
+// Media Queries
+@media (max-width: 768px) {
+  .video-call-container {
+    .call-controls {
+      .btn-circle {
+        width: 40px;
+        height: 40px;
+        
+        i {
+          font-size: 20px;
+        }
+      }
+    }
+  }
+}

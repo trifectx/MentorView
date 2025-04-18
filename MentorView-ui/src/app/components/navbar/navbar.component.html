@@ -1,0 +1,54 @@
+<header class="dashboard-header">
+  <div class="header-left">
+    <button class="back-button" routerLink="/login">←</button>
+    <nav class="main-nav">
+      <a class="nav-item" routerLink="/dashboard">Explore</a>
+      <a class="nav-item" routerLink="/overview">Overview</a>
+      <a class="nav-item" routerLink="/forum">Forum</a>
+      <div class="nav-item dropdown">
+        <button class="dropdown-button">Interview <span class="dropdown-icon">▾</span></button>
+        <div class="dropdown-content">
+          <a routerLink="/interview" class="dropdown-item">
+            <i class="fas fa-user-friends"></i>
+            Online Interview
+          </a>
+          <a routerLink="/saved-interviews" class="dropdown-item">
+            <i class="fas fa-bookmark"></i>
+            Saved Interviews
+          </a>
+        </div>
+      </div>
+      <a class="nav-item" routerLink="/friends">Friends</a>
+      <a class="nav-item" routerLink="/assessment-centre">Assessment Centre</a>
+      <a class="nav-item" routerLink="/leaderboard">Leaderboard</a>
+    </nav>
+  </div>
+  <div class="header-right">
+    <div class="user-controls">
+      <button class="notification-btn">🔔</button>
+      <div class="nav-item dropdown" [class.active]="isUserDropdownOpen">
+        <button class="user-btn dropdown-button" (click)="toggleUserDropdown($event)">👤 <span class="dropdown-icon">▾</span></button>
+        <div class="dropdown-content user-dropdown" [class.show]="isUserDropdownOpen">
+          <a routerLink="/profile" class="dropdown-item" (click)="$event.stopPropagation()">
+            <i class="fas fa-user"></i>
+            Profile
+          </a>
+          <a routerLink="/settings" class="dropdown-item" (click)="$event.stopPropagation()">
+            <i class="fas fa-cog"></i>
+            Settings
+          </a>
+          <a routerLink="/login" class="dropdown-item" (click)="$event.stopPropagation()">
+            <i class="fas fa-sign-out-alt"></i>
+            Logout
+          </a>
+        </div>
+      </div>
+      <button class="premium-btn">Premium</button>
+    </div>
+  </div>
+</header>
+
+<!-- XP level indicator positioned in the corner as per user preference -->
+<div class="xp-corner-indicator">
+  <app-level-indicator></app-level-indicator>
+</div>

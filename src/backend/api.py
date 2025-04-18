@@ -5,6 +5,7 @@ import time
 import random
 import string
 import tempfile
+import os
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_file
@@ -41,6 +42,9 @@ if not os.path.exists(saved_interviews_dir):
 app = Flask(__name__)
 transcript = ""
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Initialize the model
+model = Model()
 
 
 @app.after_request
@@ -144,13 +148,19 @@ def query():
     role = data.get('role', '')
     company = data.get('company', '')
     question = data.get('question', '')
+    transcript_data = data.get('transcript', '')
+    style = data.get('style', '')
     wpm = data.get('wpm', 0)
     filler_words = data.get('fillerWords', {})
     total_filler_words = data.get('totalFillerWords', 0)
     
+    # Check if this is an assessment centre request
+    if style == 'assessment-centre' or data.get('isAssessmentCentre', False):
+        return assessment_centre_feedback(data)
+    
     # Check if required fields are present
-    if not all([role, company, question, transcript]):
-        return jsonify({"error": "All fields (role, company, question, answer) are required"}), 400
+    if not all([role, company, question, transcript_data]):
+        return jsonify({"error": "All fields (role, company, question, transcript) are required"}), 400
 
     # Send the input data to the model
     try:
@@ -158,7 +168,7 @@ def query():
             role=role, 
             company=company, 
             question=question, 
-            answer=transcript, 
+            answer=transcript_data, 
             wpm=wpm, 
             filler_words=filler_words, 
             total_filler_words=total_filler_words
@@ -166,6 +176,144 @@ def query():
         return jsonify({"feedback": feedback}), 200
     except Exception as e:
         return jsonify({"error": f"Error during query: {str(e)}"}), 500
+
+
+# Dedicated endpoint for assessment centre feedback
+@app.route('/assessment_centre_feedback', methods=['POST'])
+def assessment_centre_feedback(data=None):
+    # If data is not provided, get it from the request
+    if data is None:
+        data = request.get_json()
+        print("Assessment Centre Feedback Request:", data)
+    
+    # Extract data
+    role = data.get('role', 'Candidate')
+    company = data.get('company', 'Assessment Centre')
+    question = data.get('question', '')
+    transcript_data = data.get('transcript', '')
+    participant_name = data.get('participantName', 'Participant')
+    other_participants = data.get('otherParticipants', [])
+    
+    # Check if required fields are present
+    if not all([question, transcript_data]):
+        return jsonify({"error": "Question and transcript are required"}), 400
+
+    try:
+        # Format the response with structured feedback
+        # This is a more detailed feedback format specifically for assessment centres
+        feedback_text = model.query_model_for_feedback(
+            role=role, 
+            company=company, 
+            question=question, 
+            answer=transcript_data,
+            context="assessment centre evaluation"
+        )
+        
+        # Parse the feedback to extract various sections
+        import re
+        
+        # Initialize response sections
+        strengths = []
+        improvements = []
+        team_contribution = ""
+        team_interaction = ""
+        participation_balance = ""
+        individual_assessments = {}
+        score = None
+        name_references = {}
+        
+        # Extract a score if present (looking for patterns like "Score: 7/10" or "Rating: 8")
+        score_match = re.search(r'(?:score|rating)\s*(?::|is)?\s*(\d+)(?:\s*\/\s*10)?', feedback_text.lower())
+        if score_match:
+            try:
+                score = int(score_match.group(1))
+                # Ensure score is between 1-10
+                score = max(1, min(10, score))
+            except:
+                score = None
+        
+        # Extract team contribution section
+        team_contribution_section = re.search(r'(?:overall team contribution|team contribution)\s*:(.+?)(?:team interaction|strengths|improvements|areas for improvement|participation balance|score|$)', 
+                                            feedback_text.lower(), re.DOTALL)
+        if team_contribution_section:
+            team_contribution = team_contribution_section.group(1).strip()
+        
+        # Extract team interaction section
+        team_interaction_section = re.search(r'(?:team interaction)\s*:(.+?)(?:strengths|improvements|areas for improvement|participation balance|score|$)', 
+                                           feedback_text.lower(), re.DOTALL)
+        if team_interaction_section:
+            team_interaction = team_interaction_section.group(1).strip()
+        
+        # Extract participation balance section
+        participation_section = re.search(r'(?:participation balance)\s*:(.+?)(?:score|conclusion|summary|$)', 
+                                        feedback_text.lower(), re.DOTALL)
+        if participation_section:
+            participation_balance = participation_section.group(1).strip()
+        
+        # Look for strengths section
+        strengths_section = re.search(r'(?:strengths)\s*:(.+?)(?:improvements|areas for improvement|weaknesses|areas to improve|participation balance|score|overall|conclusion|summary|$)', 
+                                     feedback_text.lower(), re.DOTALL)
+        if strengths_section:
+            # Extract bullet points or numbered items
+            strength_items = re.findall(r'(?:^|\n)\s*(?:\-|\*|\d+\.)\s*(.+?)(?=\n\s*(?:\-|\*|\d+\.)|$)', 
+                                       strengths_section.group(1), re.DOTALL)
+            if strength_items:
+                strengths = [item.strip() for item in strength_items if item.strip()]
+            else:
+                # If no bullet points, split by sentences
+                strength_text = strengths_section.group(1).strip()
+                strengths = [s.strip() for s in re.split(r'(?<=[.!?])\s+', strength_text) if s.strip()]
+        
+        # Look for improvements section
+        improvements_section = re.search(r'(?:improvements|areas for improvement|weaknesses|areas to improve)\s*:(.+?)(?:participation balance|score|overall|conclusion|summary|$)', 
+                                       feedback_text.lower(), re.DOTALL)
+        if improvements_section:
+            # Extract bullet points or numbered items
+            improvement_items = re.findall(r'(?:^|\n)\s*(?:\-|\*|\d+\.)\s*(.+?)(?=\n\s*(?:\-|\*|\d+\.)|$)', 
+                                         improvements_section.group(1), re.DOTALL)
+            if improvement_items:
+                improvements = [item.strip() for item in improvement_items if item.strip()]
+            else:
+                # If no bullet points, split by sentences
+                improvement_text = improvements_section.group(1).strip()
+                improvements = [s.strip() for s in re.split(r'(?<=[.!?])\s+', improvement_text) if s.strip()]
+        
+        # Count name references if other participants are provided
+        if other_participants and isinstance(other_participants, list):
+            for participant in other_participants:
+                if isinstance(participant, str) and participant.strip():
+                    # Count occurrences of the participant's name in the transcript
+                    name_count = len(re.findall(r'\b' + re.escape(participant.strip()) + r'\b', transcript_data, re.IGNORECASE))
+                    name_references[participant.strip()] = name_count
+        
+        # Extract individual assessments section
+        individual_assessments_section = re.search(r'(?:individual assessments)\s*:(.+?)(?:score|conclusion|summary|$)', 
+                                                 feedback_text.lower(), re.DOTALL)
+        if individual_assessments_section:
+            # Try to extract assessments for each participant
+            participant_assessments = re.findall(r'([^:\n]+)\s*:\s*(.+?)(?=\n\s*[^:\n]+\s*:|$)', 
+                                               individual_assessments_section.group(1), re.DOTALL)
+            for name, assessment in participant_assessments:
+                individual_assessments[name.strip()] = assessment.strip()
+        
+        # Prepare the response
+        response = {
+            "feedback": feedback_text,
+            "teamContribution": team_contribution,
+            "teamInteraction": team_interaction,
+            "participationBalance": participation_balance,
+            "strengths": strengths,
+            "improvements": improvements,
+            "individualAssessments": individual_assessments,
+            "nameReferences": name_references,
+            "score": score,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        return jsonify(response), 200
+    except Exception as e:
+        print(f"Error generating assessment centre feedback: {str(e)}")
+        return jsonify({"error": f"Error generating feedback: {str(e)}"}), 500
     
 
 # Save interview
@@ -258,6 +406,89 @@ def get_saved_interview(interview_id):
         return jsonify(interview_data), 200
     except Exception as e:
         return jsonify({"error": f"Error retrieving interview: {str(e)}"}), 500
+
+
+# Transcribe audio from assessment centre participants
+@app.route('/transcribe_audio', methods=['POST'])
+def transcribe_audio():
+    try:
+        # Check if the 'file' part is in the request
+        if 'file' not in request.files:
+            return jsonify({"error": "No audio file provided"}), 400
+
+        audio_file = request.files['file']  # Get the file from the request
+        participant_index = request.form.get('participantIndex', '0')
+        participant_name = request.form.get('participantName', f'Participant {participant_index}')
+        
+        # Create a temporary file for the audio
+        temp_audio_path = os.path.join(tempfile.gettempdir(), f"participant_{participant_index}_audio_{uuid.uuid4()}.webm")
+        audio_file.save(temp_audio_path)
+        
+        print(f"Saved audio file for {participant_name} to {temp_audio_path}")
+        
+        try:
+            # Enhanced OpenAI Whisper configuration for better quality transcription
+            print(f"Starting OpenAI transcription for {participant_name}...")
+            with open(temp_audio_path, "rb") as audio:
+                transcription = client.audio.transcriptions.create(
+                    model="whisper-1", 
+                    file=audio, 
+                    response_format="verbose_json",  # Get more detailed response with timestamps
+                    language="en",  # Specify language for better accuracy
+                    prompt="This is a professional interview conversation with multiple speakers."  # Context helps accuracy
+                )
+                
+            # Extract detailed transcription information
+            if hasattr(transcription, 'text'):
+                transcript_text = transcription.text
+            else:
+                transcript_text = transcription.get('text', '')
+                
+            print(f"OpenAI Whisper transcription completed for {participant_name}")
+            print(f"Transcript sample: {transcript_text[:100]}...")
+            
+        except Exception as whisper_error:
+            print(f"Error with OpenAI Whisper: {str(whisper_error)}. Trying Deepgram...")
+            
+            # Fallback to Deepgram if Whisper fails
+            try:
+                deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+                
+                with open(temp_audio_path, "rb") as audio:
+                    payload = {'buffer': audio}
+                    options = PrerecordedOptions(
+                        punctuate=True,
+                        model="nova-2", 
+                        language="en-US",
+                        filler_words=True,
+                        diarize=True  # Enable speaker identification
+                    )
+                    
+                    response = deepgram.listen.rest.v('1').transcribe_file(payload, options)
+                    transcript_text = response['results']['channels'][0]['alternatives'][0]['transcript']
+                    print(f"Deepgram transcription completed for {participant_name}")
+                    
+            except Exception as deepgram_error:
+                return jsonify({"error": f"Error transcribing with both services: {str(whisper_error)} and {str(deepgram_error)}"}), 500
+        
+        # Clean up the temporary file
+        try:
+            os.remove(temp_audio_path)
+        except:
+            print(f"Warning: Failed to remove temporary audio file: {temp_audio_path}")
+        
+        # Format the transcript with the participant name
+        formatted_transcript = f"{participant_name}: {transcript_text}"
+        
+        return jsonify({
+            "transcript": formatted_transcript,
+            "rawTranscript": transcript_text,
+            "participantName": participant_name,
+            "participantIndex": participant_index
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"Error processing audio for transcription: {str(e)}"}), 500
 
 
 # Download interview video

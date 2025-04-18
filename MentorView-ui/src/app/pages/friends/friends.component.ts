@@ -4,11 +4,12 @@ import { RouterModule } from '@angular/router';
 import { FriendService, FriendRequest } from '../../services/friend.service';
 import { Auth, User } from '@angular/fire/auth';
 import { Observable, Subscription, map } from 'rxjs';
+import { NavbarComponent } from '../../components/navbar/navbar.component';
 
 @Component({
   selector: 'app-friends',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, NavbarComponent],
   templateUrl: './friends.component.html',
   styleUrls: ['./friends.component.css']
 })

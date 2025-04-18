@@ -2,6 +2,7 @@ from openai import OpenAI
 import re
 import os
 from dotenv import load_dotenv
+from openai import OpenAI
 
 class Model:
 
@@ -21,7 +22,7 @@ class Model:
 
     def construct_prompt_for_questions(self, role, company, style):
         # Check the interview style and use the appropriate prompt generator
-        if style == "assessment":
+        if style and "assessment" in style.lower():
             return self.construct_prompt_for_assessment_centre(role, company)
         else:
             return self.construct_prompt_for_interview_questions(role, company, style)
@@ -65,13 +66,16 @@ class Model:
         return [
             {
                 "role": "system",
-                "content": "You are an expert recruiter who designs assessment centre group exercises for evaluating multiple candidates simultaneously."
+                "content": "You are an expert recruiter who designs assessment centre GROUP EXERCISES for evaluating multiple candidates simultaneously. You MUST ONLY create collaborative group tasks and NEVER individual interview questions. Your tasks should always involve multiple people working together on a shared challenge."
             },
             {
                 "role": "user",
                 "content": f"""
-                Create 1 group assessment task for {role} candidates at {company}.
+                Create 1 GROUP ASSESSMENT TASK for {role} candidates at {company}.
 
+                IMPORTANT: This MUST be a task designed for a GROUP of 3-5 candidates to work on TOGETHER. 
+                DO NOT create individual interview questions - they must be collaborative exercises.
+                
                 Format the task EXACTLY as follows:
                 
                 Scenario:
@@ -83,19 +87,24 @@ class Model:
                 [Include a deliverable or outcome the group must produce]
                 [Specify a timeframe (between 10-30 minutes)]
                 
-                THE FORMAT MUST BE EXACTLY LIKE THIS EXAMPLE:
+                USE THESE EXAMPLES AS YOUR PRIMARY REFERENCES:
                 
+                Example 1:
                 Scenario:
-                Your group has been given a limited budget and must decide how to distribute it among several departmental initiatives (e.g., marketing, research and development, staffing). Each participant represents a different department, and all believe their department should receive the most funding.
+                Your team represents a charitable foundation with $1 million to allocate. You must collectively agree on how to distribute these funds among these five causes: climate change initiatives, educational programs in underserved areas, medical research for rare diseases, homeless support services, and clean water projects in developing countries. You must determine the exact percentage each cause receives and justify your decisions.
 
-                Instructions:
-                Discuss and list the key priorities of the organization (e.g., growth, innovation, customer retention).
-                Present your department's case for funding.
-                Negotiate with the other "departments" in the group to reach a consensus on the final budget allocation.
-                Prepare a short presentation explaining your group's final decision to the assessors.
+                Example 2:
+                Scenario:
+                Your team is stranded on a remote island after a plane crash. You've recovered 10 items from the wreckage: a box of matches, a compass, a mirror, a first aid kit, a tarp, 5 liters of water, a hunting knife, a rope, a fishing net, and a flashlight. As a group, rank these items in order of importance for survival and provide reasoning for your rankings.
+
+                Example 3:
+                Scenario:
+                Your team runs a large urban public library facing declining visitors and budget cuts. Collectively develop three innovative solutions to revitalize the library and make it relevant for the next decade. Each solution must be realistic, cost-effective, and serve diverse community needs.
                 
-                Generate a unique, engaging scenario with instructions relevant to {role} at {company}.
-                Make the scenario test various competencies (leadership, teamwork, communication, problem-solving, decision-making).
+                Your task should follow a SIMILAR GROUP FORMAT to these examples, but adapted for the {role} at {company}.
+                Make the scenario test various collaborative competencies (leadership, teamwork, communication, problem-solving, decision-making).
+                
+                REMEMBER: The exercise MUST involve the entire group working TOGETHER. It should NOT be an individual interview question.
                 """
             }
         ]
@@ -191,11 +200,17 @@ class Model:
             }
         ]
 
-    def query_model_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0):
+    def query_model_for_feedback(self, role, company, question, answer, wpm=0, filler_words={}, total_filler_words=0, context=None):
         try:
+            # If context is provided, use a modified prompt construction
+            if context and context == "assessment centre evaluation":
+                messages = self.construct_assessment_centre_prompt(role, company, question, answer)
+            else:
+                messages = self.construct_prompt_for_feedback(role, company, question, answer, wpm, filler_words, total_filler_words)
+                
             response = self.client.chat.completions.create(
                 model=self.model_name, 
-                messages=self.construct_prompt_for_feedback(role, company, question, answer, wpm, filler_words, total_filler_words), 
+                messages=messages, 
                 max_tokens=2000,  
                 temperature=0.7,   
                 stream=False
@@ -205,3 +220,33 @@ class Model:
         except Exception as e:
             print(f"Error in query_model_for_feedback: {str(e)}")
             return "Error evaluating answer. Please try again."
+            
+    def construct_assessment_centre_prompt(self, role, company, question, answer):
+        """Constructs a specialized prompt for assessment centre evaluations with focus on team interactions"""
+        prompt = [
+            {"role": "system", "content": f"You are an expert assessment centre evaluator for {company}. "
+                                       f"Your task is to evaluate a participant's contribution in a team exercise. "
+                                       f"Focus specifically on how well they interact with the team, involve other members, "
+                                       f"and contribute to the group discussion. Pay special attention to whether they refer to "
+                                       f"others by name and how they balance speaking time with listening. "
+                                       f"The transcript will be provided in chronological order with timestamps and speaker names."},
+            
+            {"role": "user", "content": f"This is a chronological transcript from an assessment centre group exercise for a {role} position at {company}. "
+                                     f"The group was discussing the following question/task: \"{question}\" "
+                                     f"Here is the transcript of the discussion with timestamps and speaker names:\n\n{answer}"},
+            
+            {"role": "user", "content": f"Please analyze the conversation flow and evaluate the participants' contributions with the following structure:\n"
+                                     f"1. Overall Team Contribution: Evaluate how effectively each participant contributed to the team discussion. "
+                                     f"Note who took leadership roles and who was more passive.\n"
+                                     f"2. Team Interaction: Assess how well participants engaged with each other, referenced team members by name, "
+                                     f"and encouraged participation from quieter members. Note specific examples from the transcript.\n"
+                                     f"3. Strengths: Bullet points highlighting positive aspects of the team collaboration\n"
+                                     f"4. Areas for Improvement: Bullet points with specific suggestions for better team interaction\n"
+                                     f"5. Participation Balance: Analyze the balance of speaking time among participants. Who dominated the conversation? "
+                                     f"Who was too quiet? Was there a good balance of contributions?\n"
+                                     f"6. Individual Assessments: Brief assessment of each participant's contribution, noting their strengths and areas for improvement\n"
+                                     f"7. Score: A rating out of 10 for the overall team collaboration\n"
+                                     f"Be specific, constructive, and actionable in your feedback. Reference specific timestamps and quotes from the "
+                                     f"transcript to support your evaluation. Pay attention to how the conversation evolved over time."}
+        ]
+        return prompt
