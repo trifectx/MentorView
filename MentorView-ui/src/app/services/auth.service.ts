@@ -1,8 +1,7 @@
 import { inject, Injectable, signal, computed, effect } from '@angular/core';
-import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, user as firebaseUser, User as FirebaseUser } from '@angular/fire/auth';
+import { Auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, User as FirebaseUser, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore, doc, setDoc } from '@angular/fire/firestore';
 import { Observable, from} from 'rxjs';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { UserInterface } from '../shared/user.interface';
 
 @Injectable({
@@ -12,18 +11,18 @@ export class AuthService {
     firebaseAuth = inject(Auth);
     firestore = inject(Firestore);
 
-    // Signal version of the Firebase user observable
-    private fbUser = toSignal(firebaseUser(this.firebaseAuth), { initialValue: null });
+    // Add auth initialization tracking
+    authInitialized = signal(false);
 
-     // Lightweight user info object
+    // Lightweight user info object
     currentUser = signal<UserInterface | null | undefined>(undefined);
 
     // True if logged in
-    isAuthenticated = computed(() => !!this.currentUser());
+    isAuthenticated = computed(() => this.authInitialized() && !!this.currentUser());
 
     constructor() {
-        effect(() => {
-            const user = this.fbUser();
+        // Listen for auth state changes
+        onAuthStateChanged(this.firebaseAuth, (user) => {
             if (user) {
                 this.currentUser.set({
                     displayName: user.displayName!,
@@ -33,7 +32,12 @@ export class AuthService {
             else {
                 this.currentUser.set(null);
             }
-        }, {allowSignalWrites: true});
+
+            // Mark auth as initialized after user state is resolved
+            if (!this.authInitialized()) {
+                this.authInitialized.set(true);
+            }
+        });
     }
 
     register(

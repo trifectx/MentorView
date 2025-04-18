@@ -1,28 +1,51 @@
 import { inject } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { Observable, map, take, filter } from 'rxjs';
+import { toObservable } from '@angular/core/rxjs-interop';
 
 /**
- * Utility that returns true if user is authenticated, or redirects to login.
+ * Creates a guard that waits for auth initialization before executing the provided guard function.
  */
-export function requireAuth(): boolean | UrlTree {
+function createAuthGuard(
+    guardFunction: (isAuthenticated: boolean, router: Router) => boolean | UrlTree): Observable<boolean | UrlTree> {
+
     const authService = inject(AuthService);
     const router = inject(Router);
 
-    return authService.isAuthenticated() 
-        ? true 
-        : router.createUrlTree(['/login']);
+    // Convert authInitialized signal to observable
+    const authInitialized$ = toObservable(authService.authInitialized);
+
+    // Wait for auth to be initialized before making a decision
+    return authInitialized$.pipe(
+        filter((initialized) => initialized),
+        take(1),
+        map(() => guardFunction(authService.isAuthenticated(), router))
+    );
 }
 
 /**
- * Utility that returns true if user is NOT authenticated, or redirects to dashboard.
+ * Redirect to login if unauthenticated.
+ * 
+ * This is used for protected routes like dashboard, interview, etc.
  */
-export function redirectIfAuthenticated(): boolean | UrlTree {
-    const authService = inject(AuthService);
-    const router = inject(Router);
-
-    return authService.isAuthenticated() 
-        ? router.createUrlTree(['/dashboard']) 
-        : true;
+export function requireAuth(): Observable<boolean | UrlTree> {
+    return createAuthGuard((isAuthenticated, router) =>
+        isAuthenticated
+            ? true
+            : router.createUrlTree(['/login'])
+    );
 }
 
+/**
+ * Redirect to dashboard if authenticated.
+ * 
+ * This is used for public routes like login and signup.
+ */
+export function redirectIfAuthenticated(): Observable<boolean | UrlTree> {
+    return createAuthGuard((isAuthenticated, router) =>
+        isAuthenticated
+            ? router.createUrlTree(['/dashboard'])
+            : true
+    );
+}
