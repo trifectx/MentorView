@@ -1,4 +1,5 @@
 export interface UserInterface {
-    email: string,
-    username: string,
+    displayName: string;
+    email: string;
+    photoURL?: string; // if we wanna add a profile picture in the future
 }
