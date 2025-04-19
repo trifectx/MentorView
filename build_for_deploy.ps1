@@ -9,7 +9,7 @@ Set-Location $scriptPath
 Write-Host "Building Angular frontend..." -ForegroundColor Green
 Set-Location .\MentorView-ui
 npm install
-npm run build -- --configuration production
+npm run build
 Set-Location ..
 
 # Step 2: Ensure static folder exists in Flask backend
