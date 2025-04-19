@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_file, send_from_directory
+from agora_token_builder import RtcTokenBuilder, Role_Publisher
 
 # Try different moviepy import approaches to ensure compatibility
 try:
@@ -734,6 +735,36 @@ def delete_interview(interview_id):
     except Exception as e:
         return jsonify({"error": f"Error deleting interview: {str(e)}"}), 500
 
+
+# Agora token generation endpoint
+@app.route('/api/agora-token', methods=['GET'])
+def generate_agora_token():
+    try:
+        # Agora app credentials
+        app_id = "befd2ffdc25840beafaaea7d193ace93"
+        app_certificate = "1e2c9c5a5c5c4d5d8d5c1b2a5c5c4d5d"
+        channel_name = "main"
+        uid = 0  # Set to 0 for a wildcard UID
+        role = Role_Publisher
+        # Token will be valid for 24 hours
+        expiration_time_in_seconds = 86400
+        current_timestamp = int(time.time())
+        privilege_expired_ts = current_timestamp + expiration_time_in_seconds
+
+        # Generate the token
+        token = RtcTokenBuilder.buildTokenWithUid(
+            app_id, app_certificate, channel_name, uid, role, privilege_expired_ts
+        )
+
+        return jsonify({
+            "token": token,
+            "expires_at": datetime.fromtimestamp(privilege_expired_ts).isoformat()
+        }), 200
+    except Exception as e:
+        print(f"Error generating Agora token: {str(e)}")
+        return jsonify({
+            "error": f"Failed to generate token: {str(e)}"
+        }), 500
 
 # API Status endpoint
 @app.route('/status', methods=['GET'])

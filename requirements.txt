@@ -25,3 +25,4 @@ imageio-ffmpeg==0.4.8
 python-dotenv==0.19.0
 requests==2.28.2
 Pillow==9.4.0
+agora-token-builder==1.0.0

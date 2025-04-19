@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 
 // Define global AgoraRTC type
 declare global {
@@ -12,8 +14,12 @@ declare global {
 export class AgoraService {
   // Agora credentials
   private APP_ID = 'befd2ffdc25840beafaaea7d193ace93';
-  private TOKEN = '007eJxTYMh7NfMJa+3vyW68iyeoMM9uq2qYFjORfWt5SJtEgWXVi1UKDEmpaSlGaWkpyUamFiYGSamJaYmJqYnmKYaWxonJqZbGq58yZTQEMjL06IixMDJAIIjPwpCbmJnHwAAAZJ8fpA==';
+  private TOKEN: string = '';
   private CHANNEL = 'main';
+  
+  // Backend API URL
+  private apiUrl = environment.production ? 
+    window.location.origin : 'http://localhost:5000';
 
   public client: any = null;
   public localTracks: any[] = [];
@@ -23,8 +29,13 @@ export class AgoraService {
   private _connectionState = new BehaviorSubject<string>('DISCONNECTED');
   public connectionState$ = this._connectionState.asObservable();
 
-  constructor() { 
+  constructor(private http: HttpClient) { 
     // Wait for document to be fully loaded before initializing
+    this.getAgoraToken().then(() => {
+      console.log('Agora token obtained successfully');
+    }).catch(err => {
+      console.error('Failed to get Agora token:', err);
+    });
     if (document.readyState === 'complete') {
       this.initClient();
     } else {
@@ -64,6 +75,27 @@ export class AgoraService {
       console.log('Agora client initialized');
     } catch (error) {
       console.error('Error creating Agora client:', error);
+    }
+  }
+
+  // Get a fresh Agora token from the backend
+  async getAgoraToken(): Promise<void> {
+    try {
+      const response = await this.http.get<{token: string}>(`${this.apiUrl}/api/agora-token`).toPromise();
+      if (response && response.token) {
+        this.TOKEN = response.token;
+        console.log('Retrieved Agora token from backend');
+      } else {
+        console.error('Invalid token response from backend');
+      }
+    } catch (error) {
+      console.error('Error getting Agora token:', error);
+      // Fallback to a temporary token for development only
+      if (!environment.production) {
+        this.TOKEN = '007eJxTYMh7NfMJa+3vyW68iyeoMM9uq2qYFjORfWt5SJtEgWXVi1UKDEmpaSlGaWkpyUamFiYGSamJaYmJqYnmKYaWxonJqZbGq58yZTQEMjL06IixMDJAIIjPwpCbmJnHwAAAZJ8fpA==';
+        console.warn('Using fallback token for development');
+      }
+      throw error;
     }
   }
 
