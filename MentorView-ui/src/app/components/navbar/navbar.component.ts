@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { LevelIndicatorComponent } from '../level-indicator/level-indicator.component';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-navbar',
@@ -12,6 +13,8 @@ import { LevelIndicatorComponent } from '../level-indicator/level-indicator.comp
 export class NavbarComponent {
   isUserDropdownOpen = false;
 
+  constructor(private authService: AuthService) {}
+
   toggleUserDropdown(event: Event) {
     event.preventDefault();
     event.stopPropagation();
@@ -20,5 +23,10 @@ export class NavbarComponent {
 
   closeUserDropdown() {
     this.isUserDropdownOpen = false;
+  }
+
+  logout() {
+    this.isUserDropdownOpen = false;
+    this.authService.logout().subscribe();
   }
 }
